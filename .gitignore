@@ -1,0 +1,15 @@
+# OS files
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+
+# Dependencies (handled by app/.gitignore too)
+node_modules/
+
+# Next.js
+.next/
+
+# Environment
+.env*
