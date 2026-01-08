@@ -8,13 +8,24 @@ All notable changes to the Fujian Mahjong project.
 
 ### Next Up
 - Kong (quad) declarations
-- Dealer streak bonus system
 
 ---
 
 ## 2026-01-08
 
-### Winner Screen Redesign & Bug Fixes
+### Dealer Streak System & Winner Screen Redesign
+
+#### Added
+- **Dealer Streak System**
+  - Dealer stays if they win (no rotation to next player)
+  - Streak bonus: +1 to base score per consecutive dealer win
+    - 1st win: no bonus
+    - 2nd win: +1 to base
+    - 3rd win: +2 to base, etc.
+  - Streak resets when dealer loses or game draws
+  - "Another Round" button shows "(Dealer Stays)" when dealer won
+  - Winner screen shows streak count and bonus in score breakdown
+  - Session tracks `dealerStreak` across rounds
 
 #### Changed
 - **Winner Screen Redesign**
@@ -36,7 +47,9 @@ All notable changes to the Fujian Mahjong project.
   - Uniform text sizing with larger headers
 
 #### Files Modified
-- `app/src/app/game/[code]/page.tsx` - Winner screen redesign, loading colors, rules tooltip
+- `app/src/types/index.ts` - Added `dealerStreak`, `dealerSeat`, `dealerStreakBonus` to types
+- `app/src/lib/game.ts` - Streak tracking, bonus scoring, `getDealerStreak()` helper
+- `app/src/app/game/[code]/page.tsx` - Winner screen redesign, streak UI, dealer rotation logic
 - `app/src/lib/tiles.ts` - Win detection fix for wildcards
 - `app/src/app/page.tsx` - Removed Status section and MVP footer text
 
