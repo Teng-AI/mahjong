@@ -529,41 +529,42 @@ export default function GamePage() {
       : null;
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-white flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <div className="text-4xl mb-4">
-            {winner.isThreeGolds ? '🀄🀄🀄 THREE GOLDS!' : '🎉 Winner!'}
-          </div>
-          <div className="text-2xl mb-2">{winnerName}</div>
-          <div className="text-lg text-green-300 mb-4">
-            {winner.isThreeGolds
-              ? 'Instant win with 3 Gold tiles!'
-              : winner.isSelfDraw
-                ? 'Won by self-draw'
-                : `Won on ${discarderName}'s discard`}
+      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-white p-4">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-6">
+            <div className="text-4xl mb-2">
+              {winner.isThreeGolds ? '🀄🀄🀄 THREE GOLDS!' : '🎉 Winner!'}
+            </div>
+            <div className="text-2xl font-bold text-amber-400">{winnerName}</div>
+            <div className="text-lg text-slate-300">
+              {winner.isThreeGolds
+                ? 'Instant win with 3 Gold tiles!'
+                : winner.isSelfDraw
+                  ? 'Won by self-draw'
+                  : `Won on ${discarderName}'s discard`}
+            </div>
           </div>
 
-          {/* Show full winning hand */}
-          {winner.hand && (
-            <div className="mb-4">
-              <div className="text-green-400 text-lg mb-2">Winning Hand:</div>
+          {/* Main content - 2 column grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            {/* Left column - Hands */}
+            <div className="space-y-4">
+              {/* Winning Hand */}
+              {winner.hand && (
+                <div className="bg-slate-700/50 rounded-xl p-4 border border-slate-600">
+                  <h3 className="text-lg font-semibold text-amber-400 mb-3">Winning Hand</h3>
 
-              {/* Gold tiles - prominently displayed at top */}
-              {(() => {
-                const goldTiles = winner.hand.filter((t: string) =>
-                  gameState.goldTileType && getTileType(t) === gameState.goldTileType
-                );
-                if (goldTiles.length === 0) return null;
-                return (
-                  <div className="mb-3">
-                    <div className="text-yellow-400 text-lg mb-1">Gold Tiles:</div>
-                    <div className="flex flex-wrap justify-center gap-1">
-                      {goldTiles.map((tileId: string, index: number) => {
+                  {/* All tiles in one row */}
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {(() => {
+                      const sortedHand = sortTilesForDisplay(winner.hand, gameState.goldTileType);
+                      return sortedHand.map((tileId: string, index: number) => {
                         const isWinningTile = tileId === winner.winningTile;
                         return (
-                          <div key={`gold-${index}`} className="relative">
+                          <div key={`hand-${index}`} className="relative">
                             {isWinningTile && (
-                              <div className="absolute -inset-1 bg-yellow-400 rounded animate-pulse" />
+                              <div className="absolute -inset-1 bg-amber-400 rounded animate-pulse" />
                             )}
                             <Tile
                               tileId={tileId}
@@ -572,205 +573,167 @@ export default function GamePage() {
                             />
                           </div>
                         );
-                      })}
-                    </div>
+                      });
+                    })()}
                   </div>
-                );
-              })()}
 
-              {/* Concealed hand tiles (non-gold, with winning tile integrated and highlighted) */}
-              <div className="mb-2">
-                <div className="text-green-300 text-lg mb-1">Concealed:</div>
-                <div className="flex flex-wrap justify-center gap-1">
-                  {(() => {
-                    // Get non-gold tiles and sort them
-                    const nonGoldTiles = winner.hand.filter((t: string) =>
-                      !gameState.goldTileType || getTileType(t) !== gameState.goldTileType
-                    );
-                    const sortedTiles = sortTilesForDisplay(nonGoldTiles, gameState.goldTileType);
-
-                    return sortedTiles.map((tileId: string, index: number) => {
-                      const isWinningTile = tileId === winner.winningTile;
-                      return (
-                        <div key={`hand-${index}`} className="relative">
-                          {isWinningTile && (
-                            <div className="absolute -inset-1 bg-yellow-400 rounded animate-pulse" />
-                          )}
-                          <Tile
-                            tileId={tileId}
-                            goldTileType={gameState.goldTileType}
-                            size="md"
-                          />
+                  {/* Exposed melds */}
+                  {gameState.exposedMelds?.[`seat${winner.seat}` as keyof typeof gameState.exposedMelds]?.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-slate-400 text-sm">Called:</span>
+                      {gameState.exposedMelds[`seat${winner.seat}` as keyof typeof gameState.exposedMelds].map((meld, meldIndex) => (
+                        <div key={`meld-${meldIndex}`} className="flex gap-0.5 bg-slate-800/70 rounded p-1">
+                          {meld.tiles.map((tileId: string, tileIndex: number) => (
+                            <Tile
+                              key={`meld-${meldIndex}-${tileIndex}`}
+                              tileId={tileId}
+                              goldTileType={gameState.goldTileType}
+                              size="md"
+                            />
+                          ))}
                         </div>
-                      );
-                    });
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Your Hand (if not winner) */}
+              {mySeat !== null && mySeat !== winner.seat && myHand.length > 0 && (
+                <div className="bg-slate-700/50 rounded-xl p-4 border border-slate-600">
+                  <h3 className="text-lg font-semibold text-blue-400 mb-3">Your Hand</h3>
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {sortTilesForDisplay(myHand, gameState.goldTileType).map((tileId: string, index: number) => (
+                      <Tile
+                        key={`my-hand-${index}`}
+                        tileId={tileId}
+                        goldTileType={gameState.goldTileType}
+                        size="md"
+                      />
+                    ))}
+                  </div>
+                  {gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds]?.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-slate-400 text-sm">Called:</span>
+                      {gameState.exposedMelds[`seat${mySeat}` as keyof typeof gameState.exposedMelds].map((meld, meldIndex) => (
+                        <div key={`my-meld-${meldIndex}`} className="flex gap-0.5 bg-slate-800/70 rounded p-1">
+                          {meld.tiles.map((tileId: string, tileIndex: number) => (
+                            <Tile
+                              key={`my-meld-${meldIndex}-${tileIndex}`}
+                              tileId={tileId}
+                              goldTileType={gameState.goldTileType}
+                              size="md"
+                            />
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Right column - Scores */}
+            <div className="space-y-4">
+              {/* Score Breakdown */}
+              <div className="bg-slate-700/50 rounded-xl p-4 border border-slate-600">
+                <h3 className="text-lg font-semibold text-amber-400 mb-3">Score Breakdown</h3>
+                <div className="text-lg space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-slate-300">Base:</span>
+                    <span>{winner.score.base}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-300">Bonus tiles:</span>
+                    <span>+{winner.score.bonusTiles}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-300">Gold tiles:</span>
+                    <span>+{winner.score.golds}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-slate-600 pt-1">
+                    <span className="text-slate-300">Subtotal:</span>
+                    <span>{winner.score.subtotal}</span>
+                  </div>
+                  {winner.isSelfDraw && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-300">Self-draw:</span>
+                      <span>×{winner.score.multiplier}</span>
+                    </div>
+                  )}
+                  {winner.isThreeGolds && (
+                    <div className="flex justify-between text-yellow-400">
+                      <span>Three Golds bonus:</span>
+                      <span>+{winner.score.threeGoldsBonus}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t border-slate-600 pt-2 font-bold text-xl text-amber-400">
+                    <span>Total:</span>
+                    <span>{winner.score.total}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cumulative Scores */}
+              {sessionScores && sessionScores.rounds && (
+                <div className="bg-slate-700/50 rounded-xl p-4 border border-slate-600">
+                  <h3 className="text-lg font-semibold text-blue-400 mb-3">
+                    Session Scores (Round {sessionScores.rounds?.length || 1})
+                  </h3>
+                  {(() => {
+                    const netPositions = calculateNetPositions(sessionScores.rounds || []);
+                    const rawPoints: Record<string, number> = { seat0: 0, seat1: 0, seat2: 0, seat3: 0 };
+                    for (const round of sessionScores.rounds || []) {
+                      if (round.winnerSeat !== null && round.score > 0) {
+                        rawPoints[`seat${round.winnerSeat}`] += round.score;
+                      }
+                    }
+                    return (
+                      <div className="text-base">
+                        <div className="flex justify-between text-slate-400 text-sm mb-2 border-b border-slate-600 pb-1">
+                          <span>Player</span>
+                          <div className="flex gap-6">
+                            <span className="w-12 text-right">Won</span>
+                            <span className="w-12 text-right">Net</span>
+                          </div>
+                        </div>
+                        {([0, 1, 2, 3] as SeatIndex[]).map((seat) => {
+                          const player = room?.players?.[`seat${seat}` as keyof typeof room.players];
+                          const playerName = player?.name || `Player ${seat + 1}`;
+                          const isBot = player?.isBot;
+                          const net = netPositions[`seat${seat}`] || 0;
+                          const won = rawPoints[`seat${seat}`] || 0;
+                          const isWinnerSeat = winner.seat === seat;
+                          return (
+                            <div
+                              key={seat}
+                              className={`flex justify-between py-1 ${isWinnerSeat ? 'text-amber-400 font-semibold' : 'text-slate-200'}`}
+                            >
+                              <span className="truncate">{isBot ? '🤖 ' : ''}{playerName}</span>
+                              <div className="flex gap-6">
+                                <span className="w-12 text-right">{won}</span>
+                                <span className={`w-12 text-right ${net < 0 ? 'text-red-400' : net > 0 ? 'text-green-400' : ''}`}>
+                                  {net > 0 ? '+' : ''}{net}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
                   })()}
                 </div>
-              </div>
-
-              {/* Exposed melds (called from discard pile) */}
-              {gameState.exposedMelds?.[`seat${winner.seat}` as keyof typeof gameState.exposedMelds]?.length > 0 && (
-                <div className="mt-3">
-                  <div className="text-green-300 text-lg mb-1">Called:</div>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {gameState.exposedMelds[`seat${winner.seat}` as keyof typeof gameState.exposedMelds].map((meld, meldIndex) => (
-                      <div key={`meld-${meldIndex}`} className="flex gap-0.5 bg-green-700/50 px-1 py-0.5 rounded">
-                        {meld.tiles.map((tileId: string, tileIndex: number) => (
-                          <Tile
-                            key={`meld-${meldIndex}-${tileIndex}`}
-                            tileId={tileId}
-                            goldTileType={gameState.goldTileType}
-                            size="md"
-                          />
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
               )}
-            </div>
-          )}
-
-          {/* Show viewing player's hand (only if they're not the winner) */}
-          {mySeat !== null && mySeat !== winner.seat && myHand.length > 0 && (
-            <div className="mb-4 mt-6 pt-4 border-t border-green-700">
-              <div className="text-blue-400 text-lg mb-2">Your Hand:</div>
-
-              {/* Concealed tiles */}
-              <div className="mb-2">
-                <div className="flex flex-wrap justify-center gap-1">
-                  {sortTilesForDisplay(myHand, gameState.goldTileType).map((tileId: string, index: number) => (
-                    <Tile
-                      key={`my-hand-${index}`}
-                      tileId={tileId}
-                      goldTileType={gameState.goldTileType}
-                      size="md"
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* My exposed melds */}
-              {gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds]?.length > 0 && (
-                <div className="mt-2">
-                  <div className="text-blue-300 text-lg mb-1">Called:</div>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {gameState.exposedMelds[`seat${mySeat}` as keyof typeof gameState.exposedMelds].map((meld, meldIndex) => (
-                      <div key={`my-meld-${meldIndex}`} className="flex gap-0.5 bg-green-700/50 px-1 py-0.5 rounded">
-                        {meld.tiles.map((tileId: string, tileIndex: number) => (
-                          <Tile
-                            key={`my-meld-${meldIndex}-${tileIndex}`}
-                            tileId={tileId}
-                            goldTileType={gameState.goldTileType}
-                            size="md"
-                          />
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="bg-green-800/50 rounded-lg p-4 mb-6 text-left">
-            <h3 className="font-semibold mb-2">Score Breakdown</h3>
-            <div className="text-lg space-y-1">
-              <div className="flex justify-between">
-                <span>Base:</span>
-                <span>{winner.score.base}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Bonus tiles:</span>
-                <span>+{winner.score.bonusTiles}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Gold tiles:</span>
-                <span>+{winner.score.golds}</span>
-              </div>
-              <div className="flex justify-between border-t border-green-600 pt-1">
-                <span>Subtotal:</span>
-                <span>{winner.score.subtotal}</span>
-              </div>
-              {winner.isSelfDraw && (
-                <div className="flex justify-between">
-                  <span>Self-draw:</span>
-                  <span>×{winner.score.multiplier}</span>
-                </div>
-              )}
-              {winner.isThreeGolds && (
-                <div className="flex justify-between text-yellow-400">
-                  <span>Three Golds bonus:</span>
-                  <span>+{winner.score.threeGoldsBonus}</span>
-                </div>
-              )}
-              <div className="flex justify-between border-t border-green-600 pt-1 font-bold text-lg">
-                <span>Total:</span>
-                <span>{winner.score.total}</span>
-              </div>
             </div>
           </div>
 
-          {/* Cumulative Scores Section */}
-          {sessionScores && sessionScores.rounds && (
-            <div className="bg-blue-800/50 rounded-lg p-4 mb-6 text-left">
-              <h3 className="font-semibold mb-2">
-                Cumulative Scores (Round {sessionScores.rounds?.length || 1})
-              </h3>
-              {(() => {
-                const netPositions = calculateNetPositions(sessionScores.rounds || []);
-                // Calculate raw points won (just wins, no losses)
-                const rawPoints: Record<string, number> = { seat0: 0, seat1: 0, seat2: 0, seat3: 0 };
-                for (const round of sessionScores.rounds || []) {
-                  if (round.winnerSeat !== null && round.score > 0) {
-                    rawPoints[`seat${round.winnerSeat}`] += round.score;
-                  }
-                }
-                return (
-                  <div className="text-lg">
-                    {/* Header row */}
-                    <div className="flex justify-between text-green-300 text-lg mb-1 border-b border-blue-700 pb-1">
-                      <span>Player</span>
-                      <div className="flex gap-4">
-                        <span className="w-16 text-right">Won</span>
-                        <span className="w-16 text-right">Net</span>
-                      </div>
-                    </div>
-                    {/* Player rows */}
-                    {([0, 1, 2, 3] as SeatIndex[]).map((seat) => {
-                      const player = room?.players?.[`seat${seat}` as keyof typeof room.players];
-                      const playerName = player?.name || `Player ${seat + 1}`;
-                      const isBot = player?.isBot;
-                      const net = netPositions[`seat${seat}`] || 0;
-                      const won = rawPoints[`seat${seat}`] || 0;
-                      const isWinner = winner.seat === seat;
-                      return (
-                        <div
-                          key={seat}
-                          className={`flex justify-between py-0.5 ${isWinner ? 'text-yellow-400 font-semibold' : ''}`}
-                        >
-                          <span>{isBot ? '🤖 ' : ''}{playerName} ({SEAT_LABELS[seat]}):</span>
-                          <div className="flex gap-4">
-                            <span className="w-16 text-right">{won}</span>
-                            <span className={`w-16 text-right ${net < 0 ? 'text-red-400' : net > 0 ? 'text-green-400' : ''}`}>
-                              {net > 0 ? '+' : ''}{net}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-
+          {/* Action buttons - centered at bottom */}
           <div className="flex flex-col items-center gap-3">
             <div className="flex gap-3 justify-center flex-wrap">
               {sessionScores && (
                 <button
                   onClick={() => setShowSettleModal(true)}
-                  className="px-6 py-3 bg-blue-500 hover:bg-blue-400 text-white font-semibold rounded-lg"
+                  className="px-8 py-3 bg-blue-500 hover:bg-blue-400 text-white font-semibold rounded-lg text-lg"
                 >
                   Settle
                 </button>
@@ -778,25 +741,24 @@ export default function GamePage() {
               {room?.hostId === user?.uid ? (
                 <button
                   onClick={async () => {
-                    // Rotate dealer to next seat
                     const nextDealer = ((gameState.dealerSeat + 1) % 4) as SeatIndex;
                     await startGame(nextDealer);
                   }}
-                  className="px-6 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-semibold rounded-lg"
+                  className="px-8 py-3 bg-amber-500 hover:bg-amber-400 text-black font-semibold rounded-lg text-lg"
                 >
                   Another Round
                 </button>
               ) : (
                 <button
                   disabled
-                  className="px-6 py-3 bg-gray-500 text-gray-300 font-semibold rounded-lg cursor-not-allowed"
+                  className="px-8 py-3 bg-gray-600 text-gray-400 font-semibold rounded-lg cursor-not-allowed text-lg"
                 >
                   Another Round
                 </button>
               )}
             </div>
             {room?.hostId !== user?.uid && (
-              <p className="text-lg text-gray-400">Waiting for host to start next round...</p>
+              <p className="text-base text-slate-400">Waiting for host to start next round...</p>
             )}
           </div>
 
