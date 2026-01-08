@@ -7,7 +7,46 @@ All notable changes to the Fujian Mahjong project.
 ## [Unreleased]
 
 ### Next Up
-- Phase 6: Win Detection (basic winning hand algorithm)
+- Phase 8: Calls System (Chow, Pung, Kong)
+
+---
+
+## 2025-01-07 (Phase 6+7)
+
+### Phase 6+7: Win Detection with Gold Wildcards - COMPLETE
+
+#### Added
+- **Win detection algorithm** with recursive backtracking
+  - `canFormWinningHand()` - checks if 17 tiles form 5 sets + 1 pair
+  - `tryFormSetsAndPair()` - recursive set formation with wildcard support
+  - `canFormPair()` - pair validation with wildcards
+  - `getWinningTiles()` - tenpai detection (finds all winning tiles)
+- **Gold tile wildcard support**
+  - Gold tiles can substitute for any suit tile in sets and pairs
+  - Proper counting of wildcards in recursive algorithm
+  - Chow completion with 1 or 2 wildcards
+  - Pung completion with wildcards
+- **Win declaration functions**
+  - `canWin()` - check if player can declare win
+  - `declareSelfDrawWin()` - handle self-draw win with scoring
+  - `canWinOnDiscard()` - check if can win on discarded tile
+  - `declareDiscardWin()` - handle discard win with scoring
+- **Win button UI**
+  - Pulsing golden "WIN!" button when player can win
+  - Self-draw win button (appears after drawing winning tile)
+  - Discard win button (appears when another player discards your winning tile)
+- **Enhanced winner screen**
+  - Shows win type (self-draw, discard, Three Golds)
+  - Displays winning tile for discard wins
+  - Shows who discarded the winning tile
+  - Complete score breakdown
+
+#### Files Created/Modified
+- `app/src/lib/tiles.ts` - Win detection algorithm
+- `app/src/lib/game.ts` - Win declaration functions
+- `app/src/hooks/useGame.ts` - Win state and handlers
+- `app/src/app/game/[code]/page.tsx` - Win button UI and enhanced winner screen
+- `app/src/types/index.ts` - Added winningTile, discarderSeat to WinnerInfo
 
 ---
 

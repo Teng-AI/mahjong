@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState, useRef } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useRoom } from '@/hooks/useRoom';
 import { useGame } from '@/hooks/useGame';
-import { getTileType, getTileDisplayText, isBonusTile } from '@/lib/tiles';
-import { SeatIndex, TileId, TileType, Meld } from '@/types';
+import { getTileType, getTileDisplayText, isBonusTile, isGoldTile, sortTilesForDisplay } from '@/lib/tiles';
+import { SeatIndex, TileId, TileType, Meld, CallAction, PendingCall, PendingCalls } from '@/types';
 
 // ============================================
 // TILE COMPONENT
@@ -18,10 +18,13 @@ interface TileProps {
   onClick?: () => void;
   selected?: boolean;
   isJustDrawn?: boolean;
+  isChowValid?: boolean; // Valid for chow selection
+  isChowSelected?: boolean; // Selected for chow
+  disabled?: boolean;
   size?: 'sm' | 'md' | 'lg';
 }
 
-function Tile({ tileId, goldTileType, onClick, selected, isJustDrawn, size = 'md' }: TileProps) {
+function Tile({ tileId, goldTileType, onClick, selected, isJustDrawn, isChowValid, isChowSelected, disabled, size = 'md' }: TileProps) {
   const tileType = getTileType(tileId);
   const displayText = getTileDisplayText(tileType);
   const isGold = goldTileType && tileType === goldTileType;
@@ -36,7 +39,7 @@ function Tile({ tileId, goldTileType, onClick, selected, isJustDrawn, size = 'md
   return (
     <button
       onClick={onClick}
-      disabled={!onClick}
+      disabled={!onClick || disabled}
       className={`
         ${sizeClasses[size]}
         rounded-md border-2 font-bold
@@ -50,7 +53,10 @@ function Tile({ tileId, goldTileType, onClick, selected, isJustDrawn, size = 'md
         }
         ${selected ? 'ring-2 ring-blue-500 -translate-y-2' : ''}
         ${isJustDrawn ? 'ring-2 ring-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]' : ''}
-        ${onClick ? 'hover:brightness-95 cursor-pointer' : 'cursor-default'}
+        ${isChowValid ? 'ring-2 ring-cyan-400' : ''}
+        ${isChowSelected ? 'ring-2 ring-green-500 -translate-y-2 bg-green-100' : ''}
+        ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
+        ${onClick && !disabled ? 'hover:brightness-95 cursor-pointer' : 'cursor-default'}
       `}
     >
       {displayText}
@@ -73,16 +79,23 @@ interface HandProps {
 function Hand({ tiles, goldTileType, onTileClick, selectedTile, justDrawnTile }: HandProps) {
   return (
     <div className="flex gap-1 flex-wrap justify-center">
-      {tiles.map((tile, index) => (
-        <Tile
-          key={`${tile}-${index}`}
-          tileId={tile}
-          goldTileType={goldTileType}
-          onClick={onTileClick ? () => onTileClick(tile) : undefined}
-          selected={selectedTile === tile}
-          isJustDrawn={justDrawnTile === tile}
-        />
-      ))}
+      {tiles.map((tile, index) => {
+        // Gold tiles cannot be discarded - disable click when in discard mode
+        const isGold = goldTileType ? isGoldTile(tile, goldTileType) : false;
+        const canClick = onTileClick && !isGold;
+
+        return (
+          <Tile
+            key={`${tile}-${index}`}
+            tileId={tile}
+            goldTileType={goldTileType}
+            onClick={canClick ? () => onTileClick(tile) : undefined}
+            selected={selectedTile === tile}
+            isJustDrawn={justDrawnTile === tile}
+            disabled={!!onTileClick && isGold}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -188,17 +201,24 @@ function PlayerInfo({
 export default function GamePage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const roomCode = (params.code as string).toUpperCase();
+
+  // Allow seat override via URL param for testing (e.g., ?seat=0)
+  const seatOverride = searchParams.get('seat');
 
   const { user, loading: authLoading } = useAuth();
   const {
     room,
     loading: roomLoading,
-    mySeat,
+    mySeat: actualSeat,
   } = useRoom({
     roomCode,
     userId: user?.uid || null,
   });
+
+  // Use seat override if provided, otherwise use actual seat
+  const mySeat = seatOverride !== null ? (parseInt(seatOverride) as SeatIndex) : actualSeat;
 
   const {
     gameState,
@@ -208,6 +228,18 @@ export default function GamePage() {
     shouldDraw,
     handleDraw,
     handleDiscard,
+    // Phase 6: Win detection
+    canWinNow,
+    canWinOnLastDiscard,
+    handleSelfDrawWin,
+    handleDiscardWin,
+    // Phase 8: Calling system
+    isCallingPhase,
+    myPendingCall,
+    myValidCalls,
+    validChowTiles,
+    isNextInTurn,
+    handleCallResponse,
   } = useGame({
     roomCode,
     mySeat,
@@ -216,6 +248,18 @@ export default function GamePage() {
   const [processingBonus, setProcessingBonus] = useState(false);
   const [selectedTile, setSelectedTile] = useState<TileId | null>(null);
   const [processingAction, setProcessingAction] = useState(false);
+
+  // Phase 8: Chow selection mode
+  const [chowSelectionMode, setChowSelectionMode] = useState(false);
+  const [selectedChowTiles, setSelectedChowTiles] = useState<TileId[]>([]);
+
+  // Game log auto-scroll
+  const logRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight;
+    }
+  }, [gameState?.actionLog?.length]);
 
   // Handle bonus exposure when it's my turn
   const handleBonusExposure = async () => {
@@ -267,10 +311,133 @@ export default function GamePage() {
   };
 
   // Handle tile click for selection (only during discard phase)
+  // Gold tiles cannot be discarded - they must be kept
   const onTileClick = (tile: TileId) => {
     if (!isMyTurn || shouldDraw || gameState?.phase !== 'playing') return;
+    // Gold tiles cannot be selected for discard
+    if (gameState?.goldTileType && isGoldTile(tile, gameState.goldTileType)) return;
     setSelectedTile(selectedTile === tile ? null : tile);
   };
+
+  // Handle declaring a self-draw win
+  const onDeclareWin = async () => {
+    if (processingAction) return;
+
+    setProcessingAction(true);
+    try {
+      const result = await handleSelfDrawWin();
+      if (!result.success) {
+        console.error('Win declaration failed:', result.error);
+      }
+    } catch (err) {
+      console.error('Win declaration failed:', err);
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  // Handle declaring a win on discard
+  const onDeclareDiscardWin = async () => {
+    if (processingAction) return;
+
+    setProcessingAction(true);
+    try {
+      const result = await handleDiscardWin();
+      if (!result.success) {
+        console.error('Win declaration failed:', result.error);
+      }
+    } catch (err) {
+      console.error('Win declaration failed:', err);
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  // Phase 8: Handle call response (Win, Pung, Pass)
+  const onCallResponse = async (action: CallAction) => {
+    if (processingAction) return;
+
+    setProcessingAction(true);
+    try {
+      const result = await handleCallResponse(action);
+      if (!result.success) {
+        console.error('Call response failed:', result.error);
+      }
+      // Reset chow selection state
+      setChowSelectionMode(false);
+      setSelectedChowTiles([]);
+    } catch (err) {
+      console.error('Call response failed:', err);
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  // Phase 8: Enter chow selection mode
+  const onChowClick = () => {
+    setChowSelectionMode(true);
+    setSelectedChowTiles([]);
+  };
+
+  // Phase 8: Cancel chow selection
+  const onCancelChow = () => {
+    setChowSelectionMode(false);
+    setSelectedChowTiles([]);
+  };
+
+  // Phase 8: Handle tile click during chow selection
+  const onChowTileClick = (tile: TileId) => {
+    if (selectedChowTiles.length === 0) {
+      // First tile selection
+      if (validChowTiles.has(tile)) {
+        setSelectedChowTiles([tile]);
+      }
+    } else if (selectedChowTiles.length === 1) {
+      // Second tile selection
+      const validSecondTiles = validChowTiles.get(selectedChowTiles[0]) || [];
+      if (validSecondTiles.includes(tile)) {
+        setSelectedChowTiles([selectedChowTiles[0], tile]);
+      } else if (tile === selectedChowTiles[0]) {
+        // Clicked same tile - deselect
+        setSelectedChowTiles([]);
+      } else if (validChowTiles.has(tile)) {
+        // Clicked a different valid first tile - restart
+        setSelectedChowTiles([tile]);
+      }
+    } else {
+      // Already have 2 tiles selected - reset to this tile if valid
+      if (validChowTiles.has(tile)) {
+        setSelectedChowTiles([tile]);
+      }
+    }
+  };
+
+  // Phase 8: Confirm chow selection
+  const onConfirmChow = async () => {
+    if (selectedChowTiles.length !== 2 || processingAction) return;
+
+    setProcessingAction(true);
+    try {
+      const result = await handleCallResponse('chow', selectedChowTiles as [TileId, TileId]);
+      if (!result.success) {
+        console.error('Chow failed:', result.error);
+      }
+      setChowSelectionMode(false);
+      setSelectedChowTiles([]);
+    } catch (err) {
+      console.error('Chow failed:', err);
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  // Reset chow selection when leaving calling phase
+  useEffect(() => {
+    if (!isCallingPhase) {
+      setChowSelectionMode(false);
+      setSelectedChowTiles([]);
+    }
+  }, [isCallingPhase]);
 
   // Loading state
   if (authLoading || roomLoading || gameLoading) {
@@ -326,6 +493,9 @@ export default function GamePage() {
     const winner = gameState.winner;
     const winnerName =
       room.players[`seat${winner.seat}` as keyof typeof room.players]?.name || 'Unknown';
+    const discarderName = winner.discarderSeat !== undefined
+      ? room.players[`seat${winner.discarderSeat}` as keyof typeof room.players]?.name || 'Unknown'
+      : null;
 
     return (
       <div className="min-h-screen bg-gradient-to-b from-green-900 to-green-950 text-white flex items-center justify-center">
@@ -333,7 +503,102 @@ export default function GamePage() {
           <div className="text-4xl mb-4">
             {winner.isThreeGolds ? '🀄🀄🀄 THREE GOLDS!' : '🎉 Winner!'}
           </div>
-          <div className="text-2xl mb-4">{winnerName}</div>
+          <div className="text-2xl mb-2">{winnerName}</div>
+          <div className="text-sm text-green-300 mb-4">
+            {winner.isThreeGolds
+              ? 'Instant win with 3 Gold tiles!'
+              : winner.isSelfDraw
+                ? 'Won by self-draw'
+                : `Won on ${discarderName}'s discard`}
+          </div>
+
+          {/* Show full winning hand */}
+          {winner.hand && (
+            <div className="mb-4">
+              <div className="text-green-400 text-sm mb-2">Winning Hand:</div>
+
+              {/* Gold tiles - prominently displayed at top */}
+              {(() => {
+                const goldTiles = winner.hand.filter((t: string) =>
+                  gameState.goldTileType && getTileType(t) === gameState.goldTileType
+                );
+                if (goldTiles.length === 0) return null;
+                return (
+                  <div className="mb-3">
+                    <div className="text-yellow-400 text-xs mb-1">Gold Tiles:</div>
+                    <div className="flex flex-wrap justify-center gap-1">
+                      {goldTiles.map((tileId: string, index: number) => {
+                        const isWinningTile = tileId === winner.winningTile;
+                        return (
+                          <div key={`gold-${index}`} className="relative">
+                            {isWinningTile && (
+                              <div className="absolute -inset-1 bg-yellow-400 rounded animate-pulse" />
+                            )}
+                            <Tile
+                              tileId={tileId}
+                              goldTileType={gameState.goldTileType}
+                              size="sm"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Concealed hand tiles (non-gold, with winning tile integrated and highlighted) */}
+              <div className="mb-2">
+                <div className="text-green-300 text-xs mb-1">Concealed:</div>
+                <div className="flex flex-wrap justify-center gap-1">
+                  {(() => {
+                    // Get non-gold tiles and sort them
+                    const nonGoldTiles = winner.hand.filter((t: string) =>
+                      !gameState.goldTileType || getTileType(t) !== gameState.goldTileType
+                    );
+                    const sortedTiles = sortTilesForDisplay(nonGoldTiles, gameState.goldTileType);
+
+                    return sortedTiles.map((tileId: string, index: number) => {
+                      const isWinningTile = tileId === winner.winningTile;
+                      return (
+                        <div key={`hand-${index}`} className="relative">
+                          {isWinningTile && (
+                            <div className="absolute -inset-1 bg-yellow-400 rounded animate-pulse" />
+                          )}
+                          <Tile
+                            tileId={tileId}
+                            goldTileType={gameState.goldTileType}
+                            size="sm"
+                          />
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+
+              {/* Exposed melds (called from discard pile) */}
+              {gameState.exposedMelds?.[`seat${winner.seat}` as keyof typeof gameState.exposedMelds]?.length > 0 && (
+                <div className="mt-3">
+                  <div className="text-green-300 text-xs mb-1">Called:</div>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {gameState.exposedMelds[`seat${winner.seat}` as keyof typeof gameState.exposedMelds].map((meld, meldIndex) => (
+                      <div key={`meld-${meldIndex}`} className="flex gap-0.5 bg-green-700/50 px-1 py-0.5 rounded">
+                        {meld.tiles.map((tileId: string, tileIndex: number) => (
+                          <Tile
+                            key={`meld-${meldIndex}-${tileIndex}`}
+                            tileId={tileId}
+                            goldTileType={gameState.goldTileType}
+                            size="sm"
+                          />
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="bg-green-800/50 rounded-lg p-4 mb-6 text-left">
             <h3 className="font-semibold mb-2">Score Breakdown</h3>
@@ -422,6 +687,19 @@ export default function GamePage() {
                 : `Waiting for ${SEAT_LABELS[gameState.currentPlayerSeat]} to expose bonus tiles...`}
             </div>
           </div>
+        ) : isCallingPhase ? (
+          <div className="bg-orange-500/20 rounded-lg p-3">
+            <div className="text-lg font-semibold text-orange-300">Calling Phase</div>
+            <div className="text-sm text-orange-200">
+              {myPendingCall === 'discarder'
+                ? 'Waiting for other players to respond...'
+                : myPendingCall && typeof myPendingCall === 'string'
+                  ? `You chose: ${myPendingCall.toUpperCase()} - Waiting for others...`
+                  : chowSelectionMode
+                    ? 'Select 2 tiles from your hand to form the chow'
+                    : 'Choose: Win, Pung, Chow, or Pass'}
+            </div>
+          </div>
         ) : gameState.phase === 'playing' ? (
           <div className="bg-green-500/20 rounded-lg p-3">
             <div className="text-lg font-semibold text-green-300">
@@ -482,9 +760,9 @@ export default function GamePage() {
       {gameState.actionLog?.length > 0 && (
         <div className="mb-4">
           <div className="text-sm text-green-400 mb-2">Game Log ({gameState.actionLog.length} entries)</div>
-          <div className="bg-green-800/30 rounded-lg p-3 max-h-24 overflow-y-auto text-xs space-y-1">
-            {[...(gameState.actionLog || [])].reverse().map((entry, index) => (
-              <div key={index} className={index === 0 ? 'text-white' : 'text-green-300/70'}>
+          <div ref={logRef} className="bg-green-800/30 rounded-lg p-3 max-h-24 overflow-y-auto text-xs space-y-1">
+            {(gameState.actionLog || []).map((entry, index, arr) => (
+              <div key={index} className={index === arr.length - 1 ? 'text-white' : 'text-green-300/70'}>
                 {entry}
               </div>
             ))}
@@ -562,21 +840,54 @@ export default function GamePage() {
 
       {/* My hand */}
       <div className="bg-green-800/50 rounded-lg p-4">
-        <div className="text-sm text-green-400 mb-3">Your Hand ({myHand.length} tiles)</div>
-        <Hand
-          tiles={myHand}
-          goldTileType={gameState.goldTileType || undefined}
-          onTileClick={isMyTurn && !shouldDraw && gameState.phase === 'playing' ? onTileClick : undefined}
-          selectedTile={selectedTile}
-          justDrawnTile={
-            isMyTurn &&
-            !shouldDraw &&
-            gameState.lastAction?.type === 'draw' &&
-            gameState.lastAction.playerSeat === mySeat
-              ? gameState.lastAction.tile
-              : null
-          }
-        />
+        <div className="text-sm text-green-400 mb-3">
+          Your Hand ({myHand.length} tiles)
+          {chowSelectionMode && (
+            <span className="ml-2 text-cyan-400">
+              - Select tiles for Chow ({selectedChowTiles.length}/2)
+            </span>
+          )}
+        </div>
+        {chowSelectionMode ? (
+          // Chow selection mode - show tiles with chow highlighting
+          <div className="flex gap-1 flex-wrap justify-center">
+            {myHand.map((tile, index) => {
+              const isValidFirst = validChowTiles.has(tile);
+              const isSelected = selectedChowTiles.includes(tile);
+              const isValidSecond = selectedChowTiles.length === 1 &&
+                (validChowTiles.get(selectedChowTiles[0]) || []).includes(tile);
+              const canClick = isValidFirst || isValidSecond;
+
+              return (
+                <Tile
+                  key={`${tile}-${index}`}
+                  tileId={tile}
+                  goldTileType={gameState.goldTileType}
+                  onClick={canClick ? () => onChowTileClick(tile) : undefined}
+                  isChowValid={selectedChowTiles.length === 0 ? isValidFirst : isValidSecond}
+                  isChowSelected={isSelected}
+                  disabled={!canClick && !isSelected}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          // Normal mode
+          <Hand
+            tiles={myHand}
+            goldTileType={gameState.goldTileType || undefined}
+            onTileClick={isMyTurn && !shouldDraw && gameState.phase === 'playing' ? onTileClick : undefined}
+            selectedTile={selectedTile}
+            justDrawnTile={
+              isMyTurn &&
+              !shouldDraw &&
+              gameState.lastAction?.type === 'draw' &&
+              gameState.lastAction.playerSeat === mySeat
+                ? gameState.lastAction.tile
+                : null
+            }
+          />
+        )}
       </div>
 
       {/* Bonus exposure button */}
@@ -592,9 +903,146 @@ export default function GamePage() {
         </div>
       )}
 
+      {/* Phase 8: Call buttons during calling phase */}
+      {isCallingPhase && myPendingCall === null && !chowSelectionMode && (
+        <div className="mt-6">
+          {/* Pending calls status */}
+          {gameState.pendingCalls && (
+            <div className="text-center mb-4">
+              <div className="inline-flex gap-4 text-sm bg-green-800/30 rounded-lg px-4 py-2">
+                {([0, 1, 2, 3] as SeatIndex[]).map(seat => {
+                  const call = gameState.pendingCalls![`seat${seat}` as keyof PendingCalls];
+                  if (call === 'discarder') return null;
+                  const playerName = room.players[`seat${seat}` as keyof typeof room.players]?.name || SEAT_LABELS[seat];
+                  const isSelf = seat === mySeat;
+
+                  return (
+                    <div key={seat} className="flex items-center gap-1">
+                      <span className={isSelf ? 'text-blue-400' : 'text-green-400'}>
+                        {isSelf ? 'You' : playerName}:
+                      </span>
+                      <span className={call ? 'text-green-300' : 'text-yellow-400'}>
+                        {call
+                          ? (isSelf ? (call === 'pass' ? 'Passed' : call.toUpperCase()) : 'Ready')
+                          : 'Thinking...'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Call action buttons */}
+          <div className="text-center">
+            <div className="flex flex-wrap justify-center gap-3">
+              {/* Win button */}
+              {myValidCalls?.canWin && (
+                <button
+                  onClick={() => onCallResponse('win')}
+                  disabled={processingAction}
+                  className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg"
+                >
+                  {processingAction ? 'Calling...' : 'WIN!'}
+                </button>
+              )}
+
+              {/* Pung button */}
+              {myValidCalls?.canPung && (
+                <button
+                  onClick={() => onCallResponse('pung')}
+                  disabled={processingAction}
+                  className="px-6 py-3 bg-purple-500 hover:bg-purple-400 disabled:bg-gray-500 text-white font-bold rounded-lg"
+                >
+                  {processingAction ? 'Calling...' : 'PUNG'}
+                </button>
+              )}
+
+              {/* Chow button */}
+              {myValidCalls?.canChow && (
+                <button
+                  onClick={onChowClick}
+                  disabled={processingAction}
+                  className="px-6 py-3 bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-500 text-white font-bold rounded-lg"
+                >
+                  CHOW
+                </button>
+              )}
+
+              {/* Pass button - ALWAYS available */}
+              <button
+                onClick={() => onCallResponse('pass')}
+                disabled={processingAction}
+                className="px-6 py-3 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 text-white font-bold rounded-lg"
+              >
+                {processingAction ? 'Passing...' : 'PASS'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Phase 8: Chow selection mode buttons */}
+      {isCallingPhase && chowSelectionMode && (
+        <div className="mt-6 text-center">
+          <div className="flex justify-center gap-3">
+            <button
+              onClick={onConfirmChow}
+              disabled={selectedChowTiles.length !== 2 || processingAction}
+              className="px-6 py-3 bg-green-500 hover:bg-green-400 disabled:bg-gray-500 text-white font-bold rounded-lg"
+            >
+              {processingAction ? 'Confirming...' : `Confirm Chow (${selectedChowTiles.length}/2)`}
+            </button>
+            <button
+              onClick={onCancelChow}
+              disabled={processingAction}
+              className="px-6 py-3 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 text-white font-bold rounded-lg"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Phase 8: Waiting status when already responded */}
+      {isCallingPhase && myPendingCall !== null && myPendingCall !== 'discarder' && (
+        <div className="mt-6 text-center">
+          <div className="inline-flex items-center gap-2 bg-green-800/30 rounded-lg px-6 py-3">
+            <span className="text-green-400">You chose:</span>
+            <span className="text-green-200 font-bold uppercase">{myPendingCall}</span>
+            <span className="text-green-400 animate-pulse">- Waiting for others...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Win on discard button (shown to all players when someone discards) */}
+      {gameState.phase === 'playing' && canWinOnLastDiscard && (
+        <div className="mt-6 text-center">
+          <button
+            onClick={onDeclareDiscardWin}
+            disabled={processingAction}
+            className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold text-lg rounded-lg animate-pulse shadow-lg"
+          >
+            {processingAction ? 'Declaring Win...' : '🎉 WIN! (Claim Discard)'}
+          </button>
+        </div>
+      )}
+
       {/* Turn action buttons */}
       {gameState.phase === 'playing' && isMyTurn && (
-        <div className="mt-6 text-center">
+        <div className="mt-6 text-center flex flex-col items-center gap-3">
+          {/* Self-draw win button */}
+          {canWinNow && (
+            <button
+              onClick={onDeclareWin}
+              disabled={processingAction}
+              className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold text-lg rounded-lg animate-pulse shadow-lg"
+            >
+              {processingAction ? 'Declaring Win...' : '🎉 WIN! (Self-Draw)'}
+            </button>
+          )}
+
+          {/* Draw or discard buttons */}
           {shouldDraw ? (
             <button
               onClick={onDraw}

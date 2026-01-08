@@ -15,7 +15,7 @@ export type Suit = 'dots' | 'bamboo' | 'characters';
 export type WindDirection = 'east' | 'south' | 'west' | 'north';
 
 /** Tile categories */
-export type TileCategory = 'suit' | 'wind' | 'dragon';
+export type TileCategory = 'suit' | 'wind' | 'dragon' | 'bonus';
 
 // ============================================
 // MELD TYPES
@@ -72,6 +72,12 @@ export interface PendingCalls {
   seat3: PendingCall;
 }
 
+/** Chow option - which 2 tiles from hand form sequence with discard */
+export interface ChowOption {
+  tilesFromHand: [TileId, TileId];
+  sequence: [TileType, TileType, TileType]; // The complete sequence types (sorted)
+}
+
 // ============================================
 // GAME STATE TYPES
 // ============================================
@@ -87,7 +93,7 @@ export type GamePhase =
 
 /** Last action taken in the game */
 export interface LastAction {
-  type: 'discard' | 'draw' | 'pung' | 'chow' | 'win' | 'bonus_expose';
+  type: 'discard' | 'draw' | 'pung' | 'chow' | 'win' | 'bonus_expose' | 'game_start';
   playerSeat: SeatIndex;
   tile?: TileId;
   timestamp: number;
@@ -98,6 +104,8 @@ export interface WinnerInfo {
   seat: SeatIndex;
   isSelfDraw: boolean;
   isThreeGolds: boolean;
+  winningTile?: TileId; // The tile that completed the hand (for discard wins)
+  discarderSeat?: SeatIndex; // Who discarded the winning tile
   hand: TileId[];
   score: ScoreBreakdown;
 }
@@ -109,14 +117,29 @@ export interface ScoreBreakdown {
   golds: number;
   subtotal: number;
   multiplier: number;
-  threeGoldsBonus: number;
+  threeGoldsBonus?: number; // Only for Three Golds wins
   total: number;
 }
 
-/** Main game state */
+/**
+ * Main game state
+ *
+ * FUJIAN MAHJONG TILE COUNTS:
+ * - 108 suited tiles (3 suits × 9 values × 4 copies)
+ * - 16 wind tiles (4 winds × 4 copies)
+ * - 4 red dragon tiles
+ * = 128 tiles total (NO flowers/seasons)
+ *
+ * DEALING:
+ * - Dealer (East): 17 tiles
+ * - Others: 16 tiles each
+ * - Wall after dealing: 63 tiles
+ */
 export interface GameState {
   phase: GamePhase;
+  /** The tile TYPE that is Gold (e.g., "dots_1") - used for matching */
   goldTileType: TileType;
+  /** The specific tile INSTANCE revealed as Gold (e.g., "dots_1_0") - used for display */
   exposedGold: TileId;
   wall: TileId[];
   discardPile: TileId[];
@@ -136,6 +159,7 @@ export interface GameState {
     seat3: TileId[];
   };
   pendingCalls: PendingCalls | null;
+  pendingChowOption?: ChowOption; // Temporarily stores chosen chow option during calling
   winner: WinnerInfo | null;
   actionLog: string[];
 }

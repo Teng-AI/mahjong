@@ -1,7 +1,7 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { ref, onValue, off } from 'firebase/database';
 import { db } from '@/firebase/config';
-import { GameState, PrivateHand, SeatIndex, TileId } from '@/types';
+import { GameState, PrivateHand, SeatIndex, TileId, CallAction, PendingCall, ValidCalls } from '@/types';
 import {
   initializeGame,
   exposeBonusTiles,
@@ -9,7 +9,18 @@ import {
   needsToDraw,
   drawTile,
   discardTile,
+  canWin,
+  canWinOnDiscard,
+  declareSelfDrawWin,
+  declareDiscardWin,
+  getNextSeat,
+  submitCallResponse,
 } from '@/lib/game';
+import {
+  getValidCalls,
+  getValidChowTiles,
+  canWinOnDiscard as canWinOnDiscardTiles,
+} from '@/lib/tiles';
 
 interface UseGameOptions {
   roomCode: string;
@@ -27,6 +38,18 @@ interface UseGameReturn {
   shouldDraw: boolean;
   handleDraw: () => Promise<{ success: boolean; wallEmpty?: boolean; threeGoldsWin?: boolean }>;
   handleDiscard: (tileId: TileId) => Promise<{ success: boolean }>;
+  // Phase 6: Win detection
+  canWinNow: boolean;
+  canWinOnLastDiscard: boolean;
+  handleSelfDrawWin: () => Promise<{ success: boolean; error?: string }>;
+  handleDiscardWin: () => Promise<{ success: boolean; error?: string }>;
+  // Phase 8: Calling system
+  isCallingPhase: boolean;
+  myPendingCall: PendingCall;
+  myValidCalls: ValidCalls | null;
+  validChowTiles: Map<TileId, TileId[]>;
+  isNextInTurn: boolean;
+  handleCallResponse: (action: CallAction, chowTiles?: [TileId, TileId]) => Promise<{ success: boolean; error?: string }>;
 }
 
 export function useGame({ roomCode, mySeat }: UseGameOptions): UseGameReturn {
@@ -150,6 +173,157 @@ export function useGame({ roomCode, mySeat }: UseGameOptions): UseGameReturn {
     }
   }, [roomCode, mySeat, gameState]);
 
+  // Phase 6: Check if player can win with current hand (self-draw)
+  const canWinNow = useMemo(() => {
+    if (!gameState || mySeat === null || gameState.phase !== 'playing' || gameState.currentPlayerSeat !== mySeat) {
+      return false;
+    }
+    const myExposedMelds = gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds] || [];
+    const expectedHandSize = 17 - (3 * myExposedMelds.length);
+    if (myHand.length !== expectedHandSize) {
+      return false;
+    }
+    return canWin(myHand, gameState.goldTileType, myExposedMelds.length);
+  }, [gameState, mySeat, myHand]);
+
+  // Phase 6: Check if player can win on the last discarded tile
+  const canWinOnLastDiscard = useMemo(() => {
+    if (!gameState || mySeat === null || gameState.phase !== 'playing') {
+      return false;
+    }
+    if (!gameState.lastAction?.tile || gameState.lastAction.type !== 'discard') {
+      return false;
+    }
+    if (gameState.lastAction.playerSeat === mySeat) {
+      return false; // Can't win on your own discard
+    }
+    const myExposedMelds = gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds] || [];
+    const expectedHandSize = 16 - (3 * myExposedMelds.length);
+    if (myHand.length !== expectedHandSize) {
+      return false;
+    }
+    return canWinOnDiscard(myHand, gameState.lastAction.tile, gameState.goldTileType, myExposedMelds.length);
+  }, [gameState, mySeat, myHand]);
+
+  // Phase 6: Declare self-draw win
+  const handleSelfDrawWin = useCallback(async () => {
+    if (mySeat === null || !gameState) {
+      return { success: false, error: 'Invalid state' };
+    }
+
+    try {
+      setError(null);
+      const result = await declareSelfDrawWin(roomCode, mySeat);
+      return result;
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to declare win';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  }, [roomCode, mySeat, gameState]);
+
+  // Phase 6: Declare win on discard
+  const handleDiscardWin = useCallback(async () => {
+    if (
+      mySeat === null ||
+      !gameState ||
+      !gameState.lastAction ||
+      gameState.lastAction.type !== 'discard' ||
+      !gameState.lastAction.tile
+    ) {
+      return { success: false, error: 'Invalid state' };
+    }
+
+    try {
+      setError(null);
+      const result = await declareDiscardWin(
+        roomCode,
+        mySeat,
+        gameState.lastAction.tile,
+        gameState.lastAction.playerSeat
+      );
+      return result;
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to declare win';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  }, [roomCode, mySeat, gameState]);
+
+  // Phase 8: Check if we're in calling phase
+  const isCallingPhase = gameState?.phase === 'calling';
+
+  // Phase 8: Get my pending call status
+  const myPendingCall: PendingCall = useMemo(() => {
+    if (!gameState || mySeat === null || !gameState.pendingCalls) {
+      return null;
+    }
+    // Firebase doesn't store null values, so undefined means no response yet
+    return gameState.pendingCalls[`seat${mySeat}` as keyof typeof gameState.pendingCalls] ?? null;
+  }, [gameState, mySeat]);
+
+  // Phase 8: Check if I'm next in turn (for chow eligibility)
+  const isNextInTurn = useMemo(() => {
+    if (!gameState || mySeat === null || !gameState.lastAction) {
+      return false;
+    }
+    const discarderSeat = gameState.lastAction.playerSeat;
+    return mySeat === getNextSeat(discarderSeat);
+  }, [gameState, mySeat]);
+
+  // Phase 8: Calculate valid calls for me
+  const myValidCalls: ValidCalls | null = useMemo(() => {
+    if (
+      !gameState ||
+      mySeat === null ||
+      gameState.phase !== 'calling' ||
+      !gameState.lastAction?.tile ||
+      gameState.lastAction.playerSeat === mySeat // Can't call own discard
+    ) {
+      return null;
+    }
+
+    const discardTile = gameState.lastAction.tile;
+    const myExposedMelds = gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds] || [];
+    return getValidCalls(myHand, discardTile, gameState.goldTileType, isNextInTurn, myExposedMelds.length);
+  }, [gameState, mySeat, myHand, isNextInTurn]);
+
+  // Phase 8: Get valid chow tile combinations
+  const validChowTiles: Map<TileId, TileId[]> = useMemo(() => {
+    if (
+      !gameState ||
+      mySeat === null ||
+      gameState.phase !== 'calling' ||
+      !gameState.lastAction?.tile ||
+      !isNextInTurn
+    ) {
+      return new Map();
+    }
+
+    const myExposedMelds = gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds] || [];
+    return getValidChowTiles(myHand, gameState.lastAction.tile, gameState.goldTileType, myExposedMelds.length);
+  }, [gameState, mySeat, myHand, isNextInTurn]);
+
+  // Phase 8: Submit call response
+  const handleCallResponse = useCallback(
+    async (action: CallAction, chowTiles?: [TileId, TileId]) => {
+      if (mySeat === null || !gameState) {
+        return { success: false, error: 'Invalid state' };
+      }
+
+      try {
+        setError(null);
+        const result = await submitCallResponse(roomCode, mySeat, action, chowTiles);
+        return result;
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to submit call';
+        setError(errorMsg);
+        return { success: false, error: errorMsg };
+      }
+    },
+    [roomCode, mySeat, gameState]
+  );
+
   return {
     gameState,
     myHand,
@@ -161,5 +335,17 @@ export function useGame({ roomCode, mySeat }: UseGameOptions): UseGameReturn {
     shouldDraw,
     handleDraw,
     handleDiscard,
+    // Phase 6
+    canWinNow,
+    canWinOnLastDiscard,
+    handleSelfDrawWin,
+    handleDiscardWin,
+    // Phase 8
+    isCallingPhase,
+    myPendingCall,
+    myValidCalls,
+    validChowTiles,
+    isNextInTurn,
+    handleCallResponse,
   };
 }

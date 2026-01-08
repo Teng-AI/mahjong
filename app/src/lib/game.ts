@@ -1,4 +1,4 @@
-import { ref, set, get, update } from 'firebase/database';
+import { ref, set, get, update, runTransaction } from 'firebase/database';
 import { db } from '@/firebase/config';
 import {
   TileId,
@@ -8,19 +8,32 @@ import {
   GamePhase,
   PrivateHand,
   Room,
+  CallAction,
+  PendingCalls,
+  ChowOption,
+  Meld,
 } from '@/types';
 import {
   generateAllTiles,
   shuffle,
   isBonusTile,
+  isGoldTile,
   getTileType,
   getTileDisplayText,
   countGoldTiles,
   sortTilesForDisplay,
+  canFormWinningHand,
+  canPung,
+  canChow,
+  canWinOnDiscard as canWinOnDiscardValidation,
+  validateChowSelection,
 } from './tiles';
 
 // Seat labels for log messages
 const SEAT_NAMES = ['East', 'South', 'West', 'North'] as const;
+
+// TEST MODE: Set to true to deal a winning hand to the dealer
+const TEST_WINNING_HAND = false;
 
 /**
  * Add an entry to the game action log
@@ -48,24 +61,58 @@ async function addToLog(roomCode: string, message: string): Promise<void> {
 export async function initializeGame(roomCode: string, dealerSeat: SeatIndex): Promise<void> {
   // Generate and shuffle tiles
   const allTiles = generateAllTiles();
-  const shuffledTiles = shuffle(allTiles);
+  let shuffledTiles = shuffle(allTiles);
 
   // Deal tiles
   const hands: TileId[][] = [[], [], [], []];
   let tileIndex = 0;
 
-  // Deal 16 tiles to each player
-  for (let round = 0; round < 16; round++) {
+  // TEST MODE: Deal a winning hand to the dealer
+  if (TEST_WINNING_HAND) {
+    // Create a winning hand: 5 sets + 1 pair = 17 tiles
+    // Sets: 1-2-3 dots, 4-5-6 dots, 7-8-9 dots, 1-1-1 bamboo, 2-2-2 bamboo
+    // Pair: 3-3 bamboo
+    const winningHand: TileId[] = [
+      'dots_1_0', 'dots_2_0', 'dots_3_0',     // Chow 1-2-3 dots
+      'dots_4_0', 'dots_5_0', 'dots_6_0',     // Chow 4-5-6 dots
+      'dots_7_0', 'dots_8_0', 'dots_9_0',     // Chow 7-8-9 dots
+      'bamboo_1_0', 'bamboo_1_1', 'bamboo_1_2', // Pung 1 bamboo
+      'bamboo_2_0', 'bamboo_2_1', 'bamboo_2_2', // Pung 2 bamboo
+      'bamboo_3_0', 'bamboo_3_1',              // Pair 3 bamboo (17 tiles)
+    ];
+
+    // Remove winning hand tiles from shuffled deck
+    const usedTiles = new Set(winningHand);
+    shuffledTiles = shuffledTiles.filter(t => !usedTiles.has(t));
+
+    // Give dealer the winning hand
+    hands[dealerSeat] = winningHand;
+
+    // Deal 16 tiles to other players from remaining deck
     for (let seat = 0; seat < 4; seat++) {
-      hands[seat].push(shuffledTiles[tileIndex++]);
+      if (seat !== dealerSeat) {
+        for (let i = 0; i < 16; i++) {
+          hands[seat].push(shuffledTiles[tileIndex++]);
+        }
+      }
     }
+  } else {
+    // Normal dealing
+    // Deal 16 tiles to each player
+    for (let round = 0; round < 16; round++) {
+      for (let seat = 0; seat < 4; seat++) {
+        hands[seat].push(shuffledTiles[tileIndex++]);
+      }
+    }
+
+    // Dealer gets 17th tile
+    hands[dealerSeat].push(shuffledTiles[tileIndex++]);
   }
 
-  // Dealer gets 17th tile
-  hands[dealerSeat].push(shuffledTiles[tileIndex++]);
-
   // Remaining tiles form the wall
-  const wall = shuffledTiles.slice(tileIndex);
+  const wall = TEST_WINNING_HAND
+    ? shuffledTiles.slice(tileIndex)
+    : shuffledTiles.slice(tileIndex);
 
   // Create initial game state (Gold not yet revealed)
   const gameState: GameState = {
@@ -392,6 +439,7 @@ async function handleThreeGoldsWin(
  * - Dealer's first turn: skip draw (already has 17 tiles)
  * - After any discard: next player draws
  * - After drawing: same player discards
+ * - After pung/chow: caller skips draw (already has 17 tiles from meld)
  */
 export function needsToDraw(gameState: GameState): boolean {
   // If we just drew, we need to discard instead
@@ -402,11 +450,20 @@ export function needsToDraw(gameState: GameState): boolean {
     return false;
   }
 
-  // Dealer's first turn after bonus exposure - already has 17 tiles
-  // Note: lastAction may be undefined (not just null) from Firebase
+  // After Pung or Chow call, skip draw (caller already has 17 tiles: 14 + meld of 3)
+  if (
+    (gameState.lastAction?.type === 'pung' || gameState.lastAction?.type === 'chow') &&
+    gameState.lastAction.playerSeat === gameState.currentPlayerSeat
+  ) {
+    return false;
+  }
+
+  // Dealer's first turn - already has 17 tiles, skip draw
+  // This includes: game_start, after bonus_expose, or no lastAction
   if (
     !gameState.lastAction ||
-    gameState.lastAction.type === 'bonus_expose'
+    gameState.lastAction?.type === 'bonus_expose' ||
+    gameState.lastAction?.type === 'game_start'
   ) {
     return false;
   }
@@ -543,7 +600,7 @@ export async function drawTile(
  * Discard a tile from hand
  * - Removes tile from hand
  * - Adds to discard pile
- * - Advances turn to next player
+ * - Enters calling phase for other players to respond
  */
 export async function discardTile(
   roomCode: string,
@@ -560,6 +617,11 @@ export async function discardTile(
 
   // Verify it's this player's turn
   if (gameState.currentPlayerSeat !== seat) {
+    return { success: false };
+  }
+
+  // Gold tiles cannot be discarded - they must be kept
+  if (isGoldTile(tileId, gameState.goldTileType)) {
     return { success: false };
   }
 
@@ -582,13 +644,19 @@ export async function discardTile(
   // Add to discard pile
   const discardPile = [...(gameState.discardPile || []), tileId];
 
-  // Advance to next player
-  const nextSeat = getNextSeat(seat);
+  // Initialize pending calls - discarder is marked, others are null (waiting)
+  const pendingCalls = {
+    seat0: seat === 0 ? 'discarder' : null,
+    seat1: seat === 1 ? 'discarder' : null,
+    seat2: seat === 2 ? 'discarder' : null,
+    seat3: seat === 3 ? 'discarder' : null,
+  };
 
-  // Update game state
+  // Update game state - enter calling phase
   await update(ref(db, `rooms/${roomCode}/game`), {
     discardPile,
-    currentPlayerSeat: nextSeat,
+    phase: 'calling',
+    pendingCalls,
     lastAction: {
       type: 'discard',
       playerSeat: seat,
@@ -624,6 +692,372 @@ export async function handleDrawGame(roomCode: string): Promise<void> {
 }
 
 // ============================================
+// CALLING SYSTEM - PHASE 8
+// ============================================
+
+/**
+ * Submit a call response for a player
+ * Called when player clicks Win, Pung, Chow, or Pass
+ */
+export async function submitCallResponse(
+  roomCode: string,
+  seat: SeatIndex,
+  action: CallAction,
+  chowTiles?: [TileId, TileId]
+): Promise<{ success: boolean; error?: string }> {
+  // Get current game state
+  const gameSnapshot = await get(ref(db, `rooms/${roomCode}/game`));
+  if (!gameSnapshot.exists()) {
+    return { success: false, error: 'Game not found' };
+  }
+
+  const gameState = gameSnapshot.val() as GameState;
+
+  // Verify we're in calling phase
+  if (gameState.phase !== 'calling') {
+    return { success: false, error: 'Not in calling phase' };
+  }
+
+  // Verify this player hasn't already responded
+  // Firebase doesn't store null values, so undefined means no response yet
+  const currentCall = gameState.pendingCalls?.[`seat${seat}` as keyof PendingCalls];
+  if (currentCall) {
+    return { success: false, error: 'Already responded' };
+  }
+
+  // Get player's hand for validation
+  const handSnapshot = await get(ref(db, `rooms/${roomCode}/privateHands/seat${seat}`));
+  if (!handSnapshot.exists()) {
+    return { success: false, error: 'Hand not found' };
+  }
+  const hand = (handSnapshot.val() as PrivateHand).concealedTiles;
+
+  // Get discard info
+  const discardTile = gameState.lastAction!.tile!;
+  const discarderSeat = gameState.lastAction!.playerSeat;
+  const nextInTurn = getNextSeat(discarderSeat);
+  const isNextInTurn = seat === nextInTurn;
+
+  // Get exposed melds for hand size validation
+  const exposedMelds = gameState.exposedMelds?.[`seat${seat}` as keyof typeof gameState.exposedMelds] || [];
+  const exposedMeldCount = exposedMelds.length;
+
+  // Validate the call
+  if (action === 'win') {
+    if (!canWinOnDiscardValidation(hand, discardTile, gameState.goldTileType, exposedMeldCount)) {
+      return { success: false, error: 'Cannot win on this tile' };
+    }
+  } else if (action === 'pung') {
+    if (!canPung(hand, discardTile, gameState.goldTileType, exposedMeldCount)) {
+      return { success: false, error: 'Cannot pung this tile' };
+    }
+  } else if (action === 'chow') {
+    if (!isNextInTurn) {
+      return { success: false, error: 'Only next player can chow' };
+    }
+    if (!chowTiles) {
+      return { success: false, error: 'Chow tiles required' };
+    }
+    const chowOption = validateChowSelection(hand, discardTile, chowTiles, gameState.goldTileType, exposedMeldCount);
+    if (!chowOption) {
+      return { success: false, error: 'Invalid chow selection' };
+    }
+    // Store the validated chow option
+    await update(ref(db, `rooms/${roomCode}/game`), {
+      pendingChowOption: chowOption,
+    });
+  }
+  // 'pass' always valid
+
+  // Use transaction to atomically update and check if all responded
+  // This ensures we see consistent state across multiple browser tabs
+  const pendingCallsRef = ref(db, `rooms/${roomCode}/game/pendingCalls`);
+
+  let shouldResolve = false;
+
+  await runTransaction(pendingCallsRef, (currentCalls) => {
+    if (currentCalls === null || currentCalls === undefined) {
+      // pendingCalls was already cleared - another player resolved
+      return; // Abort transaction
+    }
+
+    // Update with our response
+    currentCalls[`seat${seat}`] = action;
+
+    // Check if all have responded
+    const allResponded = ([0, 1, 2, 3] as SeatIndex[]).every(s => {
+      const call = currentCalls[`seat${s}`];
+      return !!call;
+    });
+
+    if (allResponded) {
+      shouldResolve = true;
+    }
+
+    return currentCalls;
+  });
+
+  if (shouldResolve) {
+    // Resolve the calling phase
+    await resolveCallingPhase(roomCode);
+  }
+
+  return { success: true };
+}
+
+/**
+ * Resolve the calling phase after all players respond
+ * Priority: Win > Pung > Chow
+ */
+async function resolveCallingPhase(roomCode: string): Promise<void> {
+  const gameSnapshot = await get(ref(db, `rooms/${roomCode}/game`));
+  const gameState = gameSnapshot.val() as GameState;
+
+  // Guard against race condition: if pendingCalls is already null,
+  // another call's resolution beat us - just return
+  if (!gameState.pendingCalls) {
+    return;
+  }
+
+  const pendingCalls = gameState.pendingCalls;
+  const discardTile = gameState.lastAction!.tile!;
+  const discarderSeat = gameState.lastAction!.playerSeat;
+
+  // Collect calls by type
+  const winCallers: SeatIndex[] = [];
+  const pungCallers: SeatIndex[] = [];
+  let chowCaller: SeatIndex | null = null;
+
+  for (const seat of [0, 1, 2, 3] as SeatIndex[]) {
+    const call = pendingCalls[`seat${seat}` as keyof PendingCalls];
+    if (call === 'win') winCallers.push(seat);
+    else if (call === 'pung') pungCallers.push(seat);
+    else if (call === 'chow') chowCaller = seat;
+  }
+
+  // Priority resolution: Win > Pung > Chow
+  if (winCallers.length > 0) {
+    // Handle win(s) - first in turn order from discarder wins
+    const turnOrder = getTurnOrderFromDiscarder(discarderSeat);
+    const winner = turnOrder.find(s => winCallers.includes(s))!;
+    await executeWinCall(roomCode, winner, discardTile, discarderSeat);
+    return;
+  }
+
+  if (pungCallers.length > 0) {
+    // Take first pung caller (should only be one valid in practice)
+    await executePungCall(roomCode, pungCallers[0], discardTile);
+    return;
+  }
+
+  if (chowCaller !== null) {
+    await executeChowCall(roomCode, chowCaller, discardTile, gameState.pendingChowOption!);
+    return;
+  }
+
+  // No calls - advance to next player
+  await advanceToNextPlayer(roomCode, discarderSeat);
+}
+
+/**
+ * Get turn order starting from discarder (for resolving multiple wins)
+ */
+function getTurnOrderFromDiscarder(discarderSeat: SeatIndex): SeatIndex[] {
+  const order: SeatIndex[] = [];
+  for (let i = 1; i <= 3; i++) {
+    order.push(((discarderSeat + i) % 4) as SeatIndex);
+  }
+  return order;
+}
+
+/**
+ * Advance to next player after no calls
+ */
+async function advanceToNextPlayer(roomCode: string, discarderSeat: SeatIndex): Promise<void> {
+  const nextSeat = getNextSeat(discarderSeat);
+
+  await update(ref(db, `rooms/${roomCode}/game`), {
+    phase: 'playing',
+    currentPlayerSeat: nextSeat,
+    pendingCalls: null,
+    pendingChowOption: null,
+  });
+
+  await addToLog(roomCode, 'All players passed');
+}
+
+/**
+ * Execute a win call on discard
+ */
+async function executeWinCall(
+  roomCode: string,
+  winnerSeat: SeatIndex,
+  discardTile: TileId,
+  discarderSeat: SeatIndex
+): Promise<void> {
+  // Clear pending calls first
+  await update(ref(db, `rooms/${roomCode}/game`), {
+    pendingCalls: null,
+    pendingChowOption: null,
+  });
+
+  // Use existing win logic
+  await declareDiscardWin(roomCode, winnerSeat, discardTile, discarderSeat);
+}
+
+/**
+ * Execute a Pung call
+ * - Remove 2 matching tiles from caller's hand
+ * - Remove discarded tile from discard pile
+ * - Add meld to caller's exposed melds
+ * - Caller becomes current player (must discard, no draw)
+ */
+async function executePungCall(
+  roomCode: string,
+  callerSeat: SeatIndex,
+  discardTile: TileId
+): Promise<void> {
+  const gameSnapshot = await get(ref(db, `rooms/${roomCode}/game`));
+  const gameState = gameSnapshot.val() as GameState;
+
+  // Get caller's hand
+  const handSnapshot = await get(ref(db, `rooms/${roomCode}/privateHands/seat${callerSeat}`));
+  const hand = (handSnapshot.val() as PrivateHand).concealedTiles;
+
+  // Find 2 matching tiles in hand
+  const discardType = getTileType(discardTile);
+  const matchingTiles: TileId[] = [];
+  const remainingHand: TileId[] = [];
+
+  for (const tile of hand) {
+    if (getTileType(tile) === discardType && matchingTiles.length < 2) {
+      matchingTiles.push(tile);
+    } else {
+      remainingHand.push(tile);
+    }
+  }
+
+  // Create meld
+  const meld: Meld = {
+    type: 'pung',
+    tiles: [matchingTiles[0], matchingTiles[1], discardTile],
+    calledTile: discardTile,
+  };
+
+  // Remove tile from discard pile
+  const discardPile = [...gameState.discardPile];
+  const discardIndex = discardPile.lastIndexOf(discardTile);
+  if (discardIndex !== -1) {
+    discardPile.splice(discardIndex, 1);
+  }
+
+  // Get existing melds
+  const existingMelds = gameState.exposedMelds?.[`seat${callerSeat}` as keyof typeof gameState.exposedMelds] || [];
+
+  // Update game state
+  await update(ref(db, `rooms/${roomCode}/game`), {
+    phase: 'playing',
+    currentPlayerSeat: callerSeat,
+    discardPile,
+    pendingCalls: null,
+    pendingChowOption: null,
+    [`exposedMelds/seat${callerSeat}`]: [...existingMelds, meld],
+    lastAction: {
+      type: 'pung',
+      playerSeat: callerSeat,
+      tile: discardTile,
+      timestamp: Date.now(),
+    },
+  });
+
+  // Update caller's hand (sorted)
+  const sortedHand = sortTilesForDisplay(remainingHand, gameState.goldTileType);
+  await set(ref(db, `rooms/${roomCode}/privateHands/seat${callerSeat}`), {
+    concealedTiles: sortedHand,
+  });
+
+  const tileName = getTileDisplayText(getTileType(discardTile));
+  await addToLog(roomCode, `${SEAT_NAMES[callerSeat]} called Pung on ${tileName}`);
+}
+
+/**
+ * Execute a Chow call
+ * - Remove 2 specified tiles from hand
+ * - Create meld with discard
+ * - Caller becomes current player (must discard, no draw)
+ */
+async function executeChowCall(
+  roomCode: string,
+  callerSeat: SeatIndex,
+  discardTile: TileId,
+  chowOption: ChowOption
+): Promise<void> {
+  const gameSnapshot = await get(ref(db, `rooms/${roomCode}/game`));
+  const gameState = gameSnapshot.val() as GameState;
+
+  // Get caller's hand
+  const handSnapshot = await get(ref(db, `rooms/${roomCode}/privateHands/seat${callerSeat}`));
+  const hand = (handSnapshot.val() as PrivateHand).concealedTiles;
+
+  // Remove specified tiles from hand
+  let remainingHand = [...hand];
+  for (const tileToRemove of chowOption.tilesFromHand) {
+    const idx = remainingHand.indexOf(tileToRemove);
+    if (idx !== -1) {
+      remainingHand.splice(idx, 1);
+    }
+  }
+
+  // Create meld (tiles sorted by value for display)
+  const meldTiles = [...chowOption.tilesFromHand, discardTile].sort((a, b) => {
+    const parsedA = getTileType(a).split('_');
+    const parsedB = getTileType(b).split('_');
+    return parseInt(parsedA[1]) - parseInt(parsedB[1]);
+  });
+
+  const meld: Meld = {
+    type: 'chow',
+    tiles: meldTiles as [TileId, TileId, TileId],
+    calledTile: discardTile,
+  };
+
+  // Remove tile from discard pile
+  const discardPile = [...gameState.discardPile];
+  const discardIndex = discardPile.lastIndexOf(discardTile);
+  if (discardIndex !== -1) {
+    discardPile.splice(discardIndex, 1);
+  }
+
+  // Get existing melds
+  const existingMelds = gameState.exposedMelds?.[`seat${callerSeat}` as keyof typeof gameState.exposedMelds] || [];
+
+  // Update game state
+  await update(ref(db, `rooms/${roomCode}/game`), {
+    phase: 'playing',
+    currentPlayerSeat: callerSeat,
+    discardPile,
+    pendingCalls: null,
+    pendingChowOption: null,
+    [`exposedMelds/seat${callerSeat}`]: [...existingMelds, meld],
+    lastAction: {
+      type: 'chow',
+      playerSeat: callerSeat,
+      tile: discardTile,
+      timestamp: Date.now(),
+    },
+  });
+
+  // Update caller's hand (sorted)
+  const sortedRemainingHand = sortTilesForDisplay(remainingHand, gameState.goldTileType);
+  await set(ref(db, `rooms/${roomCode}/privateHands/seat${callerSeat}`), {
+    concealedTiles: sortedRemainingHand,
+  });
+
+  const tileName = getTileDisplayText(getTileType(discardTile));
+  await addToLog(roomCode, `${SEAT_NAMES[callerSeat]} called Chow on ${tileName}`);
+}
+
+// ============================================
 // GAME QUERIES
 // ============================================
 
@@ -650,4 +1084,230 @@ export async function getGameState(roomCode: string): Promise<GameState | null> 
     return null;
   }
   return snapshot.val() as GameState;
+}
+
+// ============================================
+// WIN DETECTION - PHASE 6
+// ============================================
+
+/**
+ * Check if a player can declare a win with their current hand
+ * Must have the right number of tiles that form the required sets + 1 pair
+ * @param exposedMeldCount - Number of exposed melds (reduces required concealed tiles)
+ */
+export function canWin(hand: TileId[], goldTileType: TileType, exposedMeldCount: number = 0): boolean {
+  return canFormWinningHand(hand, goldTileType, exposedMeldCount);
+}
+
+/**
+ * Declare a win (self-draw)
+ * Called when player draws a winning tile
+ */
+export async function declareSelfDrawWin(
+  roomCode: string,
+  seat: SeatIndex
+): Promise<{ success: boolean; error?: string }> {
+  // Get current game state
+  const gameSnapshot = await get(ref(db, `rooms/${roomCode}/game`));
+  if (!gameSnapshot.exists()) {
+    return { success: false, error: 'Game not found' };
+  }
+
+  const gameState = gameSnapshot.val() as GameState;
+
+  // Verify it's this player's turn
+  if (gameState.currentPlayerSeat !== seat) {
+    return { success: false, error: 'Not your turn' };
+  }
+
+  // Get current hand
+  const handSnapshot = await get(ref(db, `rooms/${roomCode}/privateHands/seat${seat}`));
+  if (!handSnapshot.exists()) {
+    return { success: false, error: 'Hand not found' };
+  }
+
+  const privateHand = handSnapshot.val() as PrivateHand;
+  const hand = privateHand.concealedTiles;
+
+  // Get exposed melds count
+  const exposedMelds = gameState.exposedMelds?.[`seat${seat}` as keyof typeof gameState.exposedMelds] || [];
+  const exposedMeldCount = exposedMelds.length;
+
+  // Verify hand has correct number of tiles (after draw, before discard)
+  // With N exposed melds: 17 - 3*N concealed tiles
+  const expectedHandSize = 17 - (3 * exposedMeldCount);
+  if (hand.length !== expectedHandSize) {
+    return { success: false, error: 'Invalid hand size for win' };
+  }
+
+  // Check if hand is a winning hand
+  if (!canFormWinningHand(hand, gameState.goldTileType, exposedMeldCount)) {
+    return { success: false, error: 'Hand is not a winning hand' };
+  }
+
+  // Calculate score
+  const bonusTiles = gameState.bonusTiles?.[`seat${seat}` as keyof typeof gameState.bonusTiles] || [];
+  const goldCount = countGoldTiles(hand, gameState.goldTileType);
+
+  const base = 1;
+  const bonusCount = bonusTiles.length;
+  const subtotal = base + bonusCount + goldCount;
+  const multiplier = 2; // Self-draw multiplier
+  const total = subtotal * multiplier;
+
+  // Update game state
+  await update(ref(db, `rooms/${roomCode}/game`), {
+    phase: 'ended',
+    winner: {
+      seat,
+      isSelfDraw: true,
+      isThreeGolds: false,
+      hand,
+      score: {
+        base,
+        bonusTiles: bonusCount,
+        golds: goldCount,
+        subtotal,
+        multiplier,
+        total,
+      },
+    },
+  });
+
+  await update(ref(db, `rooms/${roomCode}`), {
+    status: 'ended',
+  });
+
+  // Log the win
+  await addToLog(roomCode, `${SEAT_NAMES[seat]} wins by self-draw! Score: ${total}`);
+
+  return { success: true };
+}
+
+/**
+ * Check if player can win on a discarded tile
+ * @param exposedMeldCount - Number of exposed melds (reduces required concealed tiles)
+ */
+export function canWinOnDiscard(
+  hand: TileId[],
+  discardedTile: TileId,
+  goldTileType: TileType,
+  exposedMeldCount: number = 0
+): boolean {
+  // Calculate expected hand size based on exposed melds
+  // With N exposed melds: 16 - 3*N concealed tiles (before adding discard)
+  const expectedHandSize = 16 - (3 * exposedMeldCount);
+  if (hand.length !== expectedHandSize) {
+    return false;
+  }
+
+  // Test if hand + discarded tile forms a winning hand
+  const testHand = [...hand, discardedTile];
+  return canFormWinningHand(testHand, goldTileType, exposedMeldCount);
+}
+
+/**
+ * Declare a win on discard (ron)
+ */
+export async function declareDiscardWin(
+  roomCode: string,
+  winnerSeat: SeatIndex,
+  discardedTile: TileId,
+  discarderSeat: SeatIndex
+): Promise<{ success: boolean; error?: string }> {
+  // Get current game state
+  const gameSnapshot = await get(ref(db, `rooms/${roomCode}/game`));
+  if (!gameSnapshot.exists()) {
+    return { success: false, error: 'Game not found' };
+  }
+
+  const gameState = gameSnapshot.val() as GameState;
+
+  // Verify discard was just made
+  if (
+    !gameState.lastAction ||
+    gameState.lastAction.type !== 'discard' ||
+    gameState.lastAction.tile !== discardedTile ||
+    gameState.lastAction.playerSeat !== discarderSeat
+  ) {
+    return { success: false, error: 'Cannot win on this discard' };
+  }
+
+  // Get winner's hand
+  const handSnapshot = await get(ref(db, `rooms/${roomCode}/privateHands/seat${winnerSeat}`));
+  if (!handSnapshot.exists()) {
+    return { success: false, error: 'Hand not found' };
+  }
+
+  const privateHand = handSnapshot.val() as PrivateHand;
+  const hand = privateHand.concealedTiles;
+
+  // Get exposed melds count
+  const exposedMelds = gameState.exposedMelds?.[`seat${winnerSeat}` as keyof typeof gameState.exposedMelds] || [];
+  const exposedMeldCount = exposedMelds.length;
+
+  // Verify hand has correct number of tiles (waiting for winning tile)
+  // With N exposed melds: 16 - 3*N concealed tiles
+  const expectedHandSize = 16 - (3 * exposedMeldCount);
+  if (hand.length !== expectedHandSize) {
+    return { success: false, error: 'Invalid hand size for win' };
+  }
+
+  // Check if hand + discarded tile forms winning hand
+  const fullHand = [...hand, discardedTile];
+  if (!canFormWinningHand(fullHand, gameState.goldTileType, exposedMeldCount)) {
+    return { success: false, error: 'Hand is not a winning hand' };
+  }
+
+  // Check Gold discard penalty (if winner discarded Gold, they can only self-draw)
+  // TODO: Track Gold discard history per player
+
+  // Calculate score
+  const bonusTiles = gameState.bonusTiles?.[`seat${winnerSeat}` as keyof typeof gameState.bonusTiles] || [];
+  const goldCount = countGoldTiles(fullHand, gameState.goldTileType);
+
+  const base = 1;
+  const bonusCount = bonusTiles.length;
+  const subtotal = base + bonusCount + goldCount;
+  const multiplier = 1; // Discard win (no self-draw multiplier)
+  const total = subtotal * multiplier;
+
+  // Remove discarded tile from discard pile
+  const discardPile = [...(gameState.discardPile || [])];
+  const discardIndex = discardPile.lastIndexOf(discardedTile);
+  if (discardIndex !== -1) {
+    discardPile.splice(discardIndex, 1);
+  }
+
+  // Update game state
+  await update(ref(db, `rooms/${roomCode}/game`), {
+    phase: 'ended',
+    discardPile,
+    winner: {
+      seat: winnerSeat,
+      isSelfDraw: false,
+      isThreeGolds: false,
+      winningTile: discardedTile,
+      discarderSeat,
+      hand: fullHand,
+      score: {
+        base,
+        bonusTiles: bonusCount,
+        golds: goldCount,
+        subtotal,
+        multiplier,
+        total,
+      },
+    },
+  });
+
+  await update(ref(db, `rooms/${roomCode}`), {
+    status: 'ended',
+  });
+
+  // Log the win
+  const tileName = getTileDisplayText(getTileType(discardedTile));
+  await addToLog(roomCode, `${SEAT_NAMES[winnerSeat]} wins on ${SEAT_NAMES[discarderSeat]}'s discard (${tileName})! Score: ${total}`);
+
+  return { success: true };
 }

@@ -1,11 +1,21 @@
-import { TileId, TileType, TileCategory, Suit, WindDirection, ParsedTile } from '@/types';
+import { TileId, TileType, TileCategory, Suit, WindDirection, ParsedTile, ChowOption, ValidCalls, Meld } from '@/types';
 
 // ============================================
 // TILE GENERATION
 // ============================================
 
 /**
- * Generate all 128 tile IDs for a new game
+ * Generate all tiles for Fujian Mahjong
+ *
+ * TILE COUNTS (128 total):
+ * - 108 suited tiles (dots, bamboo, characters × 9 values × 4 copies)
+ * - 16 wind tiles (east, south, west, north × 4 copies)
+ * - 4 red dragon tiles (中 × 4 copies)
+ *
+ * NO flowers or seasons in this variant.
+ *
+ * TILE ID FORMAT: "{type}_{value}_{instance}"
+ * Examples: "dots_1_0", "wind_east_2", "dragon_red_3"
  */
 export function generateAllTiles(): TileId[] {
   const tiles: TileId[] = [];
@@ -33,6 +43,7 @@ export function generateAllTiles(): TileId[] {
     tiles.push(`dragon_red_${copy}`);
   }
 
+  // Total: 108 + 16 + 4 = 128 tiles
   return tiles;
 }
 
@@ -107,6 +118,14 @@ export function parseTileType(tileType: TileType): { category: TileCategory; sui
 
   if (parts[0] === 'dragon') {
     return { category: 'dragon', value: parts[1] }; // 'red'
+  }
+
+  if (parts[0] === 'flower') {
+    return { category: 'bonus', value: `flower_${parts[1]}` };
+  }
+
+  if (parts[0] === 'season') {
+    return { category: 'bonus', value: `season_${parts[1]}` };
   }
 
   return {
@@ -236,6 +255,544 @@ export function sortTilesForDisplay(tiles: TileId[], goldTileType: TileType): Ti
 /**
  * Get display text for a tile type
  */
+// ============================================
+// WIN DETECTION
+// ============================================
+
+/**
+ * Check if tiles can form a winning hand (5 sets + 1 pair)
+ * Gold tiles act as wildcards
+ *
+ * @param tiles - All tiles (concealed + optional discard)
+ * @param goldTileType - The Gold tile type
+ * @param exposedMeldCount - Number of exposed melds (Pung/Chow already formed)
+ */
+export function canFormWinningHand(
+  tiles: TileId[],
+  goldTileType: TileType,
+  exposedMeldCount: number = 0
+): boolean {
+  // Calculate expected tile count based on exposed melds
+  // Full hand: 5 sets (15) + 1 pair (2) = 17
+  // With N melds: (5-N) sets + 1 pair = 17 - (3*N)
+  const expectedTileCount = 17 - (3 * exposedMeldCount);
+
+  if (tiles.length !== expectedTileCount) {
+    return false;
+  }
+
+  // Number of sets we need to form from concealed tiles
+  const setsNeeded = 5 - exposedMeldCount;
+
+  // Separate Gold tiles (wildcards) from regular tiles
+  const goldTiles = tiles.filter(t => isGoldTile(t, goldTileType));
+  const regularTiles = tiles.filter(t => !isGoldTile(t, goldTileType));
+
+  // Count tiles by type for easier manipulation
+  const tileCounts = new Map<TileType, number>();
+  for (const tile of regularTiles) {
+    const type = getTileType(tile);
+    tileCounts.set(type, (tileCounts.get(type) || 0) + 1);
+  }
+
+  // Try to form winning hand with available wildcards
+  return tryFormSetsAndPair(tileCounts, goldTiles.length, false, setsNeeded);
+}
+
+/**
+ * Try to form the required number of sets and exactly one pair
+ * @param hasPair - whether we've already formed the pair
+ * @param setsNeeded - number of sets still needed
+ */
+function tryFormSetsAndPair(
+  tileCounts: Map<TileType, number>,
+  wildcards: number,
+  hasPair: boolean,
+  setsNeeded: number
+): boolean {
+  // Count remaining tiles
+  let totalTiles = 0;
+  for (const count of tileCounts.values()) {
+    totalTiles += count;
+  }
+  totalTiles += wildcards;
+
+  // Base case: no tiles left and all sets formed
+  if (totalTiles === 0 && setsNeeded === 0) {
+    return hasPair; // Success only if we formed exactly one pair
+  }
+
+  // If only 2 tiles left, no pair yet, and no more sets needed, try to form pair
+  if (totalTiles === 2 && !hasPair && setsNeeded === 0) {
+    return canFormPair(tileCounts, wildcards);
+  }
+
+  // Find first non-zero tile type
+  let firstType: TileType | null = null;
+  for (const [type, count] of tileCounts.entries()) {
+    if (count > 0) {
+      firstType = type;
+      break;
+    }
+  }
+
+  // If no regular tiles, use wildcards
+  if (firstType === null) {
+    if (wildcards >= 3 && setsNeeded > 0) {
+      // Form a set with 3 wildcards
+      return tryFormSetsAndPair(new Map(tileCounts), wildcards - 3, hasPair, setsNeeded - 1);
+    } else if (wildcards === 2 && !hasPair && setsNeeded === 0) {
+      // Form a pair with 2 wildcards
+      return true;
+    }
+    return false;
+  }
+
+  const parsed = parseTileType(firstType);
+  const count = tileCounts.get(firstType) || 0;
+
+  // Try forming a pair with this tile (if no pair yet)
+  if (!hasPair && count >= 2) {
+    const newCounts = new Map(tileCounts);
+    newCounts.set(firstType, count - 2);
+    if (tryFormSetsAndPair(newCounts, wildcards, true, setsNeeded)) {
+      return true;
+    }
+  }
+
+  // Try forming a pair with 1 tile + 1 wildcard
+  if (!hasPair && count >= 1 && wildcards >= 1) {
+    const newCounts = new Map(tileCounts);
+    newCounts.set(firstType, count - 1);
+    if (tryFormSetsAndPair(newCounts, wildcards - 1, true, setsNeeded)) {
+      return true;
+    }
+  }
+
+  // Try forming a Pung (triplet) with this tile
+  if (count >= 3 && setsNeeded > 0) {
+    const newCounts = new Map(tileCounts);
+    newCounts.set(firstType, count - 3);
+    if (tryFormSetsAndPair(newCounts, wildcards, hasPair, setsNeeded - 1)) {
+      return true;
+    }
+  }
+
+  // Try forming a Pung with wildcards (2 tiles + 1 wildcard)
+  if (count >= 2 && wildcards >= 1 && setsNeeded > 0) {
+    const newCounts = new Map(tileCounts);
+    newCounts.set(firstType, count - 2);
+    if (tryFormSetsAndPair(newCounts, wildcards - 1, hasPair, setsNeeded - 1)) {
+      return true;
+    }
+  }
+
+  // Try forming a Pung with wildcards (1 tile + 2 wildcards)
+  if (count >= 1 && wildcards >= 2 && setsNeeded > 0) {
+    const newCounts = new Map(tileCounts);
+    newCounts.set(firstType, count - 1);
+    if (tryFormSetsAndPair(newCounts, wildcards - 2, hasPair, setsNeeded - 1)) {
+      return true;
+    }
+  }
+
+  // Try forming a Chow (sequence) - only for suit tiles
+  if (parsed.category === 'suit' && typeof parsed.value === 'number' && parsed.value <= 7 && setsNeeded > 0) {
+    const suit = parsed.suit!;
+    const val = parsed.value;
+    const type2 = `${suit}_${val + 1}` as TileType;
+    const type3 = `${suit}_${val + 2}` as TileType;
+    const count2 = tileCounts.get(type2) || 0;
+    const count3 = tileCounts.get(type3) || 0;
+
+    // Try full chow (all 3 tiles present)
+    if (count >= 1 && count2 >= 1 && count3 >= 1) {
+      const newCounts = new Map(tileCounts);
+      newCounts.set(firstType, count - 1);
+      newCounts.set(type2, count2 - 1);
+      newCounts.set(type3, count3 - 1);
+      if (tryFormSetsAndPair(newCounts, wildcards, hasPair, setsNeeded - 1)) {
+        return true;
+      }
+    }
+
+    // Try chow with 1 wildcard (missing one tile)
+    if (wildcards >= 1) {
+      // Missing tile 3
+      if (count >= 1 && count2 >= 1) {
+        const newCounts = new Map(tileCounts);
+        newCounts.set(firstType, count - 1);
+        newCounts.set(type2, count2 - 1);
+        if (tryFormSetsAndPair(newCounts, wildcards - 1, hasPair, setsNeeded - 1)) {
+          return true;
+        }
+      }
+      // Missing tile 2
+      if (count >= 1 && count3 >= 1) {
+        const newCounts = new Map(tileCounts);
+        newCounts.set(firstType, count - 1);
+        newCounts.set(type3, count3 - 1);
+        if (tryFormSetsAndPair(newCounts, wildcards - 1, hasPair, setsNeeded - 1)) {
+          return true;
+        }
+      }
+    }
+
+    // Try chow with 2 wildcards (only have first tile)
+    if (wildcards >= 2 && count >= 1) {
+      const newCounts = new Map(tileCounts);
+      newCounts.set(firstType, count - 1);
+      if (tryFormSetsAndPair(newCounts, wildcards - 2, hasPair, setsNeeded - 1)) {
+        return true;
+      }
+    }
+  }
+
+  // If we can't use this tile in any set, the hand is not valid
+  // (This handles cases where we have orphan tiles)
+  return false;
+}
+
+/**
+ * Check if remaining tiles can form a pair
+ */
+function canFormPair(tileCounts: Map<TileType, number>, wildcards: number): boolean {
+  // Count remaining regular tiles
+  let totalRegular = 0;
+  for (const count of tileCounts.values()) {
+    totalRegular += count;
+  }
+
+  // 2 regular tiles of same type
+  for (const count of tileCounts.values()) {
+    if (count >= 2) return true;
+  }
+
+  // 1 regular + 1 wildcard
+  if (totalRegular >= 1 && wildcards >= 1) return true;
+
+  // 2 wildcards
+  if (wildcards >= 2) return true;
+
+  return false;
+}
+
+/**
+ * Get all possible winning tile types for a hand (for tenpai detection)
+ * Returns empty array if hand cannot win with any tile
+ */
+export function getWinningTiles(tiles: TileId[], goldTileType: TileType): TileType[] {
+  if (tiles.length !== 16) {
+    return [];
+  }
+
+  const winningTypes: TileType[] = [];
+
+  // Try adding each possible tile type
+  const allTypes = getAllSuitTileTypes();
+
+  for (const type of allTypes) {
+    // Create a fake tile of this type
+    const fakeTile = `${type}_0` as TileId;
+    const testHand = [...tiles, fakeTile];
+
+    if (canFormWinningHand(testHand, goldTileType)) {
+      winningTypes.push(type);
+    }
+  }
+
+  return winningTypes;
+}
+
+/**
+ * Get all suit tile types (for testing winning tiles)
+ */
+function getAllSuitTileTypes(): TileType[] {
+  const types: TileType[] = [];
+  const suits = ['dots', 'bamboo', 'characters'];
+
+  for (const suit of suits) {
+    for (let num = 1; num <= 9; num++) {
+      types.push(`${suit}_${num}` as TileType);
+    }
+  }
+
+  return types;
+}
+
+// ============================================
+// CALLING VALIDATION
+// ============================================
+
+/**
+ * Check if a player can call Pung on a discarded tile
+ * Requires exactly 2 tiles of the same type in hand
+ * Gold tiles CANNOT be used in calls - neither the discard nor tiles from hand
+ */
+export function canPung(
+  hand: TileId[],
+  discardTile: TileId,
+  goldTileType: TileType,
+  exposedMeldCount: number = 0
+): boolean {
+  // Gold tiles cannot be called
+  if (isGoldTile(discardTile, goldTileType)) {
+    return false;
+  }
+
+  // Hand size should be 16 - (3 * exposed melds) for waiting to call
+  const expectedHandSize = 16 - (3 * exposedMeldCount);
+  if (hand.length !== expectedHandSize) {
+    return false;
+  }
+
+  const discardType = getTileType(discardTile);
+  let matchCount = 0;
+
+  for (const tile of hand) {
+    // Don't count Gold tiles - they cannot be used in calls
+    if (isGoldTile(tile, goldTileType)) {
+      continue;
+    }
+    if (getTileType(tile) === discardType) {
+      matchCount++;
+    }
+  }
+
+  return matchCount >= 2;
+}
+
+/**
+ * Check if a player can call Chow on a discarded tile
+ * Returns all valid chow options (there may be multiple)
+ *
+ * Rules:
+ * - Only suit tiles can form chows (no winds/dragons)
+ * - Gold tiles CANNOT be used in calls - neither the discard nor tiles from hand
+ * - Must have 2 tiles in hand that form a sequence with the discard
+ * - Three possible positions: discard is low/mid/high of sequence
+ */
+export function canChow(
+  hand: TileId[],
+  discardTile: TileId,
+  goldTileType: TileType,
+  exposedMeldCount: number = 0
+): ChowOption[] {
+  const options: ChowOption[] = [];
+
+  // Gold tiles cannot be called
+  if (isGoldTile(discardTile, goldTileType)) {
+    return [];
+  }
+
+  // Hand size should be 16 - (3 * exposed melds) for waiting to call
+  const expectedHandSize = 16 - (3 * exposedMeldCount);
+  if (hand.length !== expectedHandSize) {
+    return [];
+  }
+
+  const parsed = parseTile(discardTile);
+
+  // Only suit tiles can form chows
+  if (parsed.category !== 'suit' || typeof parsed.value !== 'number') {
+    return [];
+  }
+
+  const suit = parsed.suit!;
+  const val = parsed.value;
+
+  // Group hand tiles by type for easier lookup (exclude Gold tiles - they cannot be used in calls)
+  const handByType = new Map<TileType, TileId[]>();
+  for (const tile of hand) {
+    // Skip Gold tiles - they cannot be used in calls
+    if (isGoldTile(tile, goldTileType)) {
+      continue;
+    }
+    const type = getTileType(tile);
+    if (!handByType.has(type)) {
+      handByType.set(type, []);
+    }
+    handByType.get(type)!.push(tile);
+  }
+
+  // Check three possible sequence positions
+  // 1. Discard is LOW: need val+1 and val+2 from hand
+  if (val <= 7) {
+    const type1 = `${suit}_${val + 1}` as TileType;
+    const type2 = `${suit}_${val + 2}` as TileType;
+    const tiles1 = handByType.get(type1) || [];
+    const tiles2 = handByType.get(type2) || [];
+
+    if (tiles1.length > 0 && tiles2.length > 0) {
+      options.push({
+        tilesFromHand: [tiles1[0], tiles2[0]],
+        sequence: [getTileType(discardTile), type1, type2],
+      });
+    }
+  }
+
+  // 2. Discard is MIDDLE: need val-1 and val+1 from hand
+  if (val >= 2 && val <= 8) {
+    const type1 = `${suit}_${val - 1}` as TileType;
+    const type2 = `${suit}_${val + 1}` as TileType;
+    const tiles1 = handByType.get(type1) || [];
+    const tiles2 = handByType.get(type2) || [];
+
+    if (tiles1.length > 0 && tiles2.length > 0) {
+      options.push({
+        tilesFromHand: [tiles1[0], tiles2[0]],
+        sequence: [type1, getTileType(discardTile), type2],
+      });
+    }
+  }
+
+  // 3. Discard is HIGH: need val-2 and val-1 from hand
+  if (val >= 3) {
+    const type1 = `${suit}_${val - 2}` as TileType;
+    const type2 = `${suit}_${val - 1}` as TileType;
+    const tiles1 = handByType.get(type1) || [];
+    const tiles2 = handByType.get(type2) || [];
+
+    if (tiles1.length > 0 && tiles2.length > 0) {
+      options.push({
+        tilesFromHand: [tiles1[0], tiles2[0]],
+        sequence: [type1, type2, getTileType(discardTile)],
+      });
+    }
+  }
+
+  return options;
+}
+
+/**
+ * Check if chow is possible at all (boolean version for quick check)
+ */
+export function hasChowOption(
+  hand: TileId[],
+  discardTile: TileId,
+  goldTileType: TileType,
+  exposedMeldCount: number = 0
+): boolean {
+  return canChow(hand, discardTile, goldTileType, exposedMeldCount).length > 0;
+}
+
+/**
+ * Check if a player can win on a discarded tile
+ * @param exposedMeldCount - Number of exposed melds the player has
+ */
+export function canWinOnDiscard(
+  hand: TileId[],
+  discardTile: TileId,
+  goldTileType: TileType,
+  exposedMeldCount: number = 0
+): boolean {
+  // Calculate expected hand size based on exposed melds
+  // With N exposed melds: 16 - 3*N concealed tiles (before adding discard)
+  const expectedHandSize = 16 - (3 * exposedMeldCount);
+  if (hand.length !== expectedHandSize) {
+    return false;
+  }
+
+  // Gold tiles CAN be won on (they're valid winning tiles)
+  // No restriction here unlike Pung/Chow
+
+  const testHand = [...hand, discardTile];
+  return canFormWinningHand(testHand, goldTileType, exposedMeldCount);
+}
+
+/**
+ * Get all valid call options for a player on a discarded tile
+ * @param isNextInTurn - Only next-in-turn player can Chow
+ * @param exposedMeldCount - Number of exposed melds the player has
+ */
+export function getValidCalls(
+  hand: TileId[],
+  discardTile: TileId,
+  goldTileType: TileType,
+  isNextInTurn: boolean,
+  exposedMeldCount: number = 0
+): ValidCalls {
+  return {
+    canWin: canWinOnDiscard(hand, discardTile, goldTileType, exposedMeldCount),
+    canPung: canPung(hand, discardTile, goldTileType, exposedMeldCount),
+    canChow: isNextInTurn && hasChowOption(hand, discardTile, goldTileType, exposedMeldCount),
+  };
+}
+
+/**
+ * Get valid tiles for chow selection UI
+ * Returns a Map where key = first tile that can be selected,
+ * value = array of valid second tiles to pair with it
+ *
+ * This helps the UI highlight which tiles can be selected for chow
+ */
+export function getValidChowTiles(
+  hand: TileId[],
+  discardTile: TileId,
+  goldTileType: TileType,
+  exposedMeldCount: number = 0
+): Map<TileId, TileId[]> {
+  const validPairs = new Map<TileId, TileId[]>();
+
+  // Get all chow options
+  const options = canChow(hand, discardTile, goldTileType, exposedMeldCount);
+
+  for (const option of options) {
+    const [tile1, tile2] = option.tilesFromHand;
+
+    // Add tile1 -> tile2 mapping
+    if (!validPairs.has(tile1)) {
+      validPairs.set(tile1, []);
+    }
+    if (!validPairs.get(tile1)!.includes(tile2)) {
+      validPairs.get(tile1)!.push(tile2);
+    }
+
+    // Add tile2 -> tile1 mapping (can select in either order)
+    if (!validPairs.has(tile2)) {
+      validPairs.set(tile2, []);
+    }
+    if (!validPairs.get(tile2)!.includes(tile1)) {
+      validPairs.get(tile2)!.push(tile1);
+    }
+  }
+
+  return validPairs;
+}
+
+/**
+ * Validate that two selected tiles can form a chow with the discard
+ * Returns the ChowOption if valid, null otherwise
+ */
+export function validateChowSelection(
+  hand: TileId[],
+  discardTile: TileId,
+  selectedTiles: [TileId, TileId],
+  goldTileType: TileType,
+  exposedMeldCount: number = 0
+): ChowOption | null {
+  const options = canChow(hand, discardTile, goldTileType, exposedMeldCount);
+
+  for (const option of options) {
+    const [t1, t2] = option.tilesFromHand;
+    const [s1, s2] = selectedTiles;
+
+    // Check if selected tiles match this option (in either order)
+    if ((t1 === s1 && t2 === s2) || (t1 === s2 && t2 === s1)) {
+      return option;
+    }
+  }
+
+  return null;
+}
+
+// ============================================
+// TILE DISPLAY
+// ============================================
+
+/**
+ * Get display text for a tile type
+ */
 export function getTileDisplayText(tileType: TileType): string {
   const { category, suit, value } = parseTileType(tileType);
 
@@ -251,10 +808,19 @@ export function getTileDisplayText(tileType: TileType): string {
     return '中';
   }
 
+  if (category === 'bonus') {
+    // Flower and season tiles
+    const bonusNames: Record<string, string> = {
+      'flower_1': '🌸', 'flower_2': '🌺', 'flower_3': '🌷', 'flower_4': '🌻',
+      'season_1': '🌱', 'season_2': '☀️', 'season_3': '🍂', 'season_4': '❄️',
+    };
+    return bonusNames[value as string] || '🎴';
+  }
+
   // Suit tile
   const suitSymbols: Record<Suit, string> = {
     dots: '●',
-    bamboo: '竹',
+    bamboo: '║',
     characters: '萬'
   };
 
