@@ -600,6 +600,48 @@ export default function GamePage() {
             </div>
           )}
 
+          {/* Show viewing player's hand (only if they're not the winner) */}
+          {mySeat !== null && mySeat !== winner.seat && myHand.length > 0 && (
+            <div className="mb-4 mt-6 pt-4 border-t border-green-700">
+              <div className="text-blue-400 text-sm mb-2">Your Hand:</div>
+
+              {/* Concealed tiles */}
+              <div className="mb-2">
+                <div className="flex flex-wrap justify-center gap-1">
+                  {sortTilesForDisplay(myHand, gameState.goldTileType).map((tileId: string, index: number) => (
+                    <Tile
+                      key={`my-hand-${index}`}
+                      tileId={tileId}
+                      goldTileType={gameState.goldTileType}
+                      size="sm"
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* My exposed melds */}
+              {gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds]?.length > 0 && (
+                <div className="mt-2">
+                  <div className="text-blue-300 text-xs mb-1">Called:</div>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {gameState.exposedMelds[`seat${mySeat}` as keyof typeof gameState.exposedMelds].map((meld, meldIndex) => (
+                      <div key={`my-meld-${meldIndex}`} className="flex gap-0.5 bg-green-700/50 px-1 py-0.5 rounded">
+                        {meld.tiles.map((tileId: string, tileIndex: number) => (
+                          <Tile
+                            key={`my-meld-${meldIndex}-${tileIndex}`}
+                            tileId={tileId}
+                            goldTileType={gameState.goldTileType}
+                            size="sm"
+                          />
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="bg-green-800/50 rounded-lg p-4 mb-6 text-left">
             <h3 className="font-semibold mb-2">Score Breakdown</h3>
             <div className="text-sm space-y-1">

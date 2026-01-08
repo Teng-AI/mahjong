@@ -1,13 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, update, get } from 'firebase/database';
 import { getAuth, signInAnonymously } from 'firebase/auth';
-
-const firebaseConfig = {
-  apiKey: "AIzaSyDWqXdcIJH8oWTbEu2ZU9yZYlIxHxZjCPA",
-  authDomain: "mahjong-vibe.firebaseapp.com",
-  databaseURL: "https://mahjong-vibe-default-rtdb.firebaseio.com",
-  projectId: "mahjong-vibe",
-};
+import { firebaseConfig } from './firebase-config.mjs';
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
