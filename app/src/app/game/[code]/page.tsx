@@ -32,9 +32,8 @@ function Tile({ tileId, goldTileType, onClick, selected, isJustDrawn, isChowVali
   const isGold = goldTileType && tileType === goldTileType;
   const isBonus = isBonusTile(tileId);
 
-  // Get suit-specific text color (only for suited tiles, not bonus/gold)
+  // Get suit-specific text color
   const getSuitTextColor = () => {
-    if (isGold) return 'text-yellow-900';
     if (isBonus) return 'text-gray-800'; // Bonus tiles stay black
     if (tileType.startsWith('dots_')) return 'text-red-600';
     if (tileType.startsWith('bamboo_')) return 'text-blue-600';
@@ -58,7 +57,7 @@ function Tile({ tileId, goldTileType, onClick, selected, isJustDrawn, isChowVali
         flex items-center justify-center
         transition-all
         ${isGold
-          ? 'bg-yellow-400 border-yellow-600'
+          ? 'bg-yellow-100 border-yellow-400'
           : 'bg-white border-gray-300'
         }
         ${getSuitTextColor()}
@@ -870,125 +869,71 @@ export default function GamePage() {
   const isBonusPhase = gameState.phase === 'bonus_exposure';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-white p-4">
-      {/* Compact Header Bar */}
-      <div className="flex justify-between items-center mb-3 text-base">
-        <div className="flex items-center gap-3">
-          <span className="text-slate-400">Room</span>
-          <span className="font-mono text-amber-400 font-bold">{roomCode}</span>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-white p-3">
+      {/* ========== COMBINED HEADER + PHASE BAR ========== */}
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3 bg-slate-700/40 rounded-lg px-3 py-2">
         <div className="flex items-center gap-4">
-          {gameState.goldTileType ? (
-            <div className="flex items-center gap-2">
-              <span className="text-slate-400">Gold</span>
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400 text-sm">Room</span>
+            <span className="font-mono text-amber-400 font-bold">{roomCode}</span>
+          </div>
+          {gameState.goldTileType && (
+            <div className="flex items-center gap-1">
+              <span className="text-slate-400 text-sm">Gold</span>
               <Tile tileId={gameState.exposedGold} goldTileType={gameState.goldTileType} size="md" />
             </div>
-          ) : (
-            <span className="text-slate-500">Gold: --</span>
           )}
           <div className="flex items-center gap-1">
-            <span className="text-slate-400">Wall</span>
+            <span className="text-slate-400 text-sm">Wall</span>
             <span className="font-mono text-white">{gameState.wall.length}</span>
           </div>
         </div>
+        {/* Phase indicator - right side */}
+        <div className={`px-3 py-1 rounded-md text-sm font-medium ${
+          isBonusPhase ? 'bg-blue-500/40 text-blue-200' :
+          isCallingPhase ? 'bg-orange-500/40 text-orange-200' :
+          isMyTurn ? 'bg-emerald-500/40 text-emerald-200' : 'bg-slate-600/60 text-slate-300'
+        }`}>
+          {isBonusPhase ? (isMyTurn ? '▶ Expose Bonus' : `${SEAT_LABELS[gameState.currentPlayerSeat]} exposing...`) :
+           isCallingPhase ? (chowSelectionMode ? 'Select Chow tiles' : 'Calling...') :
+           isMyTurn ? (shouldDraw ? '▶ Draw a tile' : '▶ Discard a tile') :
+           `${SEAT_LABELS[gameState.currentPlayerSeat]}'s turn`}
+        </div>
       </div>
 
-      {/* ========== PRIMARY SECTION: YOUR HAND ========== */}
-      <div className="bg-slate-700/60 rounded-xl p-4 mb-4 border border-slate-600">
-        {/* Phase/Turn Banner - integrated with hand section */}
-        <div className="mb-4">
-          {isBonusPhase ? (
-            <div className="bg-blue-500/30 rounded-lg px-4 py-2 border border-blue-500/50">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-blue-300">Bonus Tile Exposure</span>
-                <span className="text-base text-blue-200">
-                  {isMyTurn ? 'Your turn' : `${SEAT_LABELS[gameState.currentPlayerSeat]}'s turn`}
-                </span>
-              </div>
-            </div>
-          ) : isCallingPhase ? (
-            <div className="bg-orange-500/30 rounded-lg px-4 py-2 border border-orange-500/50">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-orange-300">Calling Phase</span>
-                <span className="text-base text-orange-200">
-                  {myPendingCall === 'discarder'
-                    ? 'Waiting for responses...'
-                    : myPendingCall && typeof myPendingCall === 'string'
-                      ? `You: ${myPendingCall.toUpperCase()}`
-                      : chowSelectionMode
-                        ? 'Select 2 tiles for chow'
-                        : 'Win / Pung / Chow / Pass'}
-                </span>
-              </div>
-            </div>
-          ) : gameState.phase === 'playing' ? (
-            <div className={`rounded-lg px-4 py-2 border ${isMyTurn ? 'bg-emerald-500/30 border-emerald-500/50' : 'bg-slate-600/50 border-slate-500/50'}`}>
-              <div className="flex items-center justify-between">
-                <span className={`font-semibold ${isMyTurn ? 'text-emerald-300' : 'text-slate-300'}`}>
-                  {isMyTurn ? '▶ Your Turn' : `${SEAT_LABELS[gameState.currentPlayerSeat]}'s Turn`}
-                </span>
-                {isMyTurn && (
-                  <span className="text-base text-emerald-200">
-                    {shouldDraw ? 'Draw a tile' : 'Select & discard'}
-                  </span>
-                )}
-              </div>
-            </div>
-          ) : null}
-        </div>
-
-        {/* Last discard indicator - compact inline */}
-        {gameState.lastAction?.type === 'discard' && gameState.lastAction.tile && (
-          <div className="flex items-center gap-2 mb-3 text-base">
-            <span className="text-red-400">Last discard:</span>
-            <Tile tileId={gameState.lastAction.tile} goldTileType={gameState.goldTileType} size="md" />
-            <span className="text-slate-400">by {SEAT_LABELS[gameState.lastAction.playerSeat]}</span>
-          </div>
-        )}
-
-        {/* Your Info - compact */}
-        <div className="flex items-center gap-4 mb-3 text-base">
+      {/* ========== YOUR HAND SECTION ========== */}
+      <div className="bg-slate-700/60 rounded-xl p-3 mb-3 border border-slate-600">
+        {/* Header row: Name + Melds + Bonus */}
+        <div className="flex flex-wrap items-center gap-3 mb-2 text-sm">
           <div className="flex items-center gap-2">
-            <span className="text-white font-medium">
-              {room.players[`seat${mySeat}` as keyof typeof room.players]?.name || 'You'}
-            </span>
-            <span className="text-slate-400">({SEAT_LABELS[mySeat]})</span>
-            {gameState.dealerSeat === mySeat && (
-              <span className="bg-amber-500 text-black text-base px-1.5 py-0.5 rounded font-bold">DEALER</span>
-            )}
+            <span className="text-white font-medium">{room.players[`seat${mySeat}` as keyof typeof room.players]?.name || 'You'}</span>
+            <span className="text-slate-500">({SEAT_LABELS[mySeat]})</span>
+            {gameState.dealerSeat === mySeat && <span className="bg-amber-500 text-black text-xs px-1.5 py-0.5 rounded font-bold">D</span>}
           </div>
-          {/* Bonus tiles inline */}
+          {/* Melds inline */}
+          {(gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds] || []).length > 0 && (
+            <div className="flex items-center gap-1">
+              <span className="text-slate-500">Melds:</span>
+              {(gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds] || []).map((meld, meldIdx) => (
+                <div key={meldIdx} className="flex gap-0.5 bg-slate-800/50 rounded px-1">
+                  {meld.tiles.map((tile, i) => <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="md" />)}
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Bonus inline */}
           {(gameState.bonusTiles?.[`seat${mySeat}` as keyof typeof gameState.bonusTiles] || []).length > 0 && (
             <div className="flex items-center gap-1">
-              <span className="text-slate-400 text-base">Bonus:</span>
+              <span className="text-slate-500">Bonus:</span>
               {(gameState.bonusTiles?.[`seat${mySeat}` as keyof typeof gameState.bonusTiles] || []).map((tile, i) => (
                 <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="md" />
               ))}
             </div>
           )}
+          <span className="text-slate-500 ml-auto">{myHand.length} tiles</span>
         </div>
 
-        {/* Exposed melds */}
-        {(gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds] || []).length > 0 && (
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-slate-400 text-base">Melds:</span>
-            {(gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds] || []).map((meld, meldIdx) => (
-              <div key={meldIdx} className="flex gap-0.5 bg-slate-800/50 rounded px-1 py-0.5">
-                {meld.tiles.map((tile, i) => (
-                  <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="md" />
-                ))}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* YOUR HAND - The Main Event */}
-        <div className="text-base text-slate-400 mb-2 flex items-center justify-between">
-          <span>Your Hand ({myHand.length} tiles)</span>
-          {chowSelectionMode && (
-            <span className="text-cyan-400">Select tiles for Chow ({selectedChowTiles.length}/2)</span>
-          )}
-        </div>
+        {/* Hand tiles */}
         {chowSelectionMode ? (
           // Chow selection mode - show tiles with chow highlighting
           <div className="flex gap-1 flex-wrap justify-center">
@@ -1160,78 +1105,45 @@ export default function GamePage() {
       </div>
       {/* End of Primary Hand Section */}
 
-      {/* ========== GAME LOG - PROMINENT ========== */}
-      {gameState.actionLog?.length > 0 && (
-        <div className="bg-slate-700/40 rounded-xl p-4 mb-4 border border-slate-600">
-          <div className="text-base text-slate-400 mb-2 flex items-center justify-between">
-            <span>Game Log</span>
-            <span className="text-slate-500">{gameState.actionLog.length} entries</span>
-          </div>
-          <div ref={logRef} className="max-h-32 overflow-y-auto space-y-1 text-base">
-            {(gameState.actionLog || []).map((entry, index, arr) => (
+      {/* ========== MIDDLE ROW: GAME LOG + LAST DISCARD + DISCARD PILE ========== */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+        {/* Game Log */}
+        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-600">
+          <div className="text-base text-slate-300 font-medium mb-3">Game Log</div>
+          <div ref={logRef} className="max-h-32 overflow-y-auto space-y-1">
+            {(gameState.actionLog || []).slice(-10).map((entry, index, arr) => (
               <div
                 key={index}
-                className={`py-0.5 ${index === arr.length - 1 ? 'text-white font-medium' : 'text-slate-400'}`}
+                className={`text-base py-0.5 ${index === arr.length - 1 ? 'text-white font-medium' : 'text-slate-300'}`}
               >
                 {entry}
               </div>
             ))}
           </div>
         </div>
-      )}
 
-      {/* ========== SECONDARY: OTHER PLAYERS & DISCARD ========== */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Other Players */}
-        <div className="bg-slate-800/40 rounded-xl p-4 border border-slate-700">
-          <div className="text-base text-slate-400 mb-3">Other Players</div>
-          <div className="space-y-3">
-            {([0, 1, 2, 3] as SeatIndex[])
-              .filter((seat) => seat !== mySeat)
-              .map((seat) => {
-                const player = room.players[`seat${seat}` as keyof typeof room.players];
-                if (!player) return null;
-
-                const isDealer = gameState.dealerSeat === seat;
-                const exposedMelds = gameState.exposedMelds?.[`seat${seat}` as keyof typeof gameState.exposedMelds] || [];
-                const bonusTiles = gameState.bonusTiles?.[`seat${seat}` as keyof typeof gameState.bonusTiles] || [];
-                const baseTileCount = isDealer ? 17 : 16;
-                const tileCount = baseTileCount - (2 * exposedMelds.length);
-                const isCurrentTurn = gameState.currentPlayerSeat === seat;
-
-                return (
-                  <div
-                    key={seat}
-                    className={`flex items-center justify-between p-2 rounded-lg ${isCurrentTurn ? 'bg-emerald-500/20 border border-emerald-500/30' : 'bg-slate-700/30'}`}
-                  >
-                    <div className="flex items-center gap-2">
-                      {player.isBot && <span className="text-cyan-400">🤖</span>}
-                      <span className={`font-medium ${isCurrentTurn ? 'text-emerald-300' : 'text-white'}`}>
-                        {player.name}
-                      </span>
-                      <span className="text-slate-500 text-base">({SEAT_LABELS[seat]})</span>
-                      {isDealer && <span className="bg-amber-500 text-black text-base px-1 rounded font-bold">D</span>}
-                    </div>
-                    <div className="flex items-center gap-2 text-base">
-                      <span className="text-slate-400">{tileCount} tiles</span>
-                      {bonusTiles.length > 0 && (
-                        <span className="text-amber-400">+{bonusTiles.length} bonus</span>
-                      )}
-                      {exposedMelds.length > 0 && (
-                        <span className="text-purple-400">{exposedMelds.length} melds</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
+        {/* Last Discard - Center column */}
+        <div className={`rounded-xl p-4 border flex flex-col items-center justify-center ${
+          gameState.lastAction?.type === 'discard' && gameState.lastAction.tile
+            ? 'bg-red-500/20 border-red-500/40'
+            : 'bg-slate-800/50 border-slate-600'
+        }`}>
+          {gameState.lastAction?.type === 'discard' && gameState.lastAction.tile ? (
+            <>
+              <span className="text-red-300 text-base font-medium mb-2">Last Discard</span>
+              <Tile tileId={gameState.lastAction.tile} goldTileType={gameState.goldTileType} size="lg" />
+              <span className="text-white text-base mt-2">by <span className="font-semibold">{SEAT_LABELS[gameState.lastAction.playerSeat]}</span></span>
+            </>
+          ) : (
+            <span className="text-slate-400 text-base">No discard yet</span>
+          )}
         </div>
 
         {/* Discard Pile */}
-        <div className="bg-slate-800/40 rounded-xl p-4 border border-slate-700">
-          <div className="text-base text-slate-400 mb-3 flex items-center justify-between">
+        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-600">
+          <div className="text-base text-slate-300 font-medium mb-3 flex items-center justify-between">
             <span>Discard Pile</span>
-            <span className="text-slate-500">{gameState.discardPile?.length || 0} tiles</span>
+            <span className="text-slate-400">{gameState.discardPile?.length || 0} tiles</span>
           </div>
           {gameState.discardPile?.length > 0 ? (
             <div className="flex gap-1.5 flex-wrap">
@@ -1240,31 +1152,84 @@ export default function GamePage() {
                 gameState.discardPile.forEach((tile) => {
                   const tileType = getTileType(tile);
                   const existing = tileCounts.get(tileType);
-                  if (existing) {
-                    existing.count++;
-                  } else {
-                    tileCounts.set(tileType, { tileId: tile, count: 1 });
-                  }
+                  if (existing) existing.count++;
+                  else tileCounts.set(tileType, { tileId: tile, count: 1 });
                 });
-
-                const mostRecentType = getTileType(gameState.discardPile[gameState.discardPile.length - 1]);
-                const sortedEntries = Array.from(tileCounts.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-
-                return sortedEntries.map(([tileType, { tileId, count }]) => (
-                  <div key={tileType} className={`relative ${tileType === mostRecentType ? 'ring-2 ring-red-400 rounded-md' : ''}`}>
-                    <Tile tileId={tileId} goldTileType={gameState.goldTileType || ''} size="lg" />
-                    {count > 1 && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-base rounded-full w-4 h-4 flex items-center justify-center font-bold">
-                        {count}
-                      </span>
-                    )}
-                  </div>
-                ));
+                return Array.from(tileCounts.entries())
+                  .sort((a, b) => a[0].localeCompare(b[0]))
+                  .map(([tileType, { tileId, count }]) => (
+                    <div key={tileType} className="relative">
+                      <Tile tileId={tileId} goldTileType={gameState.goldTileType || ''} size="md" />
+                      {count > 1 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                          {count}
+                        </span>
+                      )}
+                    </div>
+                  ));
               })()}
             </div>
           ) : (
-            <div className="text-slate-500 text-base">No discards yet</div>
+            <div className="text-slate-400 text-base">No discards yet</div>
           )}
+        </div>
+      </div>
+
+      {/* ========== OTHER PLAYERS WITH MELDS ========== */}
+      <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-600">
+        <div className="text-base text-slate-300 font-medium mb-3">Other Players</div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {([0, 1, 2, 3] as SeatIndex[])
+            .filter((seat) => seat !== mySeat)
+            .map((seat) => {
+              const player = room.players[`seat${seat}` as keyof typeof room.players];
+              if (!player) return null;
+
+              const isDealer = gameState.dealerSeat === seat;
+              const exposedMelds = gameState.exposedMelds?.[`seat${seat}` as keyof typeof gameState.exposedMelds] || [];
+              const bonusTiles = gameState.bonusTiles?.[`seat${seat}` as keyof typeof gameState.bonusTiles] || [];
+              const baseTileCount = isDealer ? 17 : 16;
+              const tileCount = baseTileCount - (2 * exposedMelds.length);
+              const isCurrentTurn = gameState.currentPlayerSeat === seat;
+
+              return (
+                <div
+                  key={seat}
+                  className={`p-3 rounded-lg ${isCurrentTurn ? 'bg-emerald-500/25 border-2 border-emerald-500/50' : 'bg-slate-700/40 border border-slate-600'}`}
+                >
+                  {/* Player info row */}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      {player.isBot && <span className="text-cyan-400 text-lg">🤖</span>}
+                      <span className={`font-semibold text-base ${isCurrentTurn ? 'text-emerald-200' : 'text-white'}`}>
+                        {player.name}
+                      </span>
+                      <span className="text-slate-400">({SEAT_LABELS[seat]})</span>
+                      {isDealer && <span className="bg-amber-500 text-black text-sm px-1.5 py-0.5 rounded font-bold">D</span>}
+                    </div>
+                    <span className="text-slate-300 font-medium">{tileCount} tiles</span>
+                  </div>
+                  {/* Melds and bonus tiles */}
+                  {(exposedMelds.length > 0 || bonusTiles.length > 0) && (
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      {exposedMelds.map((meld, meldIdx) => (
+                        <div key={meldIdx} className="flex gap-0.5 bg-slate-800/70 rounded p-1">
+                          {meld.tiles.map((tile, i) => (
+                            <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="md" />
+                          ))}
+                        </div>
+                      ))}
+                      {bonusTiles.length > 0 && (
+                        <div className="bg-amber-500/30 rounded px-3 py-1 flex items-center gap-1">
+                          <span className="text-amber-300 text-sm">Bonus:</span>
+                          <span className="text-amber-400 text-2xl font-bold">+{bonusTiles.length}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
         </div>
       </div>
     </div>

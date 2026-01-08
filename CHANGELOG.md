@@ -39,6 +39,12 @@ All notable changes to the Fujian Mahjong project.
   - Compact header with room code, Gold tile, wall count
   - Responsive two-column layout for Other Players and Discard Pile
   - Larger text throughout for better readability
+- **Compact Layout Improvements**
+  - 3-column middle row: Game Log | Last Discard | Discard Pile (saves vertical space)
+  - Last Discard shown prominently in center with red highlight when active
+  - Other players show bonus points as "+N" count instead of individual tiles
+  - Subtle gold tile highlighting (pale yellow bg) so suit colors remain visible
+  - Gold tiles now display suit-specific text colors (red/blue/green)
 
 #### Files Created
 - `app/src/hooks/useBotRunner.ts` - Client-side bot runner with strategic AI
