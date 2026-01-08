@@ -236,16 +236,13 @@ function shouldCallPung(hand: TileId[], discardTile: TileId, goldType: TileType,
   return shantenAfter < shantenBefore || (shantenAfter <= 1 && shantenBefore <= 2);
 }
 
-function getChowOptions(hand: TileId[], discardTile: TileId, goldType: TileType, meldCount: number = 0): [TileId, TileId][] {
+function getChowOptions(hand: TileId[], discardTile: TileId, goldType: TileType): [TileId, TileId][] {
   if (!isSuitTile(discardTile) || isGoldTile(discardTile, goldType)) {
     return [];
   }
 
-  // Hand size must be 16 - (3 * melds) to call (same check as canChow in tiles.ts)
-  const expectedHandSize = 16 - (3 * meldCount);
-  if (hand.length !== expectedHandSize) {
-    return [];
-  }
+  // Note: No hand size check - you can call as long as you have the tiles
+  // This allows flexibility for Kong (which affects hand size) and edge cases
 
   const type = getTileType(discardTile);
   const parts = type.split('_');
@@ -285,7 +282,7 @@ function getChowOptions(hand: TileId[], discardTile: TileId, goldType: TileType,
 }
 
 function shouldCallChow(hand: TileId[], discardTile: TileId, goldType: TileType, meldCount: number): [TileId, TileId] | null {
-  const options = getChowOptions(hand, discardTile, goldType, meldCount);
+  const options = getChowOptions(hand, discardTile, goldType);
   if (options.length === 0) return null;
 
   const shantenBefore = calculateShanten(hand, goldType, meldCount);

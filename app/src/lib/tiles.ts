@@ -607,11 +607,8 @@ export function canPung(
     return false;
   }
 
-  // Hand size should be 16 - (3 * exposed melds) for waiting to call
-  const expectedHandSize = 16 - (3 * exposedMeldCount);
-  if (hand.length !== expectedHandSize) {
-    return false;
-  }
+  // Note: No hand size check - you can call as long as you have the tiles
+  // This allows flexibility for Kong (which affects hand size) and edge cases
 
   const discardType = getTileType(discardTile);
   let matchCount = 0;
@@ -652,11 +649,8 @@ export function canChow(
     return [];
   }
 
-  // Hand size should be 16 - (3 * exposed melds) for waiting to call
-  const expectedHandSize = 16 - (3 * exposedMeldCount);
-  if (hand.length !== expectedHandSize) {
-    return [];
-  }
+  // Note: No hand size check - you can call as long as you have the tiles
+  // This allows flexibility for Kong (which affects hand size) and edge cases
 
   const parsed = parseTile(discardTile);
 
