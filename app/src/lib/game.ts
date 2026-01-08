@@ -768,6 +768,16 @@ export async function discardTile(
     return { success: false };
   }
 
+  // Cannot discard the same tile type you just called on (pung/chow)
+  if (
+    (gameState.lastAction?.type === 'pung' || gameState.lastAction?.type === 'chow') &&
+    gameState.lastAction.playerSeat === seat &&
+    gameState.lastAction.tile &&
+    getTileType(tileId) === getTileType(gameState.lastAction.tile)
+  ) {
+    return { success: false };
+  }
+
   // Get current hand
   const handSnapshot = await get(ref(db, `rooms/${roomCode}/privateHands/seat${seat}`));
   if (!handSnapshot.exists()) {

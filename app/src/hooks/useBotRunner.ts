@@ -200,9 +200,18 @@ function calculateShanten(hand: TileId[], goldType: TileType, meldCount: number 
 // STRATEGIC DECISIONS
 // ============================================
 
-function selectBestDiscard(hand: TileId[], goldType: TileType, discardPile: TileId[], _meldCount: number = 0): TileId | null {
+function selectBestDiscard(
+  hand: TileId[],
+  goldType: TileType,
+  discardPile: TileId[],
+  _meldCount: number = 0,
+  excludeTileType?: TileType  // Cannot discard tiles of this type (e.g., tile just called on)
+): TileId | null {
   const analysis = analyzeHand(hand, goldType, discardPile);
-  const candidates = analysis.regularTiles;
+  // Filter out tiles that match the excluded type (illegal to discard tile you just called on)
+  const candidates = excludeTileType
+    ? analysis.regularTiles.filter(t => getTileType(t) !== excludeTileType)
+    : analysis.regularTiles;
 
   if (candidates.length === 0) {
     return null;
@@ -470,7 +479,11 @@ export function useBotRunner({
       }
 
       const discardPile = gameState!.discardPile || [];
-      const tileToDiscard = selectBestDiscard(tiles, goldType, discardPile, meldCount);
+      // If we just called pung/chow, we cannot discard the same tile type
+      const calledTileType = (gameState!.lastAction?.type === 'pung' || gameState!.lastAction?.type === 'chow')
+        ? getTileType(gameState!.lastAction.tile!)
+        : undefined;
+      const tileToDiscard = selectBestDiscard(tiles, goldType, discardPile, meldCount, calledTileType);
 
       if (tileToDiscard) {
         console.log(`[Bot ${seat}] Discarding ${getTileType(tileToDiscard)}`);
