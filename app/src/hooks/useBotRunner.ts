@@ -160,7 +160,31 @@ function calculateShanten(hand: TileId[], goldType: TileType, meldCount: number 
   const analysis = analyzeHand(hand, goldType);
   const setsNeeded = 5 - meldCount;
 
+  // Count complete sets: triplets AND complete sequences
   let completeSets = analysis.triplets.length;
+
+  // Count complete sequences (3 consecutive tiles of same suit)
+  const usedInSequence = new Set<string>();
+  for (const [type, count] of analysis.typeCounts) {
+    if (usedInSequence.has(type)) continue;
+    const parts = type.split('_');
+    if (parts[0] === 'wind' || parts[0] === 'dragon') continue;
+
+    const suit = parts[0];
+    const val = parseInt(parts[1]);
+    if (val <= 7) {
+      const type2 = `${suit}_${val + 1}`;
+      const type3 = `${suit}_${val + 2}`;
+      if (analysis.typeCounts.has(type2) && analysis.typeCounts.has(type3) &&
+          !usedInSequence.has(type2) && !usedInSequence.has(type3)) {
+        completeSets++;
+        usedInSequence.add(type);
+        usedInSequence.add(type2);
+        usedInSequence.add(type3);
+      }
+    }
+  }
+
   let usefulPartials = Math.min(analysis.partials.length, setsNeeded - completeSets);
   let hasPair = analysis.pairs.length > 0;
   let availableGolds = analysis.goldCount;
@@ -287,17 +311,28 @@ function shouldCallChow(hand: TileId[], discardTile: TileId, goldType: TileType,
 
   const shantenBefore = calculateShanten(hand, goldType, meldCount);
 
+  // Find the best chow option (one that improves shanten the most)
+  let bestOption: [TileId, TileId] | null = null;
+  let bestShantenAfter = Infinity;
+
   for (const [tile1, tile2] of options) {
     const newHand = hand.filter(t => t !== tile1 && t !== tile2);
     const shantenAfter = calculateShanten(newHand, goldType, meldCount + 1);
-    if (shantenAfter <= 1) return [tile1, tile2];
+    if (shantenAfter < bestShantenAfter) {
+      bestShantenAfter = shantenAfter;
+      bestOption = [tile1, tile2];
+    }
   }
 
-  const bestOption = options[0];
-  const newHand = hand.filter(t => t !== bestOption[0] && t !== bestOption[1]);
-  const shantenAfter = calculateShanten(newHand, goldType, meldCount + 1);
+  if (!bestOption) return null;
 
-  return shantenAfter < shantenBefore - 1 ? bestOption : null;
+  // Use same criteria as pung: call if shanten improves OR if already close to ready
+  // This makes chow equally viable as pung for building hands
+  if (bestShantenAfter < shantenBefore || (bestShantenAfter <= 1 && shantenBefore <= 2)) {
+    return bestOption;
+  }
+
+  return null;
 }
 
 // ============================================
