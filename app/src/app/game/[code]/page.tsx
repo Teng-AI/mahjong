@@ -897,7 +897,7 @@ export default function GamePage() {
             <span className="text-slate-400 text-lg">Room</span>
             <span className="font-mono text-amber-400 font-bold">{roomCode}</span>
           </div>
-          {gameState.goldTileType && (
+          {gameState.goldTileType && gameState.exposedGold && (
             <div className="flex items-center gap-1">
               <span className="text-slate-400 text-lg">Gold</span>
               <Tile tileId={gameState.exposedGold} goldTileType={gameState.goldTileType} size="md" />
