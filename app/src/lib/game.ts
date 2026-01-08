@@ -551,7 +551,7 @@ async function handleThreeGoldsWin(
       isSelfDraw: true,
       isThreeGolds: true,
       hand,
-      winningTile,
+      ...(winningTile ? { winningTile } : {}),
       score: {
         base,
         bonusTiles: bonusCount,
@@ -1321,7 +1321,7 @@ export async function declareSelfDrawWin(
       isSelfDraw: true,
       isThreeGolds: false,
       hand,
-      winningTile,
+      ...(winningTile ? { winningTile } : {}),
       score: {
         base,
         bonusTiles: bonusCount,
