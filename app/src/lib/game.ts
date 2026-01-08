@@ -44,8 +44,8 @@ async function addToLog(roomCode: string, message: string): Promise<void> {
   const gameSnapshot = await get(ref(db, `rooms/${roomCode}/game/actionLog`));
   const currentLog: string[] = gameSnapshot.exists() ? gameSnapshot.val() : [];
 
-  // Keep last 20 entries
-  const newLog = [...currentLog, message].slice(-20);
+  // Keep full game history
+  const newLog = [...currentLog, message];
   await set(ref(db, `rooms/${roomCode}/game/actionLog`), newLog);
 }
 

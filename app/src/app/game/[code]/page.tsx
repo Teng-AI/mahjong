@@ -1130,8 +1130,8 @@ export default function GamePage() {
         {/* Game Log */}
         <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-600">
           <div className="text-lg text-slate-300 font-medium mb-3">Game Log</div>
-          <div ref={logRef} className="max-h-32 overflow-y-auto space-y-1">
-            {(gameState.actionLog || []).slice(-10).map((entry, index, arr) => (
+          <div ref={logRef} className="max-h-40 overflow-y-auto space-y-1">
+            {(gameState.actionLog || []).map((entry, index, arr) => (
               <div
                 key={index}
                 className={`text-lg py-0.5 ${index === arr.length - 1 ? 'text-white font-medium' : 'text-slate-300'}`}
