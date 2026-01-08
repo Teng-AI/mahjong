@@ -469,6 +469,42 @@ function tryFormSetsAndPair(
         return true;
       }
     }
+
+    // Try chow with wildcard as FIRST tile (wildcard + firstType + nextType)
+    // This handles cases like Gold(7) + 8 + 9 where firstType is 8
+    if (wildcards >= 1 && parsed.value >= 2) {
+      const nextType = `${suit}_${val + 1}` as TileType;
+      const nextCount = tileCounts.get(nextType) || 0;
+
+      if (count >= 1 && nextCount >= 1) {
+        const newCounts = new Map(tileCounts);
+        newCounts.set(firstType, count - 1);
+        newCounts.set(nextType, nextCount - 1);
+        if (tryFormSetsAndPair(newCounts, wildcards - 1, hasPair, setsNeeded - 1)) {
+          return true;
+        }
+      }
+    }
+
+    // Try chow with wildcard as first tile AND wildcard as second (wildcard + wildcard + firstType)
+    // This handles cases like Gold(7) + Gold(8) + 9 where firstType is 9
+    if (wildcards >= 2 && parsed.value >= 3) {
+      const newCounts = new Map(tileCounts);
+      newCounts.set(firstType, count - 1);
+      if (tryFormSetsAndPair(newCounts, wildcards - 2, hasPair, setsNeeded - 1)) {
+        return true;
+      }
+    }
+
+    // Try chow with wildcard as first tile AND wildcard as third (wildcard + firstType + wildcard)
+    // This handles cases like Gold(7) + 8 + Gold(10) where firstType is 8
+    if (wildcards >= 2 && parsed.value >= 2 && parsed.value <= 8) {
+      const newCounts = new Map(tileCounts);
+      newCounts.set(firstType, count - 1);
+      if (tryFormSetsAndPair(newCounts, wildcards - 2, hasPair, setsNeeded - 1)) {
+        return true;
+      }
+    }
   }
 
   // If we can't use this tile in any set, the hand is not valid
