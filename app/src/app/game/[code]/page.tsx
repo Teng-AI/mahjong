@@ -878,9 +878,9 @@ export default function GamePage() {
             <button className="w-7 h-7 rounded-full bg-slate-600 hover:bg-slate-500 text-slate-300 hover:text-white text-lg font-bold flex items-center justify-center">
               ?
             </button>
-            <div className="absolute left-0 top-full mt-2 w-96 max-h-[80vh] overflow-y-auto bg-slate-800 border border-slate-600 rounded-lg p-4 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-              <h3 className="text-amber-400 font-bold mb-2">How to Play</h3>
-              <div className="text-sm text-slate-300 space-y-2">
+            <div className="absolute left-0 top-full mt-2 w-[420px] max-h-[80vh] overflow-y-auto bg-slate-800 border border-slate-600 rounded-lg p-4 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+              <h3 className="text-amber-400 font-bold text-lg mb-3">How to Play</h3>
+              <div className="text-base text-slate-300 space-y-2">
                 <p><strong className="text-white">Goal:</strong> Form a winning hand of 5 sets + 1 pair (17 tiles total)</p>
                 <p><strong className="text-white">Sets:</strong> Either 3 of a kind (Pung) or 3 in a row of the same suit (Chow)</p>
                 <p><strong className="text-white">Gold Tile:</strong> Acts as a wildcard - can substitute for any suited tile</p>
@@ -892,18 +892,18 @@ export default function GamePage() {
 
               <hr className="border-slate-600 my-3" />
 
-              <h4 className="text-amber-400 font-bold mb-2 text-sm">Detailed Rules</h4>
-              <div className="text-xs text-slate-400 space-y-2">
-                <p><strong className="text-slate-300">Turn Order:</strong> Play goes counter-clockwise (East → North → West → South)</p>
-                <p><strong className="text-slate-300">Starting Tiles:</strong> Dealer receives 17 tiles, others receive 16. Dealer discards first without drawing.</p>
-                <p><strong className="text-slate-300">Gold Tiles:</strong> Cannot be discarded - you must keep them. They can substitute for any suited tile (dots, bamboo, characters) in sets and pairs.</p>
-                <p><strong className="text-slate-300">Three Golds:</strong> If you ever hold 3 Gold tiles, you instantly win with a bonus!</p>
-                <p><strong className="text-slate-300">Chow Restriction:</strong> You can only call Chow on a discard from the player immediately before you (your right).</p>
-                <p><strong className="text-slate-300">Pung Priority:</strong> Pung can be called on anyone's discard, and takes priority over Chow.</p>
-                <p><strong className="text-slate-300">Win Priority:</strong> A winning call (WIN) takes priority over all other calls.</p>
-                <p><strong className="text-slate-300">Scoring:</strong> Base points + bonus tiles + Gold tiles in hand. Self-draw wins get 2x multiplier.</p>
-                <p><strong className="text-slate-300">Suits:</strong> Dots (red ●), Bamboo (blue |), Characters (green 萬). Each suit has tiles 1-9.</p>
-                <p><strong className="text-slate-300">Honors:</strong> Winds (東南西北) and Dragons (中) are bonus tiles - expose them for points but they can't form Chows.</p>
+              <h4 className="text-amber-400 font-bold text-lg mb-3">Detailed Rules</h4>
+              <div className="text-base text-slate-300 space-y-2">
+                <p><strong className="text-white">Turn Order:</strong> Play goes counter-clockwise (East → North → West → South)</p>
+                <p><strong className="text-white">Starting Tiles:</strong> Dealer receives 17 tiles, others receive 16. Dealer discards first without drawing.</p>
+                <p><strong className="text-white">Gold Tiles:</strong> Cannot be discarded - you must keep them. They can substitute for any suited tile (dots, bamboo, characters) in sets and pairs.</p>
+                <p><strong className="text-white">Three Golds:</strong> If you ever hold 3 Gold tiles, you instantly win with a bonus!</p>
+                <p><strong className="text-white">Chow Restriction:</strong> You can only call Chow on a discard from the player immediately before you (your right).</p>
+                <p><strong className="text-white">Pung Priority:</strong> Pung can be called on anyone's discard, and takes priority over Chow.</p>
+                <p><strong className="text-white">Win Priority:</strong> A winning call (WIN) takes priority over all other calls.</p>
+                <p><strong className="text-white">Scoring:</strong> Base points + bonus tiles + Gold tiles in hand. Self-draw wins get 2x multiplier.</p>
+                <p><strong className="text-white">Suits:</strong> Dots (red ●), Bamboo (blue |), Characters (green 萬). Each suit has tiles 1-9.</p>
+                <p><strong className="text-white">Honors:</strong> Winds (東南西北) and Dragons (中) are bonus tiles - expose them for points but they can't form Chows.</p>
               </div>
             </div>
           </div>
