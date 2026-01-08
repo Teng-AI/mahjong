@@ -12,6 +12,36 @@ All notable changes to the Fujian Mahjong project.
 
 ---
 
+## 2026-01-08
+
+### Winner Screen Redesign & Bug Fixes
+
+#### Changed
+- **Winner Screen Redesign**
+  - Wide 2-column grid layout (replaces narrow centered column)
+  - Left column: Winning Hand with all tiles in one row
+  - Right column: Score Breakdown and Session Scores tables
+  - Winning tile highlighted with amber pulse in hand display
+  - Your Hand section shown for non-winners
+  - Responsive: stacks to single column on mobile
+- **Loading Screen**: Changed from bright green to subtle slate gradient
+
+#### Fixed
+- **Win Detection Bug**: Gold tiles now work as first tile in chows
+  - Example: Gold(7) + 8萬 + 9萬 is now correctly recognized
+  - Added wildcard-as-first-tile cases in recursive algorithm
+- **Rules Tooltip**: Added "?" button in header with beginner-friendly rules
+  - Quick overview section for basic gameplay
+  - Detailed rules section for complete reference
+  - Uniform text sizing with larger headers
+
+#### Files Modified
+- `app/src/app/game/[code]/page.tsx` - Winner screen redesign, loading colors, rules tooltip
+- `app/src/lib/tiles.ts` - Win detection fix for wildcards
+- `app/src/app/page.tsx` - Removed Status section and MVP footer text
+
+---
+
 ## 2025-01-08
 
 ### Bot Players & UI Redesign

@@ -19,14 +19,6 @@
 - Draw replacement tile from back of wall
 - Affects hand structure (still need 5 sets + 1 pair, but Kong counts as 1 set)
 
-## Winner Screen Redesign
-- Make layout wider and less vertical (currently narrow centered column)
-- Use horizontal/grid layout for sections:
-  - Winner info + winning hand side-by-side with score breakdown
-  - Cumulative scores in a compact table
-  - Your hand shown inline if not winner
-- Better use of screen real estate on desktop
-
 ## Adjustable Bot Difficulty
 - Allow host to set bot skill level (Easy / Medium / Hard)
 - **Easy**: Random discards, never calls, only wins on obvious hands
