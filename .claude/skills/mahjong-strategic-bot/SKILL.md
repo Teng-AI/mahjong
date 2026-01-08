@@ -1,6 +1,6 @@
 # Fujian Mahjong Strategic Bot
 
-An AI bot that plays Fujian Mahjong optimally. Use this skill when you need to make strategic decisions for a player or implement automated play.
+An AI bot that plays Fujian Mahjong to **maximize expected points over a series of games**, not just to win individual hands.
 
 ## When to Use
 - Testing game mechanics with intelligent opponents
@@ -8,9 +8,42 @@ An AI bot that plays Fujian Mahjong optimally. Use this skill when you need to m
 - Analyzing optimal play in specific situations
 - User asks for strategic advice on their hand
 
+## Core Philosophy
+
+**Goal: Maximize expected value (EV) over many games**
+
+This means:
+- A 4-point win is worth more than a 1-point win
+- Self-draw (2x multiplier) is often worth waiting for
+- Don't push weak hands when opponents look dangerous
+- Sometimes folding (playing defensively) is correct
+- Avoid dealing into opponents' big hands
+
 ## Core Strategy Principles
 
-### 1. Hand Evaluation (Shanten Count)
+### 1. Hand Value Assessment
+
+**Scoring Components:**
+- Base: 1 point
+- Each Gold tile in hand: +1 point
+- Each bonus tile exposed: +1 point
+- Self-draw multiplier: ×2
+- (Future) Three Golds: instant win + bonus
+
+**Expected Value Calculation:**
+```
+EV = (Win probability) × (Expected score) - (Deal-in probability) × (Expected loss)
+```
+
+A hand with 2 Gold tiles (base 1 + 2 golds = 3 points) with self-draw = 6 points
+vs. calling to win faster but losing self-draw chance = 3 points
+
+**Hand Quality Tiers:**
+- **Premium (4+ points)**: Push aggressively, worth taking risks
+- **Good (2-3 points)**: Play normally, call if it speeds up significantly
+- **Weak (1 point)**: Only win if safe, consider folding if others are close
+
+### 2. Hand Evaluation (Shanten Count)
 **Shanten** = minimum number of tile changes needed to reach tenpai (one tile from winning)
 - 0-shanten = Tenpai (waiting for winning tile)
 - 1-shanten = One useful draw away from tenpai
@@ -38,20 +71,33 @@ An AI bot that plays Fujian Mahjong optimally. Use this skill when you need to m
 
 ### 3. Calling Strategy (Pung/Chow)
 
+**The Self-Draw Dilemma:**
+Calling speeds up your hand BUT sacrifices the 2x self-draw multiplier.
+
+| Scenario | Self-Draw Value | Call Value | Decision |
+|----------|-----------------|------------|----------|
+| 1 Gold, close to tenpai | 1×2 = 2 pts | 1 pt | Don't call |
+| 2 Golds, far from tenpai | 3×2 = 6 pts | 3 pts | Only call if desperate |
+| 0 Golds, opponent dangerous | 1×2 = 2 pts | 1 pt | Call to end game fast |
+| 3+ Golds | 4×2 = 8 pts | 4 pts | Never call, push for self-draw |
+
 **When to Call:**
-- Call if it gets you to tenpai
-- Call if you have 2+ Gold tiles (hand is already fast)
+- Hand has LOW value (0-1 Gold) AND opponent looks close to winning
+- Call gets you to tenpai AND you're unlikely to self-draw anyway
+- Late game with few wall tiles (self-draw chance low)
 - Call Pung over Chow (more flexible, any position)
 
 **When NOT to Call:**
+- Hand has HIGH value (2+ Golds) - protect self-draw bonus
 - Early game with good hand shape (keep options open)
 - Calling would leave you with orphan tiles
-- You're close to a high-scoring concealed hand
+- You're already close to tenpai (self-draw is likely)
 
 **Chow Considerations:**
 - Only available to next-in-turn player
-- Exposes your suit preference
-- Consider which tiles you use (keep flexibility)
+- Exposes your suit preference (dangerous)
+- Loses self-draw potential
+- Usually only worth it to end game vs dangerous opponent
 
 ### 4. Gold Tile Strategy
 
@@ -65,22 +111,34 @@ An AI bot that plays Fujian Mahjong optimally. Use this skill when you need to m
 - If you draw 3 Gold tiles, instant win with bonus
 - With 2 Golds, drawing is more valuable (chance at 3rd)
 
-### 5. Defensive Play
+### 5. Defensive Play (Folding)
+
+**When to Fold (Play Pure Defense):**
+The key insight: **avoiding a 4-point loss is worth more than chasing a 1-point win**
+
+| Your Hand | Opponent Danger | Action |
+|-----------|-----------------|--------|
+| Weak (1pt), far from tenpai | 3+ melds exposed | FOLD - discard safe tiles only |
+| Weak (1pt), close to tenpai | 2 melds exposed | Push carefully |
+| Strong (3+pts), any distance | Any | Push - your EV is positive |
+
+**Danger Assessment:**
+- **Low danger**: 0-1 exposed melds, early game
+- **Medium danger**: 2 exposed melds OR late game (wall < 30)
+- **High danger**: 3+ exposed melds, late game, opponent discarding safe
 
 **Reading Danger Signs:**
 - Opponent calling = they're close to winning
 - Opponent with many exposed melds = very close
+- Opponent suddenly discarding safe tiles = they're tenpai
 - Track discards to identify safe tiles
 
-**When to Play Defensively:**
-- Opponent has 3+ exposed melds (likely tenpai)
-- Late game with few wall tiles remaining
-- Your hand is far from winning
-
-**Defensive Discards:**
-- Match opponent's discards (confirmed safe)
-- Discard from suits they've been discarding
-- Avoid tiles adjacent to their called melds
+**Defensive Discards (when folding):**
+- **Safest**: Tiles discarded 3+ times (4th copy can't win)
+- **Safe**: Match opponent's recent discards
+- **Okay**: Honor tiles they've discarded
+- **Risky**: Middle tiles (4,5,6) in suits they're collecting
+- **Dangerous**: Tiles adjacent to their called melds
 
 ### 6. Positional Awareness
 
@@ -93,47 +151,82 @@ An AI bot that plays Fujian Mahjong optimally. Use this skill when you need to m
 - Can only chow from player directly before you
 - Plan chow opportunities based on position
 
-## Decision Algorithm
+## Decision Algorithm (EV-Based)
 
 ### On Your Turn (After Drawing)
 
 ```
 1. CHECK WIN:
-   - Can I win? → Declare win (always)
+   - Can I win? → Declare win (always take guaranteed points)
 
-2. EVALUATE HAND:
-   - Calculate shanten
-   - Identify complete sets, partial sets, pairs, orphans
+2. ASSESS SITUATION:
+   - Calculate hand value (base + golds + bonuses)
+   - Calculate shanten (distance to tenpai)
+   - Assess opponent danger level
+   - Check wall tiles remaining
 
-3. SELECT DISCARD:
-   - If tenpai: discard safest tile that keeps tenpai
-   - If not tenpai: discard tile that most reduces shanten
-   - Tie-breaker: prefer safer tiles (honors > terminals > middles)
+3. DECIDE MODE:
+   - If hand value >= 3 AND shanten <= 2 → PUSH (aggressive)
+   - If opponent danger HIGH AND hand value <= 1 → FOLD (defensive)
+   - Otherwise → BALANCED (normal play)
 
-4. NEVER DISCARD:
-   - Gold tiles
-   - Tiles that would increase shanten
+4. SELECT DISCARD:
+   PUSH mode:
+     - Prioritize tiles that reduce shanten
+     - Accept moderate risk on discards
+
+   FOLD mode:
+     - Prioritize SAFE tiles (already discarded 3x, match opponent discards)
+     - Ignore shanten improvement
+
+   BALANCED mode:
+     - Reduce shanten while preferring safer options
+     - Tie-breaker: honors > terminals > middles
+
+5. NEVER DISCARD:
+   - Gold tiles (ever)
+   - Your only pair (usually)
 ```
 
 ### On Opponent's Discard (Calling Phase)
 
 ```
 1. CHECK WIN:
-   - Can I win on this discard? → Call WIN (highest priority)
+   - Can I win on this discard? → Call WIN (always take points)
 
-2. CHECK PUNG:
-   - Do I have 2 matching tiles?
-   - Would calling improve my hand significantly?
-   - Am I close to tenpai? → Call PUNG
+2. CALCULATE CALL EV:
+   Hand value with self-draw = (base + golds) × 2
+   Hand value with call = (base + golds) × 1
 
-3. CHECK CHOW (if next-in-turn):
-   - Do I have tiles to complete a sequence?
-   - Would calling get me to tenpai? → Call CHOW
-   - Would calling leave orphans? → PASS
+   Call loses: self-draw potential, hand concealment, flexibility
+
+3. SHOULD I CALL PUNG/CHOW?
+
+   CALL if ALL of:
+   - Hand has LOW value (0-1 Gold)
+   - Opponent looks DANGEROUS (2+ melds)
+   - Call gets me significantly closer to tenpai
+
+   DON'T CALL if ANY of:
+   - Hand has 2+ Golds (protect self-draw bonus)
+   - I'm already close to tenpai (will likely self-draw)
+   - Early game, wall > 60 tiles (plenty of time)
 
 4. DEFAULT:
-   - PASS (keep hand concealed)
+   - PASS (protect self-draw potential)
 ```
+
+### EV Comparison Example
+
+**Situation**: You have 2 Gold tiles, someone discards a tile you can pung.
+
+| Option | Calculation | EV |
+|--------|-------------|-----|
+| Call Pung, win on discard | 3 pts × 80% win chance | 2.4 pts |
+| Don't call, try self-draw | 6 pts × 40% win chance | 2.4 pts |
+| Don't call, risk deal-in | -3 pts × 20% deal-in | -0.6 pts |
+
+In this case: **Don't call** - same EV for winning, but calling removes self-draw upside.
 
 ## Implementation: Bot Turn Function
 

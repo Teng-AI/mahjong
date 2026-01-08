@@ -72,7 +72,7 @@ function isSuitTile(tileId) {
 }
 
 // ============================================
-// HAND ANALYSIS
+// HAND ANALYSIS (EV-Based)
 // ============================================
 
 function analyzeHand(hand, goldType, discardPile = []) {
@@ -119,10 +119,71 @@ function analyzeHand(hand, goldType, discardPile = []) {
     discardCounts.set(type, (discardCounts.get(type) || 0) + 1);
   }
 
-  return { tiles, goldTiles, regularTiles, typeCounts, triplets, pairs, isolated, discardCounts, goldCount: goldTiles.length };
+  // Calculate hand value (for EV calculations)
+  const goldCount = goldTiles.length;
+  const handValue = 1 + goldCount; // base + golds
+  const selfDrawValue = handValue * 2;
+
+  return {
+    tiles, goldTiles, regularTiles, typeCounts, triplets, pairs, isolated, discardCounts,
+    goldCount, handValue, selfDrawValue
+  };
 }
 
-function selectBestDiscard(hand, goldType, discardPile, meldCount = 0) {
+/**
+ * Assess danger level from opponents
+ * Returns: 'low', 'medium', 'high'
+ */
+function assessDanger(game, mySeat) {
+  let maxMelds = 0;
+
+  for (let s = 0; s < 4; s++) {
+    if (s === mySeat) continue;
+    const melds = game.exposedMelds?.[`seat${s}`] || [];
+    maxMelds = Math.max(maxMelds, melds.length);
+  }
+
+  const wallSize = game.wall?.length || 0;
+
+  // High danger: opponent has 3+ melds OR (2+ melds AND late game)
+  if (maxMelds >= 3) return 'high';
+  if (maxMelds >= 2 && wallSize < 30) return 'high';
+
+  // Medium danger: 2 melds OR late game
+  if (maxMelds >= 2) return 'medium';
+  if (wallSize < 40) return 'medium';
+
+  return 'low';
+}
+
+/**
+ * Determine play mode based on hand value and danger
+ * Returns: 'push', 'fold', 'balanced'
+ */
+function determinePlayMode(analysis, danger, shanten) {
+  // Strong hand (3+ value) - push regardless
+  if (analysis.handValue >= 3 && shanten <= 2) {
+    return 'push';
+  }
+
+  // Weak hand + high danger - fold
+  if (analysis.handValue <= 1 && danger === 'high' && shanten >= 3) {
+    return 'fold';
+  }
+
+  // High value hand - push
+  if (analysis.goldCount >= 2) {
+    return 'push'; // Protect self-draw bonus
+  }
+
+  return 'balanced';
+}
+
+/**
+ * Select best discard based on play mode
+ * @param mode - 'push', 'fold', or 'balanced'
+ */
+function selectBestDiscard(hand, goldType, discardPile, meldCount = 0, mode = 'balanced') {
   const analysis = analyzeHand(hand, goldType, discardPile);
   const candidates = analysis.regularTiles;
 
@@ -133,36 +194,104 @@ function selectBestDiscard(hand, goldType, discardPile, meldCount = 0) {
     const type = getTileType(tile);
     let score = 50;
 
-    if (analysis.triplets.includes(type)) score += 100;
-    const count = analysis.typeCounts.get(type) || 0;
-    if (count >= 2) score += analysis.pairs.length <= 1 ? 60 : 30;
-    if (analysis.isolated.includes(type)) score -= 30;
-    if (isHonorTile(tile) && count === 1) score -= 20;
-    if (isTerminal(tile) && count === 1) score -= 10;
-
+    // Safety score (higher = safer to discard)
     const discardCount = analysis.discardCounts.get(type) || 0;
-    if (discardCount >= 3) score -= 25;
-    else if (discardCount >= 2) score -= 15;
+    let safetyScore = 0;
+    if (discardCount >= 3) safetyScore = 100; // Completely safe
+    else if (discardCount >= 2) safetyScore = 60;
+    else if (discardCount >= 1) safetyScore = 30;
+    if (isHonorTile(tile)) safetyScore += 20; // Honors are generally safer
+    if (isTerminal(tile)) safetyScore += 10; // Terminals are safer than middles
 
-    scores.push({ tile, type, score });
+    // Value score (higher = more valuable to keep)
+    let valueScore = 0;
+    if (analysis.triplets.includes(type)) valueScore += 100;
+    const count = analysis.typeCounts.get(type) || 0;
+    if (count >= 2) valueScore += analysis.pairs.length <= 1 ? 80 : 40;
+    if (!analysis.isolated.includes(type)) valueScore += 30; // Connected tiles
+
+    // Mode-based scoring
+    if (mode === 'fold') {
+      // FOLD: Prioritize safety, ignore hand improvement
+      score = -safetyScore; // Lower score = better discard
+    } else if (mode === 'push') {
+      // PUSH: Prioritize hand improvement, accept risk
+      score = valueScore - (safetyScore * 0.3); // Slight safety consideration
+    } else {
+      // BALANCED: Weight both equally
+      score = valueScore - (safetyScore * 0.6);
+    }
+
+    scores.push({ tile, type, score, safetyScore, valueScore });
   }
 
   scores.sort((a, b) => a.score - b.score);
   return scores[0].tile;
 }
 
-function shouldCallPung(hand, discardTile, goldType, meldCount) {
+/**
+ * EV-based pung decision
+ * Key insight: calling loses self-draw (2x) potential
+ */
+function shouldCallPung(hand, discardTile, goldType, meldCount, game) {
   const type = getTileType(discardTile);
   const matchCount = hand.filter(t => getTileType(t) === type && !isGoldTile(t, goldType)).length;
   if (matchCount < 2) return false;
 
-  // Simple heuristic: call pung if it doesn't leave us with too many isolated tiles
   const analysis = analyzeHand(hand, goldType);
-  return analysis.isolated.length <= 3 || meldCount >= 2;
+  const wallSize = game?.wall?.length || 60;
+
+  // NEVER call if 2+ golds - protect self-draw value
+  if (analysis.goldCount >= 2) {
+    return false;
+  }
+
+  // Early game (wall > 60) - rarely call, plenty of time for self-draw
+  if (wallSize > 60 && analysis.goldCount >= 1) {
+    return false;
+  }
+
+  // Check opponent danger
+  const danger = game ? assessDanger(game, -1) : 'low';
+
+  // Only call if:
+  // 1. Low gold count (0-1) AND
+  // 2. Opponent is dangerous OR late game
+  if (analysis.goldCount <= 1 && (danger === 'high' || wallSize < 30)) {
+    // Call if it helps us significantly
+    return analysis.isolated.length <= 3 || meldCount >= 2;
+  }
+
+  // Default: don't call, protect self-draw potential
+  return false;
 }
 
-function shouldCallChow(hand, discardTile, goldType, meldCount) {
+/**
+ * EV-based chow decision
+ * Chow is even worse than pung (only available to next player, very limiting)
+ */
+function shouldCallChow(hand, discardTile, goldType, meldCount, game) {
   if (!isSuitTile(discardTile) || isGoldTile(discardTile, goldType)) return null;
+
+  const analysis = analyzeHand(hand, goldType);
+  const wallSize = game?.wall?.length || 60;
+
+  // NEVER call chow if 2+ golds
+  if (analysis.goldCount >= 2) {
+    return null;
+  }
+
+  // Only consider chow if:
+  // 1. 0 golds AND
+  // 2. High danger OR very late game
+  const danger = game ? assessDanger(game, -1) : 'low';
+  if (analysis.goldCount > 0 && danger !== 'high') {
+    return null;
+  }
+
+  if (wallSize > 40 && danger !== 'high') {
+    return null; // Too early, not dangerous enough
+  }
 
   const parsed = parseTileType(getTileType(discardTile));
   const suit = parsed.suit;
@@ -196,8 +325,11 @@ function shouldCallChow(hand, discardTile, goldType, meldCount) {
 
   if (options.length === 0) return null;
 
-  // Simple heuristic: chow if we have few melds
-  if (meldCount <= 2) return options[0];
+  // Only chow in late game with low-value hand and dangerous opponent
+  if (wallSize < 30 && danger === 'high' && meldCount >= 2) {
+    return options[0];
+  }
+
   return null;
 }
 
@@ -629,6 +761,15 @@ async function botTakeTurn(roomCode, seat, game) {
   const hand = await getPrivateHand(roomCode, seat);
   const goldType = game.goldTileType;
   const melds = game.exposedMelds?.[`seat${seat}`] || [];
+  const discardPile = game.discardPile || [];
+
+  // Analyze situation for EV-based decisions
+  const analysis = analyzeHand(hand, goldType, discardPile);
+  const danger = assessDanger(game, seat);
+  const shanten = 3; // Simplified - real implementation would calculate
+  const mode = determinePlayMode(analysis, danger, shanten);
+
+  console.log(`  Bot ${seat}: Mode=${mode}, Golds=${analysis.goldCount}, HandValue=${analysis.handValue}, Danger=${danger}`);
 
   // Check if need to draw
   const lastAction = game.lastAction;
@@ -648,19 +789,19 @@ async function botTakeTurn(roomCode, seat, game) {
 
     // Re-get hand after draw
     const newHand = await getPrivateHand(roomCode, seat);
+    const newAnalysis = analyzeHand(newHand, goldType, discardPile);
 
     // Check for win after draw
     if (canFormWinningHand(newHand, goldType, melds.length)) {
-      console.log(`  Bot ${seat}: WINNING! Self-draw!`);
+      console.log(`  Bot ${seat}: WINNING! Self-draw! (Value: ${newAnalysis.selfDrawValue} pts)`);
       await declareSelfDrawWin(roomCode, seat);
       return true;
     }
 
-    // Select and discard
-    const discardPile = game.discardPile || [];
-    const bestDiscard = selectBestDiscard(newHand, goldType, discardPile, melds.length);
+    // Select and discard based on mode
+    const bestDiscard = selectBestDiscard(newHand, goldType, discardPile, melds.length, mode);
     if (bestDiscard) {
-      console.log(`  Bot ${seat}: Discarding ${getTileType(bestDiscard)}`);
+      console.log(`  Bot ${seat}: Discarding ${getTileType(bestDiscard)} (${mode} mode)`);
       await discardTile(roomCode, seat, bestDiscard);
     }
     return true;
@@ -669,15 +810,14 @@ async function botTakeTurn(roomCode, seat, game) {
   // Already drew (after call) - just discard
   // Check for win first
   if (canFormWinningHand(hand, goldType, melds.length)) {
-    console.log(`  Bot ${seat}: WINNING! Self-draw!`);
+    console.log(`  Bot ${seat}: WINNING! Self-draw! (Value: ${analysis.selfDrawValue} pts)`);
     await declareSelfDrawWin(roomCode, seat);
     return true;
   }
 
-  const discardPile = game.discardPile || [];
-  const bestDiscard = selectBestDiscard(hand, goldType, discardPile, melds.length);
+  const bestDiscard = selectBestDiscard(hand, goldType, discardPile, melds.length, mode);
   if (bestDiscard) {
-    console.log(`  Bot ${seat}: Discarding ${getTileType(bestDiscard)}`);
+    console.log(`  Bot ${seat}: Discarding ${getTileType(bestDiscard)} (${mode} mode)`);
     await discardTile(roomCode, seat, bestDiscard);
   }
   return true;
@@ -696,39 +836,44 @@ async function botRespondToCall(roomCode, seat, game) {
   const hand = await getPrivateHand(roomCode, seat);
   const goldType = game.goldTileType;
   const melds = game.exposedMelds?.[`seat${seat}`] || [];
-  const discardTile = game.lastAction?.tile;
+  const discardedTile = game.lastAction?.tile;
 
-  if (!discardTile) return;
+  if (!discardedTile) return;
 
-  // Check for win
-  const testHand = [...hand, discardTile];
+  // Analyze hand for EV-based decisions
+  const analysis = analyzeHand(hand, goldType, game.discardPile || []);
+
+  // Check for win - always take guaranteed points
+  const testHand = [...hand, discardedTile];
   if (canFormWinningHand(testHand, goldType, melds.length)) {
-    console.log(`  Bot ${seat}: Calling WIN!`);
+    console.log(`  Bot ${seat}: Calling WIN! (Value: ${analysis.handValue} pts)`);
     await submitCallResponse(roomCode, seat, 'win');
     return;
   }
 
-  // Check for pung
-  if (shouldCallPung(hand, discardTile, goldType, melds.length)) {
-    console.log(`  Bot ${seat}: Calling PUNG on ${getTileType(discardTile)}`);
+  // EV-based call decision: pass game state for danger assessment
+  // Check for pung (with EV considerations)
+  if (shouldCallPung(hand, discardedTile, goldType, melds.length, game)) {
+    console.log(`  Bot ${seat}: Calling PUNG on ${getTileType(discardedTile)} (Golds: ${analysis.goldCount}, sacrificing self-draw)`);
     await submitCallResponse(roomCode, seat, 'pung');
     return;
   }
 
-  // Check for chow
+  // Check for chow (even stricter EV requirements)
   const discarderSeat = game.lastAction.playerSeat;
   const isNextInTurn = seat === (discarderSeat + 1) % 4;
 
   if (isNextInTurn) {
-    const chowTiles = shouldCallChow(hand, discardTile, goldType, melds.length);
+    const chowTiles = shouldCallChow(hand, discardedTile, goldType, melds.length, game);
     if (chowTiles) {
-      console.log(`  Bot ${seat}: Calling CHOW with [${chowTiles.map(t => getTileType(t)).join(', ')}]`);
+      console.log(`  Bot ${seat}: Calling CHOW with [${chowTiles.map(t => getTileType(t)).join(', ')}] (desperation call)`);
       await submitCallResponse(roomCode, seat, 'chow', chowTiles);
       return;
     }
   }
 
-  console.log(`  Bot ${seat}: PASS`);
+  // Default: PASS to protect self-draw potential
+  console.log(`  Bot ${seat}: PASS (protecting self-draw value: ${analysis.selfDrawValue} pts)`);
   await submitCallResponse(roomCode, seat, 'pass');
 }
 
