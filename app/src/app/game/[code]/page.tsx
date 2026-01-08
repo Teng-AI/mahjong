@@ -544,6 +544,15 @@ export default function GamePage() {
                   ? 'Won by self-draw'
                   : `Won on ${discarderName}'s discard`}
             </div>
+            {winner.seat === gameState.dealerSeat && (
+              <div className="text-base text-orange-400 mt-1">
+                {sessionScores?.dealerStreak && sessionScores.dealerStreak > 1
+                  ? `🔥 Dealer on a ${sessionScores.dealerStreak}-win streak!`
+                  : sessionScores?.dealerStreak === 1
+                    ? '🔥 Dealer wins! Streak started'
+                    : '🔥 Dealer wins!'}
+              </div>
+            )}
           </div>
 
           {/* Main content - 2 column grid */}
@@ -651,6 +660,12 @@ export default function GamePage() {
                     <span className="text-slate-300">Gold tiles:</span>
                     <span>+{winner.score.golds}</span>
                   </div>
+                  {winner.score.dealerStreakBonus > 0 && (
+                    <div className="flex justify-between text-orange-400">
+                      <span>Dealer streak:</span>
+                      <span>+{winner.score.dealerStreakBonus}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between border-t border-slate-600 pt-1">
                     <span className="text-slate-300">Subtotal:</span>
                     <span>{winner.score.subtotal}</span>
@@ -741,19 +756,28 @@ export default function GamePage() {
               {room?.hostId === user?.uid ? (
                 <button
                   onClick={async () => {
-                    const nextDealer = ((gameState.dealerSeat + 1) % 4) as SeatIndex;
+                    // If dealer won, they stay as dealer (dealer streak)
+                    // Otherwise, rotate to next player counter-clockwise
+                    const dealerWon = winner && winner.seat === gameState.dealerSeat;
+                    const nextDealer = dealerWon
+                      ? gameState.dealerSeat
+                      : ((gameState.dealerSeat + 1) % 4) as SeatIndex;
                     await startGame(nextDealer);
                   }}
                   className="px-8 py-3 bg-amber-500 hover:bg-amber-400 text-black font-semibold rounded-lg text-lg"
                 >
-                  Another Round
+                  {winner && winner.seat === gameState.dealerSeat
+                    ? 'Another Round (Dealer Stays)'
+                    : 'Another Round'}
                 </button>
               ) : (
                 <button
                   disabled
                   className="px-8 py-3 bg-gray-600 text-gray-400 font-semibold rounded-lg cursor-not-allowed text-lg"
                 >
-                  Another Round
+                  {winner && winner.seat === gameState.dealerSeat
+                    ? 'Another Round (Dealer Stays)'
+                    : 'Another Round'}
                 </button>
               )}
             </div>

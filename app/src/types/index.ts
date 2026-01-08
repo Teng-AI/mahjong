@@ -116,6 +116,7 @@ export interface ScoreBreakdown {
   base: number;
   bonusTiles: number;
   golds: number;
+  dealerStreakBonus: number; // +1 per consecutive dealer win (0 for first win)
   subtotal: number;
   multiplier: number;
   threeGoldsBonus?: number; // Only for Three Golds wins
@@ -209,6 +210,7 @@ export interface GameRound {
   winnerSeat: SeatIndex | null;  // null for draw games
   winnerName: string;
   score: number;                  // Points won this round (0 for draws)
+  dealerSeat: SeatIndex;          // Who was dealer this round
   timestamp: number;
 }
 
@@ -221,6 +223,7 @@ export interface SessionScores {
     seat2: number;
     seat3: number;
   };
+  dealerStreak: number; // Consecutive wins by current dealer (0 = no streak)
 }
 
 /** Settlement transaction */

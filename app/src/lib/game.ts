@@ -56,12 +56,14 @@ async function addToLog(roomCode: string, message: string): Promise<void> {
 /**
  * Record a round result in the session scores
  * Called when a game ends (win or draw)
+ * Updates dealer streak: increments if dealer won, resets to 0 otherwise
  */
 export async function recordRoundResult(
   roomCode: string,
   winnerSeat: SeatIndex | null,
   winnerName: string,
-  score: number
+  score: number,
+  dealerSeat: SeatIndex
 ): Promise<void> {
   // Get current session or initialize
   const sessionSnapshot = await get(ref(db, `rooms/${roomCode}/session`));
@@ -78,6 +80,7 @@ export async function recordRoundResult(
         seat2: 0,
         seat3: 0,
       },
+      dealerStreak: 0,
     };
   }
 
@@ -88,6 +91,7 @@ export async function recordRoundResult(
     winnerSeat,
     winnerName,
     score,
+    dealerSeat,
     timestamp: Date.now(),
   };
 
@@ -98,10 +102,16 @@ export async function recordRoundResult(
     newCumulative[seatKey] = (newCumulative[seatKey] || 0) + score;
   }
 
+  // Update dealer streak
+  // Increment if dealer won, reset to 0 if dealer lost or draw
+  const currentStreak = session.dealerStreak || 0;
+  const newStreak = (winnerSeat === dealerSeat) ? currentStreak + 1 : 0;
+
   // Save updated session
   await update(ref(db, `rooms/${roomCode}/session`), {
     rounds: [...(session.rounds || []), round],
     cumulative: newCumulative,
+    dealerStreak: newStreak,
   });
 }
 
@@ -114,6 +124,19 @@ async function getPlayerName(roomCode: string, seat: SeatIndex): Promise<string>
     return playerSnapshot.val().name || `Player ${seat + 1}`;
   }
   return `Player ${seat + 1}`;
+}
+
+/**
+ * Get the current dealer streak from session
+ * Returns the number of consecutive wins by the current dealer (0 if none)
+ */
+export async function getDealerStreak(roomCode: string): Promise<number> {
+  const sessionSnapshot = await get(ref(db, `rooms/${roomCode}/session`));
+  if (sessionSnapshot.exists()) {
+    const session = sessionSnapshot.val() as SessionScores;
+    return session.dealerStreak || 0;
+  }
+  return 0;
 }
 
 // ============================================
@@ -507,11 +530,15 @@ async function handleThreeGoldsWin(
   const gameState = gameSnapshot.val() as GameState;
   const bonusTiles = gameState.bonusTiles[`seat${winnerSeat}` as keyof typeof gameState.bonusTiles] || [];
 
+  // Get dealer streak bonus (only if winner is dealer)
+  const currentStreak = await getDealerStreak(roomCode);
+  const dealerStreakBonus = (winnerSeat === gameState.dealerSeat && currentStreak > 0) ? currentStreak : 0;
+
   // Calculate score
   const base = 1;
   const bonusCount = bonusTiles.length;
   const goldCount = 3;
-  const subtotal = base + bonusCount + goldCount;
+  const subtotal = base + bonusCount + goldCount + dealerStreakBonus;
   const multiplier = 2; // Self-draw (Three Golds always counts as self-draw)
   const threeGoldsBonus = 20;
   const total = subtotal * multiplier + threeGoldsBonus;
@@ -527,6 +554,7 @@ async function handleThreeGoldsWin(
         base,
         bonusTiles: bonusCount,
         golds: goldCount,
+        dealerStreakBonus,
         subtotal,
         multiplier,
         threeGoldsBonus,
@@ -541,7 +569,7 @@ async function handleThreeGoldsWin(
 
   // Record round result for cumulative scoring
   const winnerName = await getPlayerName(roomCode, winnerSeat);
-  await recordRoundResult(roomCode, winnerSeat, winnerName, total);
+  await recordRoundResult(roomCode, winnerSeat, winnerName, total, gameState.dealerSeat);
 }
 
 // ============================================
@@ -794,6 +822,11 @@ export async function discardTile(
  * Handle game ending in a draw (wall exhausted)
  */
 export async function handleDrawGame(roomCode: string): Promise<void> {
+  // Get dealer seat before ending game
+  const gameSnapshot = await get(ref(db, `rooms/${roomCode}/game`));
+  const gameState = gameSnapshot.val() as GameState;
+  const dealerSeat = gameState.dealerSeat;
+
   await update(ref(db, `rooms/${roomCode}/game`), {
     phase: 'ended',
     winner: null, // null winner indicates draw
@@ -803,8 +836,8 @@ export async function handleDrawGame(roomCode: string): Promise<void> {
     status: 'ended',
   });
 
-  // Record draw result (0 score, no winner)
-  await recordRoundResult(roomCode, null, 'Draw', 0);
+  // Record draw result (0 score, no winner) - resets dealer streak
+  await recordRoundResult(roomCode, null, 'Draw', 0, dealerSeat);
 }
 
 // ============================================
@@ -1265,9 +1298,13 @@ export async function declareSelfDrawWin(
   const bonusTiles = gameState.bonusTiles?.[`seat${seat}` as keyof typeof gameState.bonusTiles] || [];
   const goldCount = countGoldTiles(hand, gameState.goldTileType);
 
+  // Get dealer streak bonus (only if winner is dealer)
+  const currentStreak = await getDealerStreak(roomCode);
+  const dealerStreakBonus = (seat === gameState.dealerSeat && currentStreak > 0) ? currentStreak : 0;
+
   const base = 1;
   const bonusCount = bonusTiles.length;
-  const subtotal = base + bonusCount + goldCount;
+  const subtotal = base + bonusCount + goldCount + dealerStreakBonus;
   const multiplier = 2; // Self-draw multiplier
   const total = subtotal * multiplier;
 
@@ -1283,6 +1320,7 @@ export async function declareSelfDrawWin(
         base,
         bonusTiles: bonusCount,
         golds: goldCount,
+        dealerStreakBonus,
         subtotal,
         multiplier,
         total,
@@ -1299,7 +1337,7 @@ export async function declareSelfDrawWin(
 
   // Record round result for cumulative scoring
   const winnerName = await getPlayerName(roomCode, seat);
-  await recordRoundResult(roomCode, seat, winnerName, total);
+  await recordRoundResult(roomCode, seat, winnerName, total, gameState.dealerSeat);
 
   return { success: true };
 }
@@ -1380,9 +1418,13 @@ export async function declareDiscardWin(
   const bonusTiles = gameState.bonusTiles?.[`seat${winnerSeat}` as keyof typeof gameState.bonusTiles] || [];
   const goldCount = countGoldTiles(fullHand, gameState.goldTileType);
 
+  // Get dealer streak bonus (only if winner is dealer)
+  const currentStreak = await getDealerStreak(roomCode);
+  const dealerStreakBonus = (winnerSeat === gameState.dealerSeat && currentStreak > 0) ? currentStreak : 0;
+
   const base = 1;
   const bonusCount = bonusTiles.length;
-  const subtotal = base + bonusCount + goldCount;
+  const subtotal = base + bonusCount + goldCount + dealerStreakBonus;
   const multiplier = 1; // Discard win (no self-draw multiplier)
   const total = subtotal * multiplier;
 
@@ -1408,6 +1450,7 @@ export async function declareDiscardWin(
         base,
         bonusTiles: bonusCount,
         golds: goldCount,
+        dealerStreakBonus,
         subtotal,
         multiplier,
         total,
@@ -1425,7 +1468,7 @@ export async function declareDiscardWin(
 
   // Record round result for cumulative scoring
   const winnerName = await getPlayerName(roomCode, winnerSeat);
-  await recordRoundResult(roomCode, winnerSeat, winnerName, total);
+  await recordRoundResult(roomCode, winnerSeat, winnerName, total, gameState.dealerSeat);
 
   return { success: true };
 }
