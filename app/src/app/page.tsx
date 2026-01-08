@@ -16,22 +16,6 @@ export default function Home() {
         </div>
 
         <div className="max-w-md mx-auto space-y-6">
-          {/* Connection Status */}
-          <div className="bg-green-800/50 rounded-lg p-6">
-            <h2 className="text-lg font-semibold mb-3">Status</h2>
-            {loading ? (
-              <p className="text-green-300">Connecting...</p>
-            ) : error ? (
-              <p className="text-red-400">Connection Error: {error.message}</p>
-            ) : user ? (
-              <div className="text-green-300">
-                <p>✅ Connected and ready to play</p>
-              </div>
-            ) : (
-              <p className="text-yellow-400">Connecting to server...</p>
-            )}
-          </div>
-
           {/* Game Actions */}
           <div className="bg-green-800/50 rounded-lg p-6">
             <h2 className="text-lg font-semibold mb-3">Play</h2>
@@ -62,11 +46,6 @@ export default function Home() {
               <li>3. Once all 4 players join, start the game</li>
               <li>4. The host selects who deals first</li>
             </ol>
-          </div>
-
-          {/* Status */}
-          <div className="text-center text-green-400 text-sm">
-            <p>MVP Build • Phase 2 Room System</p>
           </div>
         </div>
       </div>
