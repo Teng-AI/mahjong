@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useRoom } from '@/hooks/useRoom';
-import { joinRoom, findUserSeat } from '@/lib/rooms';
+import { joinRoom, findUserSeat, fillWithBots, addBotPlayer, removePlayer } from '@/lib/rooms';
 import { initializeGame } from '@/lib/game';
 import { SeatIndex, RoomPlayer } from '@/types';
 
@@ -24,8 +24,10 @@ interface PlayerSlotProps {
   isSelf: boolean;
   onSetDealer: () => void;
   onKick: () => void;
+  onAddBot: () => void;
   canSetDealer: boolean;
   canKick: boolean;
+  canAddBot: boolean;
 }
 
 function PlayerSlot({
@@ -36,8 +38,10 @@ function PlayerSlot({
   isSelf,
   onSetDealer,
   onKick,
+  onAddBot,
   canSetDealer,
   canKick,
+  canAddBot,
 }: PlayerSlotProps) {
   return (
     <div
@@ -55,6 +59,7 @@ function PlayerSlot({
       {player ? (
         <div className="space-y-1">
           <div className="font-semibold text-lg flex items-center gap-2">
+            {player.isBot && <span className="text-cyan-300">🤖</span>}
             {player.name}
             {isSelf && <span className="text-xs text-yellow-300">(You)</span>}
           </div>
@@ -69,13 +74,28 @@ function PlayerSlot({
                 Host
               </span>
             )}
-            {!player.connected && (
+            {player.isBot && (
+              <span className="px-2 py-0.5 bg-cyan-500/30 text-cyan-200 rounded text-xs">
+                AI Bot
+              </span>
+            )}
+            {!player.connected && !player.isBot && (
               <span className="text-yellow-400 text-xs">Disconnected</span>
             )}
           </div>
         </div>
       ) : (
-        <div className="text-green-400 italic">Waiting for player...</div>
+        <div className="flex items-center justify-between">
+          <span className="text-green-400 italic">Waiting for player...</span>
+          {canAddBot && (
+            <button
+              onClick={onAddBot}
+              className="px-2 py-1 text-xs bg-cyan-600/80 hover:bg-cyan-600 text-white rounded transition-colors"
+            >
+              + Bot
+            </button>
+          )}
+        </div>
       )}
 
       {/* Host action buttons */}
@@ -94,7 +114,7 @@ function PlayerSlot({
               onClick={onKick}
               className="px-2 py-1 text-xs bg-red-500/80 hover:bg-red-500 text-white rounded transition-colors"
             >
-              Kick
+              {player.isBot ? 'Remove' : 'Kick'}
             </button>
           )}
         </div>
@@ -113,6 +133,7 @@ export default function RoomPage() {
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [shouldAutoJoin, setShouldAutoJoin] = useState(false);
+  const [addingBot, setAddingBot] = useState(false);
 
   const {
     room,
@@ -209,6 +230,38 @@ export default function RoomPage() {
       router.push(`/game/${roomCode}`);
     } catch (err) {
       console.error('Failed to start game:', err);
+    }
+  };
+
+  const handleAddBotToSeat = async (seat: SeatIndex) => {
+    if (addingBot) return;
+    setAddingBot(true);
+    try {
+      await addBotPlayer(roomCode);
+    } catch (err) {
+      console.error('Failed to add bot:', err);
+    } finally {
+      setAddingBot(false);
+    }
+  };
+
+  const handleFillWithBots = async () => {
+    if (addingBot) return;
+    setAddingBot(true);
+    try {
+      await fillWithBots(roomCode);
+    } catch (err) {
+      console.error('Failed to fill with bots:', err);
+    } finally {
+      setAddingBot(false);
+    }
+  };
+
+  const handleRemoveBot = async (seat: SeatIndex) => {
+    try {
+      await removePlayer(roomCode, seat);
+    } catch (err) {
+      console.error('Failed to remove bot:', err);
     }
   };
 
@@ -364,6 +417,7 @@ export default function RoomPage() {
               const player = room.players[seatKey];
               const isPlayerHost = player?.id === room.hostId;
               const isSelf = mySeat === seat;
+              const isBot = player?.isBot ?? false;
               return (
                 <PlayerSlot
                   key={seat}
@@ -373,9 +427,11 @@ export default function RoomPage() {
                   isPlayerHost={isPlayerHost}
                   isSelf={isSelf}
                   onSetDealer={() => setDealerSeat(seat)}
-                  onKick={() => kickPlayer(seat)}
+                  onKick={() => isBot ? handleRemoveBot(seat) : kickPlayer(seat)}
+                  onAddBot={() => handleAddBotToSeat(seat)}
                   canSetDealer={isHost && player !== null}
                   canKick={isHost && player !== null && !isSelf && !isPlayerHost}
+                  canAddBot={isHost && player === null && !addingBot}
                 />
               );
             })}
@@ -389,8 +445,23 @@ export default function RoomPage() {
             <li>• Share the room code with friends to invite them</li>
             <li>• The host can select which player will be the dealer</li>
             <li>• Game starts when all 4 players have joined</li>
+            <li>• Not enough players? Add AI bots to fill empty seats!</li>
           </ul>
         </div>
+
+        {/* Fill with Bots button (host only, if room not full) */}
+        {isHost && !isFull && (
+          <div className="max-w-md mx-auto mb-6">
+            <button
+              onClick={handleFillWithBots}
+              disabled={addingBot}
+              className="w-full py-3 px-4 bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              <span>🤖</span>
+              {addingBot ? 'Adding Bots...' : 'Fill Empty Seats with AI Bots'}
+            </button>
+          </div>
+        )}
 
         {/* Start Game button (host only) */}
         {isHost && (

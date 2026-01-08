@@ -45,6 +45,7 @@ export interface RoomPlayer {
   name: string;
   connected: boolean;
   lastSeen: number;
+  isBot?: boolean;  // True if this is an AI bot player
 }
 
 /** Player state during game */

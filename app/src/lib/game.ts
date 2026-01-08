@@ -372,6 +372,9 @@ export async function advanceBonusExposure(
 /**
  * Reveal the Gold tile from the wall
  * Called after all bonus tiles are exposed
+ *
+ * If the revealed tile is a bonus tile (wind/dragon), the dealer receives it
+ * and we keep drawing until we get a suited tile for the Gold.
  */
 export async function revealGoldTile(roomCode: string): Promise<{
   goldTileType: TileType;
@@ -384,10 +387,48 @@ export async function revealGoldTile(roomCode: string): Promise<{
 
   const gameState = gameSnapshot.val() as GameState;
   const wall = [...gameState.wall];
+  const dealerSeat = gameState.dealerSeat;
 
-  // Flip tile from wall to determine Gold type
-  const exposedGold = wall.shift()!;
+  // Get dealer's current bonus tiles
+  const dealerBonusTiles = [
+    ...(gameState.bonusTiles?.[`seat${dealerSeat}` as keyof typeof gameState.bonusTiles] || [])
+  ];
+  const bonusTilesGiven: TileId[] = [];
+
+  // Keep drawing until we get a suited (non-bonus) tile for Gold
+  let exposedGold = wall.shift()!;
+
+  while (isBonusTile(exposedGold) && wall.length > 0) {
+    // Bonus tile goes to dealer
+    dealerBonusTiles.push(exposedGold);
+    bonusTilesGiven.push(exposedGold);
+
+    // Draw next tile
+    exposedGold = wall.shift()!;
+  }
+
+  // If we exhausted the wall and still have a bonus tile, handle edge case
+  // (This is extremely rare but we should handle it)
+  if (isBonusTile(exposedGold)) {
+    // Give this last bonus to dealer too
+    dealerBonusTiles.push(exposedGold);
+    bonusTilesGiven.push(exposedGold);
+    // Use a fallback - this shouldn't happen in practice with 128 tiles
+    throw new Error('Wall exhausted while revealing Gold tile - no suited tiles remain');
+  }
+
   const goldTileType = getTileType(exposedGold);
+
+  // Update dealer's bonus tiles if any were given
+  if (bonusTilesGiven.length > 0) {
+    await update(ref(db, `rooms/${roomCode}/game`), {
+      [`bonusTiles/seat${dealerSeat}`]: dealerBonusTiles,
+    });
+
+    // Log bonus tiles given to dealer
+    const bonusNames = bonusTilesGiven.map(t => getTileDisplayText(getTileType(t))).join(', ');
+    await addToLog(roomCode, `Dealer received bonus from Gold reveal: ${bonusNames}`);
+  }
 
   // Update game state with Gold info
   await update(ref(db, `rooms/${roomCode}/game`), {
@@ -657,10 +698,9 @@ export async function drawTile(
   // Log the draw action
   if (bonusTilesExposed.length > 0) {
     const bonusNames = bonusTilesExposed.map(t => getTileDisplayText(getTileType(t))).join(', ');
-    await addToLog(roomCode, `${SEAT_NAMES[seat]} drew bonus (${bonusNames}), then drew tile`);
-  } else {
-    await addToLog(roomCode, `${SEAT_NAMES[seat]} drew a tile`);
+    await addToLog(roomCode, `${SEAT_NAMES[seat]} exposed bonus: ${bonusNames}`);
   }
+  await addToLog(roomCode, `${SEAT_NAMES[seat]} drew a tile`);
 
   return {
     success: true,

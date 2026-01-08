@@ -144,6 +144,93 @@ export async function joinRoom(
 }
 
 // ============================================
+// BOT PLAYERS
+// ============================================
+
+const BOT_NAMES = ['Bot-East', 'Bot-South', 'Bot-West', 'Bot-North'];
+
+/**
+ * Add a bot player to the first empty seat
+ * Returns the seat index where the bot was added, or null if room is full
+ */
+export async function addBotPlayer(roomCode: string): Promise<SeatIndex | null> {
+  const roomRef = ref(db, `rooms/${roomCode}`);
+  const snapshot = await get(roomRef);
+
+  if (!snapshot.exists()) {
+    throw new Error('Room not found');
+  }
+
+  const room = snapshot.val() as Room;
+
+  // Check if game already started
+  if (room.status !== 'waiting') {
+    throw new Error('Game already in progress');
+  }
+
+  // Find empty seat
+  let emptySeat: SeatIndex | null = null;
+  for (let i = 0; i < 4; i++) {
+    const seat = `seat${i}` as keyof typeof room.players;
+    if (!room.players[seat]) {
+      emptySeat = i as SeatIndex;
+      break;
+    }
+  }
+
+  if (emptySeat === null) {
+    return null; // Room is full
+  }
+
+  // Generate unique bot ID
+  const botId = `bot_${roomCode}_seat${emptySeat}_${Date.now()}`;
+
+  // Add bot to seat
+  const botData: RoomPlayer = {
+    id: botId,
+    name: BOT_NAMES[emptySeat],
+    connected: true,
+    lastSeen: Date.now(),
+    isBot: true,
+  };
+
+  await set(ref(db, `rooms/${roomCode}/players/seat${emptySeat}`), botData);
+
+  return emptySeat;
+}
+
+/**
+ * Fill all empty seats with bot players
+ * Returns array of seats that were filled
+ */
+export async function fillWithBots(roomCode: string): Promise<SeatIndex[]> {
+  const filledSeats: SeatIndex[] = [];
+
+  // Keep adding bots until room is full
+  let seat = await addBotPlayer(roomCode);
+  while (seat !== null) {
+    filledSeats.push(seat);
+    seat = await addBotPlayer(roomCode);
+  }
+
+  return filledSeats;
+}
+
+/**
+ * Get array of bot seats in a room
+ */
+export function getBotSeats(room: Room): SeatIndex[] {
+  const botSeats: SeatIndex[] = [];
+  for (let i = 0; i < 4; i++) {
+    const seat = `seat${i}` as keyof typeof room.players;
+    if (room.players[seat]?.isBot) {
+      botSeats.push(i as SeatIndex);
+    }
+  }
+  return botSeats;
+}
+
+// ============================================
 // ROOM UPDATES
 // ============================================
 

@@ -7,7 +7,48 @@ All notable changes to the Fujian Mahjong project.
 ## [Unreleased]
 
 ### Next Up
-- Phase 8: Calls System (Chow, Pung, Kong)
+- Kong (quad) declarations
+- Dealer streak bonus system
+
+---
+
+## 2025-01-08
+
+### Bot Players & UI Redesign
+
+#### Added
+- **Bot Players**: Fill empty seats with AI bots from room lobby
+  - "Fill Empty Seats with AI Bots" button for host
+  - Individual "+ Bot" buttons per empty seat
+  - Bot indicator (🤖) in player lists
+  - `useBotRunner.ts` hook for client-side bot execution
+  - Bots auto-play: expose bonus, draw, discard, call pung/chow, declare wins
+  - Strategic decision-making with shanten calculation
+- **Gold Tile Fix**: Ensures only suited tiles (dots/bamboo/characters) become Gold
+  - If bonus tile (wind/dragon) is revealed during Gold selection, dealer receives it
+  - Keeps drawing until a suited tile is found
+- **Improved Game Logging**: Clearer messages when bonus tiles are exposed
+
+#### Changed
+- **Modern UI Redesign**
+  - New slate/gray color scheme (replaces heavy green)
+  - Suit-colored tile text: Dots=red, Bamboo=blue, Characters=green
+  - Larger tiles in Your Hand and Discard Pile sections
+  - Reorganized layout: Your Hand (prominent) → Game Log → Other Players/Discard
+  - Phase/turn banner integrated with hand section
+  - Compact header with room code, Gold tile, wall count
+  - Responsive two-column layout for Other Players and Discard Pile
+  - Larger text throughout for better readability
+
+#### Files Created
+- `app/src/hooks/useBotRunner.ts` - Client-side bot runner with strategic AI
+
+#### Files Modified
+- `app/src/lib/rooms.ts` - Added `addBotPlayer()`, `fillWithBots()`, `getBotSeats()`
+- `app/src/lib/game.ts` - Fixed `revealGoldTile()` to ensure suited tile, improved logging
+- `app/src/types/index.ts` - Added `isBot` flag to `RoomPlayer`
+- `app/src/app/room/[code]/page.tsx` - Bot player UI in room lobby
+- `app/src/app/game/[code]/page.tsx` - Complete UI redesign
 
 ---
 

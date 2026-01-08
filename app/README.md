@@ -7,6 +7,7 @@ A real-time multiplayer Fujian Mahjong game built with Next.js and Firebase.
 ### Implemented
 - **Real-time Multiplayer**: 4-player games with Firebase Realtime Database sync
 - **Room System**: Create/join rooms with 6-character codes
+- **Bot Players**: Fill empty seats with AI bots from the room lobby
 - **Full Game Loop**: Deal, draw, discard, call (Pung/Chow), win
 - **Calling System**: Pung (triplet) and Chow (sequence) with priority resolution
 - **Win Detection**: Validates winning hands (5 sets + 1 pair) with Gold tile wildcards
@@ -15,6 +16,7 @@ A real-time multiplayer Fujian Mahjong game built with Next.js and Firebase.
 - **Scoring System**: Base + bonus tiles + gold tiles, with self-draw multiplier
 - **Cumulative Scoring**: Track scores across multiple rounds with settlement calculator
 - **Three Golds Win**: Instant win when drawing 3 Gold tiles
+- **Modern UI**: Suit-colored tiles (Dots=red, Bamboo=blue, Characters=green), responsive layout
 
 ### Fujian Mahjong Rules
 - **128 tiles**: 108 suited (dots, bamboo, characters) + 16 winds + 4 red dragons
@@ -73,7 +75,8 @@ app/
 │   ├── hooks/            # React hooks
 │   │   ├── useAuth.ts    # Firebase authentication
 │   │   ├── useRoom.ts    # Room state management
-│   │   └── useGame.ts    # Game state and actions
+│   │   ├── useGame.ts    # Game state and actions
+│   │   └── useBotRunner.ts # AI bot execution for bot players
 │   ├── lib/              # Core game logic
 │   │   ├── game.ts       # Game actions (draw, discard, call, win)
 │   │   ├── tiles.ts      # Tile utilities and win detection
