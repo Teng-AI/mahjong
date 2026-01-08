@@ -905,7 +905,7 @@ export default function GamePage() {
           )}
           <div className="flex items-center gap-1">
             <span className="text-slate-400 text-lg">Wall</span>
-            <span className="font-mono text-white">{gameState.wall.length}</span>
+            <span className="font-mono text-white">{gameState.wall?.length ?? 0}</span>
           </div>
         </div>
         {/* Phase indicator - right side */}
