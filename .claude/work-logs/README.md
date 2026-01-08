@@ -26,6 +26,30 @@ Sessions are organized by year-month, with individual session files named by dat
 
 ## Recent Sessions
 
+### 2026-01-08
+
+- **[Session 02](2026-01/2026-01-08_session-02.md)** - UI Polish & Layout Improvements
+  - 3-column middle row layout (Game Log | Last Discard | Discard Pile)
+  - Refined gold tile highlighting with subtle pale yellow background
+  - Simplified bonus display to "+N" count for other players
+  - Increased text and tile sizes throughout for better readability
+  - **MVP Status: COMPLETE** - All Phase 1-8 features implemented
+
+- **[Session 01](2026-01/2026-01-08_session-01.md)** - Cumulative Scoring & Win Detection Bug Fixes
+  - Implemented cumulative scoring system across rounds
+  - Added settlement calculator with minimum transfer algorithm
+  - Fixed win detection tile sorting algorithm
+  - Fixed duplicate UI elements and tile count display bugs
+  - Created test scripts for multi-round gameplay
+
+### 2026-01-07
+
+- **[Session 01](2026-01/2026-01-07_session-01.md)** - Bot Players & UI Redesign
+  - Added bot player system with strategic AI
+  - Complete UI redesign with modern color scheme
+  - Fixed Gold tile selection to ensure suited tiles
+  - Implemented comprehensive game logging
+
 ### 2026-01-06
 
 - **[Session 01](2026-01/2026-01-06_session-01.md)** - Phase 2: Room System Implementation
@@ -39,13 +63,22 @@ Sessions are organized by year-month, with individual session files named by dat
 
 The Fujian Mahjong project follows this development roadmap:
 
+**MVP - COMPLETE ✅**
+
 - ✅ **Phase 1**: Firebase Setup & Authentication
 - ✅ **Phase 2**: Room System (Create, Join, Lobby)
-- 🔄 **Phase 3**: Game Setup & Dealing
-- ⏸️ **Phase 4**: Core Gameplay (Draw, Discard, Turns)
-- ⏸️ **Phase 5**: Calling System (Win, Pung, Chow)
-- ⏸️ **Phase 6**: Win Detection & Scoring
-- ⏸️ **Phase 7**: Polish & Deployment
+- ✅ **Phase 3**: Game Setup & Dealing
+- ✅ **Phase 4**: Bonus Tile System
+- ✅ **Phase 5**: Turn Loop (Draw, Discard, Turns)
+- ✅ **Phase 6**: Calling System (Win, Pung, Chow)
+- ✅ **Phase 7**: Win Detection with Gold Wildcards
+- ✅ **Phase 8**: Cumulative Scoring & Settlement
+
+**Post-MVP Enhancements**
+
+- ⏸️ **Kong** (Quad) Declarations
+- ⏸️ **Dealer Streak** Bonus System
+- ⏸️ **Polish & Deployment** (animations, sounds, mobile optimization)
 
 ## Finding Information
 
@@ -71,4 +104,5 @@ When documenting a new session:
 
 ---
 
-**Last updated**: 2026-01-06
+**Last updated**: 2026-01-08
+**MVP Status**: ✅ Complete - Fully playable game with all core features
