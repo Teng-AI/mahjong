@@ -470,9 +470,17 @@ function tryFormSetsAndPair(
       }
     }
 
+  }
+
+  // Try chow with wildcard as FIRST tile - separate block because firstType can be 2-9
+  // (The block above only handles firstType 1-7 for starting a chow)
+  if (parsed.category === 'suit' && typeof parsed.value === 'number' && setsNeeded > 0) {
+    const suit = parsed.suit!;
+    const val = parsed.value;
+
     // Try chow with wildcard as FIRST tile (wildcard + firstType + nextType)
     // This handles cases like Gold(7) + 8 + 9 where firstType is 8
-    if (wildcards >= 1 && parsed.value >= 2) {
+    if (wildcards >= 1 && val >= 2 && val <= 8) {
       const nextType = `${suit}_${val + 1}` as TileType;
       const nextCount = tileCounts.get(nextType) || 0;
 
@@ -488,7 +496,7 @@ function tryFormSetsAndPair(
 
     // Try chow with wildcard as first tile AND wildcard as second (wildcard + wildcard + firstType)
     // This handles cases like Gold(7) + Gold(8) + 9 where firstType is 9
-    if (wildcards >= 2 && parsed.value >= 3) {
+    if (wildcards >= 2 && val >= 3) {
       const newCounts = new Map(tileCounts);
       newCounts.set(firstType, count - 1);
       if (tryFormSetsAndPair(newCounts, wildcards - 2, hasPair, setsNeeded - 1)) {
@@ -498,7 +506,7 @@ function tryFormSetsAndPair(
 
     // Try chow with wildcard as first tile AND wildcard as third (wildcard + firstType + wildcard)
     // This handles cases like Gold(7) + 8 + Gold(10) where firstType is 8
-    if (wildcards >= 2 && parsed.value >= 2 && parsed.value <= 8) {
+    if (wildcards >= 2 && val >= 2 && val <= 8) {
       const newCounts = new Map(tileCounts);
       newCounts.set(firstType, count - 1);
       if (tryFormSetsAndPair(newCounts, wildcards - 2, hasPair, setsNeeded - 1)) {
