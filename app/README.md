@@ -114,8 +114,26 @@ app/
 | `npm run build` | Build for production |
 | `npm run lint` | Run ESLint |
 | `node scripts/setup-test-game.mjs` | Create test game with 4 players |
+| `node scripts/bot-game.mjs <room> [--speed=fast\|normal\|slow]` | Run full game with AI bots |
+| `node scripts/bot-player.mjs <room> <seat> [--watch]` | Run AI bot for single player |
 | `node scripts/force-win.mjs <room> [seat] [score]` | Force a win for testing |
 | `node scripts/restart-game.mjs <room>` | Restart game with rotated dealer |
+
+### Bot Testing
+
+Run a complete game with AI playing all 4 seats:
+```bash
+# Setup a test game first
+node scripts/setup-test-game.mjs
+# Note the room code, then run bots
+node scripts/bot-game.mjs <ROOM_CODE> --speed=fast
+```
+
+The bots use strategic decision-making:
+- Evaluates hand structure (shanten calculation)
+- Prioritizes safe discards (honors, terminals, already-discarded tiles)
+- Calls pung/chow when it improves hand significantly
+- Always declares win when possible
 
 ## Future Features
 
