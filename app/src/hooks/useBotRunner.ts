@@ -236,8 +236,14 @@ function shouldCallPung(hand: TileId[], discardTile: TileId, goldType: TileType,
   return shantenAfter < shantenBefore || (shantenAfter <= 1 && shantenBefore <= 2);
 }
 
-function getChowOptions(hand: TileId[], discardTile: TileId, goldType: TileType): [TileId, TileId][] {
+function getChowOptions(hand: TileId[], discardTile: TileId, goldType: TileType, meldCount: number = 0): [TileId, TileId][] {
   if (!isSuitTile(discardTile) || isGoldTile(discardTile, goldType)) {
+    return [];
+  }
+
+  // Hand size must be 16 - (3 * melds) to call (same check as canChow in tiles.ts)
+  const expectedHandSize = 16 - (3 * meldCount);
+  if (hand.length !== expectedHandSize) {
     return [];
   }
 
@@ -279,7 +285,7 @@ function getChowOptions(hand: TileId[], discardTile: TileId, goldType: TileType)
 }
 
 function shouldCallChow(hand: TileId[], discardTile: TileId, goldType: TileType, meldCount: number): [TileId, TileId] | null {
-  const options = getChowOptions(hand, discardTile, goldType);
+  const options = getChowOptions(hand, discardTile, goldType, meldCount);
   if (options.length === 0) return null;
 
   const shantenBefore = calculateShanten(hand, goldType, meldCount);
@@ -477,7 +483,11 @@ export function useBotRunner({
     // Check for pung
     if (canPung(tiles, discardTileId, goldType, meldCount) && shouldCallPung(tiles, discardTileId, goldType, meldCount)) {
       console.log(`[Bot ${seat}] Calling PUNG!`);
-      await submitCallResponse(roomCode, seat, 'pung');
+      const result = await submitCallResponse(roomCode, seat, 'pung');
+      if (!result.success) {
+        console.error(`[Bot ${seat}] Pung failed: ${result.error}, falling back to pass`);
+        await submitCallResponse(roomCode, seat, 'pass');
+      }
       return;
     }
 
@@ -487,7 +497,11 @@ export function useBotRunner({
       const chowTiles = shouldCallChow(tiles, discardTileId, goldType, meldCount);
       if (chowTiles) {
         console.log(`[Bot ${seat}] Calling CHOW!`);
-        await submitCallResponse(roomCode, seat, 'chow', chowTiles);
+        const result = await submitCallResponse(roomCode, seat, 'chow', chowTiles);
+        if (!result.success) {
+          console.error(`[Bot ${seat}] Chow failed: ${result.error}, falling back to pass`);
+          await submitCallResponse(roomCode, seat, 'pass');
+        }
         return;
       }
     }
