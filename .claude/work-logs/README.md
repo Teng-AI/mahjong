@@ -28,6 +28,13 @@ Sessions are organized by year-month, with individual session files named by dat
 
 ### 2026-01-08
 
+- **[Session 03](2026-01/2026-01-08_session-03.md)** - UI Polish, Critical Win Detection Bug Fix, and Rules Documentation
+  - **CRITICAL FIX**: Win detection now correctly handles Gold tile as first tile in chows (e.g., Gold(7) + 8萬 + 9萬)
+  - Added beginner-friendly rules tooltip with basic and detailed rules sections
+  - Updated loading screen to match game theme (slate instead of green)
+  - Documented future features: Winner screen redesign and adjustable bot difficulty
+  - All text and tile sizes increased for better readability
+
 - **[Session 02](2026-01/2026-01-08_session-02.md)** - UI Polish & Layout Improvements
   - 3-column middle row layout (Game Log | Last Discard | Discard Pile)
   - Refined gold tile highlighting with subtle pale yellow background
