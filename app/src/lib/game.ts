@@ -523,7 +523,8 @@ async function handleThreeGoldsWin(
   roomCode: string,
   winnerSeat: SeatIndex,
   hand: TileId[],
-  goldTileType: TileType
+  goldTileType: TileType,
+  winningTile?: TileId
 ): Promise<void> {
   // Get bonus tiles for scoring
   const gameSnapshot = await get(ref(db, `rooms/${roomCode}/game`));
@@ -550,6 +551,7 @@ async function handleThreeGoldsWin(
       isSelfDraw: true,
       isThreeGolds: true,
       hand,
+      winningTile,
       score: {
         base,
         bonusTiles: bonusCount,
@@ -698,8 +700,8 @@ export async function drawTile(
   // Check Three Golds
   const goldCount = countGoldTiles(currentHand, gameState.goldTileType);
   if (goldCount === 3) {
-    // Three Golds win!
-    await handleThreeGoldsWin(roomCode, seat, currentHand, gameState.goldTileType);
+    // Three Golds win! The drawnTile is the tile that completed 3 golds
+    await handleThreeGoldsWin(roomCode, seat, currentHand, gameState.goldTileType, drawnTile);
     return { success: true, threeGoldsWin: true, drawnTile, bonusTilesExposed };
   }
 
@@ -1308,6 +1310,9 @@ export async function declareSelfDrawWin(
   const multiplier = 2; // Self-draw multiplier
   const total = subtotal * multiplier;
 
+  // Get the winning tile (the tile that was just drawn)
+  const winningTile = gameState.lastAction?.type === 'draw' ? gameState.lastAction.tile : undefined;
+
   // Update game state
   await update(ref(db, `rooms/${roomCode}/game`), {
     phase: 'ended',
@@ -1316,6 +1321,7 @@ export async function declareSelfDrawWin(
       isSelfDraw: true,
       isThreeGolds: false,
       hand,
+      winningTile,
       score: {
         base,
         bonusTiles: bonusCount,
