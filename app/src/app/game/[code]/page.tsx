@@ -6,7 +6,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRoom } from '@/hooks/useRoom';
 import { useGame } from '@/hooks/useGame';
 import { getTileType, getTileDisplayText, isBonusTile, isGoldTile, sortTilesForDisplay } from '@/lib/tiles';
-import { SeatIndex, TileId, TileType, Meld, CallAction, PendingCall, PendingCalls } from '@/types';
+import { calculateSettlement, calculateNetPositions } from '@/lib/settle';
+import { SeatIndex, TileId, TileType, Meld, CallAction, PendingCall, PendingCalls, Settlement } from '@/types';
 
 // ============================================
 // TILE COMPONENT
@@ -223,7 +224,9 @@ export default function GamePage() {
   const {
     gameState,
     myHand,
+    sessionScores,
     loading: gameLoading,
+    startGame,
     processBonusExposure,
     shouldDraw,
     handleDraw,
@@ -252,6 +255,9 @@ export default function GamePage() {
   // Phase 8: Chow selection mode
   const [chowSelectionMode, setChowSelectionMode] = useState(false);
   const [selectedChowTiles, setSelectedChowTiles] = useState<TileId[]>([]);
+
+  // Settlement modal
+  const [showSettleModal, setShowSettleModal] = useState(false);
 
   // Game log auto-scroll
   const logRef = useRef<HTMLDivElement>(null);
@@ -680,12 +686,154 @@ export default function GamePage() {
             </div>
           </div>
 
-          <button
-            onClick={() => router.push('/')}
-            className="px-6 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-semibold rounded-lg"
-          >
-            Back to Home
-          </button>
+          {/* Cumulative Scores Section */}
+          {sessionScores && sessionScores.rounds && (
+            <div className="bg-blue-800/50 rounded-lg p-4 mb-6 text-left">
+              <h3 className="font-semibold mb-2">
+                Cumulative Scores (Round {sessionScores.rounds?.length || 1})
+              </h3>
+              {(() => {
+                const netPositions = calculateNetPositions(sessionScores.rounds || []);
+                // Calculate raw points won (just wins, no losses)
+                const rawPoints: Record<string, number> = { seat0: 0, seat1: 0, seat2: 0, seat3: 0 };
+                for (const round of sessionScores.rounds || []) {
+                  if (round.winnerSeat !== null && round.score > 0) {
+                    rawPoints[`seat${round.winnerSeat}`] += round.score;
+                  }
+                }
+                return (
+                  <div className="text-sm">
+                    {/* Header row */}
+                    <div className="flex justify-between text-green-300 text-xs mb-1 border-b border-blue-700 pb-1">
+                      <span>Player</span>
+                      <div className="flex gap-4">
+                        <span className="w-16 text-right">Won</span>
+                        <span className="w-16 text-right">Net</span>
+                      </div>
+                    </div>
+                    {/* Player rows */}
+                    {([0, 1, 2, 3] as SeatIndex[]).map((seat) => {
+                      const player = room?.players?.[`seat${seat}` as keyof typeof room.players];
+                      const playerName = player?.name || `Player ${seat + 1}`;
+                      const net = netPositions[`seat${seat}`] || 0;
+                      const won = rawPoints[`seat${seat}`] || 0;
+                      const isWinner = winner.seat === seat;
+                      return (
+                        <div
+                          key={seat}
+                          className={`flex justify-between py-0.5 ${isWinner ? 'text-yellow-400 font-semibold' : ''}`}
+                        >
+                          <span>{playerName} ({SEAT_LABELS[seat]}):</span>
+                          <div className="flex gap-4">
+                            <span className="w-16 text-right">{won}</span>
+                            <span className={`w-16 text-right ${net < 0 ? 'text-red-400' : net > 0 ? 'text-green-400' : ''}`}>
+                              {net > 0 ? '+' : ''}{net}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex gap-3 justify-center flex-wrap">
+              {sessionScores && (
+                <button
+                  onClick={() => setShowSettleModal(true)}
+                  className="px-6 py-3 bg-blue-500 hover:bg-blue-400 text-white font-semibold rounded-lg"
+                >
+                  Settle
+                </button>
+              )}
+              {room?.hostId === user?.uid ? (
+                <button
+                  onClick={async () => {
+                    // Rotate dealer to next seat
+                    const nextDealer = ((gameState.dealerSeat + 1) % 4) as SeatIndex;
+                    await startGame(nextDealer);
+                  }}
+                  className="px-6 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-semibold rounded-lg"
+                >
+                  Another Round
+                </button>
+              ) : (
+                <button
+                  disabled
+                  className="px-6 py-3 bg-gray-500 text-gray-300 font-semibold rounded-lg cursor-not-allowed"
+                >
+                  Another Round
+                </button>
+              )}
+            </div>
+            {room?.hostId !== user?.uid && (
+              <p className="text-sm text-gray-400">Waiting for host to start next round...</p>
+            )}
+          </div>
+
+          {/* Settlement Modal */}
+          {showSettleModal && sessionScores && (
+            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+              <div className="bg-green-900 rounded-lg p-6 max-w-md w-full mx-4 border-2 border-green-700">
+                <h3 className="text-xl font-bold mb-4 text-center">Settlement Summary</h3>
+                <p className="text-green-300 text-sm mb-4 text-center">
+                  To balance all scores:
+                </p>
+                {(() => {
+                  const playerNames: Record<string, string> = {};
+                  ([0, 1, 2, 3] as SeatIndex[]).forEach((seat) => {
+                    const player = room?.players?.[`seat${seat}` as keyof typeof room.players];
+                    playerNames[`seat${seat}`] = player?.name || `Player ${seat + 1}`;
+                  });
+                  const { settlements, balances } = calculateSettlement(
+                    sessionScores.rounds || [],
+                    playerNames
+                  );
+
+                  if (settlements.length === 0) {
+                    return (
+                      <p className="text-center text-green-200">
+                        All players are even - no transfers needed!
+                      </p>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-2">
+                      {settlements.map((s, idx) => (
+                        <div
+                          key={idx}
+                          className="flex justify-between bg-green-800/50 p-2 rounded"
+                        >
+                          <span>
+                            {playerNames[`seat${s.from}`]} → {playerNames[`seat${s.to}`]}
+                          </span>
+                          <span className="font-semibold">{s.amount} pts</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+                <div className="mt-6 space-y-2">
+                  <button
+                    onClick={() => setShowSettleModal(false)}
+                    className="w-full px-4 py-2 bg-green-700 hover:bg-green-600 rounded-lg font-semibold"
+                  >
+                    Continue Playing
+                  </button>
+                  <button
+                    onClick={() => router.push('/')}
+                    className="w-full px-4 py-2 bg-red-700 hover:bg-red-600 rounded-lg font-semibold text-sm"
+                  >
+                    End Session & Leave
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -782,16 +930,23 @@ export default function GamePage() {
             const player = room.players[`seat${seat}` as keyof typeof room.players];
             if (!player) return null;
 
+            // Calculate tile count: dealer starts with 17, others with 16
+            // Each exposed meld removes 2 tiles from hand (you reveal 2 + take 1 discard)
+            const isDealer = gameState.dealerSeat === seat;
+            const exposedMelds = gameState.exposedMelds?.[`seat${seat}` as keyof typeof gameState.exposedMelds] || [];
+            const baseTileCount = isDealer ? 17 : 16;
+            const tileCount = baseTileCount - (2 * exposedMelds.length);
+
             return (
               <PlayerInfo
                 key={seat}
                 seat={seat}
                 name={player.name}
-                isDealer={gameState.dealerSeat === seat}
+                isDealer={isDealer}
                 isCurrentTurn={gameState.currentPlayerSeat === seat}
                 bonusTiles={gameState.bonusTiles?.[`seat${seat}` as keyof typeof gameState.bonusTiles] || []}
-                exposedMelds={gameState.exposedMelds?.[`seat${seat}` as keyof typeof gameState.exposedMelds] || []}
-                tileCount={16} // We don't know their actual count
+                exposedMelds={exposedMelds}
+                tileCount={tileCount}
                 isSelf={false}
               />
             );
@@ -1057,7 +1212,7 @@ export default function GamePage() {
         </div>
       )}
 
-      {/* Win on discard button (shown to all players when someone discards) */}
+      {/* Win on discard button (only during playing phase - calling phase has its own win button) */}
       {gameState.phase === 'playing' && canWinOnLastDiscard && (
         <div className="mt-6 text-center">
           <button

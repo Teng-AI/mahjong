@@ -12,6 +12,8 @@ import {
   PendingCalls,
   ChowOption,
   Meld,
+  GameRound,
+  SessionScores,
 } from '@/types';
 import {
   generateAllTiles,
@@ -45,6 +47,73 @@ async function addToLog(roomCode: string, message: string): Promise<void> {
   // Keep last 20 entries
   const newLog = [...currentLog, message].slice(-20);
   await set(ref(db, `rooms/${roomCode}/game/actionLog`), newLog);
+}
+
+// ============================================
+// SESSION SCORING
+// ============================================
+
+/**
+ * Record a round result in the session scores
+ * Called when a game ends (win or draw)
+ */
+export async function recordRoundResult(
+  roomCode: string,
+  winnerSeat: SeatIndex | null,
+  winnerName: string,
+  score: number
+): Promise<void> {
+  // Get current session or initialize
+  const sessionSnapshot = await get(ref(db, `rooms/${roomCode}/session`));
+  let session: SessionScores;
+
+  if (sessionSnapshot.exists()) {
+    session = sessionSnapshot.val() as SessionScores;
+  } else {
+    session = {
+      rounds: [],
+      cumulative: {
+        seat0: 0,
+        seat1: 0,
+        seat2: 0,
+        seat3: 0,
+      },
+    };
+  }
+
+  // Create round record
+  const roundNumber = (session.rounds?.length || 0) + 1;
+  const round: GameRound = {
+    roundNumber,
+    winnerSeat,
+    winnerName,
+    score,
+    timestamp: Date.now(),
+  };
+
+  // Update cumulative scores (winner gains only)
+  const newCumulative = { ...session.cumulative };
+  if (winnerSeat !== null) {
+    const seatKey = `seat${winnerSeat}` as keyof typeof newCumulative;
+    newCumulative[seatKey] = (newCumulative[seatKey] || 0) + score;
+  }
+
+  // Save updated session
+  await update(ref(db, `rooms/${roomCode}/session`), {
+    rounds: [...(session.rounds || []), round],
+    cumulative: newCumulative,
+  });
+}
+
+/**
+ * Get player name for a seat
+ */
+async function getPlayerName(roomCode: string, seat: SeatIndex): Promise<string> {
+  const playerSnapshot = await get(ref(db, `rooms/${roomCode}/players/seat${seat}`));
+  if (playerSnapshot.exists()) {
+    return playerSnapshot.val().name || `Player ${seat + 1}`;
+  }
+  return `Player ${seat + 1}`;
 }
 
 // ============================================
@@ -428,6 +497,10 @@ async function handleThreeGoldsWin(
   await update(ref(db, `rooms/${roomCode}`), {
     status: 'ended',
   });
+
+  // Record round result for cumulative scoring
+  const winnerName = await getPlayerName(roomCode, winnerSeat);
+  await recordRoundResult(roomCode, winnerSeat, winnerName, total);
 }
 
 // ============================================
@@ -689,6 +762,9 @@ export async function handleDrawGame(roomCode: string): Promise<void> {
   await update(ref(db, `rooms/${roomCode}`), {
     status: 'ended',
   });
+
+  // Record draw result (0 score, no winner)
+  await recordRoundResult(roomCode, null, 'Draw', 0);
 }
 
 // ============================================
@@ -1181,6 +1257,10 @@ export async function declareSelfDrawWin(
   // Log the win
   await addToLog(roomCode, `${SEAT_NAMES[seat]} wins by self-draw! Score: ${total}`);
 
+  // Record round result for cumulative scoring
+  const winnerName = await getPlayerName(roomCode, seat);
+  await recordRoundResult(roomCode, seat, winnerName, total);
+
   return { success: true };
 }
 
@@ -1194,14 +1274,8 @@ export function canWinOnDiscard(
   goldTileType: TileType,
   exposedMeldCount: number = 0
 ): boolean {
-  // Calculate expected hand size based on exposed melds
-  // With N exposed melds: 16 - 3*N concealed tiles (before adding discard)
-  const expectedHandSize = 16 - (3 * exposedMeldCount);
-  if (hand.length !== expectedHandSize) {
-    return false;
-  }
-
-  // Test if hand + discarded tile forms a winning hand
+  // Just check if hand + discard can form a winning hand
+  // No hand size check - let canFormWinningHand validate the structure
   const testHand = [...hand, discardedTile];
   return canFormWinningHand(testHand, goldTileType, exposedMeldCount);
 }
@@ -1308,6 +1382,10 @@ export async function declareDiscardWin(
   // Log the win
   const tileName = getTileDisplayText(getTileType(discardedTile));
   await addToLog(roomCode, `${SEAT_NAMES[winnerSeat]} wins on ${SEAT_NAMES[discarderSeat]}'s discard (${tileName})! Score: ${total}`);
+
+  // Record round result for cumulative scoring
+  const winnerName = await getPlayerName(roomCode, winnerSeat);
+  await recordRoundResult(roomCode, winnerSeat, winnerName, total);
 
   return { success: true };
 }

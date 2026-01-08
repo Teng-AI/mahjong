@@ -272,17 +272,17 @@ export function canFormWinningHand(
   goldTileType: TileType,
   exposedMeldCount: number = 0
 ): boolean {
-  // Calculate expected tile count based on exposed melds
-  // Full hand: 5 sets (15) + 1 pair (2) = 17
-  // With N melds: (5-N) sets + 1 pair = 17 - (3*N)
-  const expectedTileCount = 17 - (3 * exposedMeldCount);
+  // To win: 5 sets + 1 pair total
+  // With N exposed melds, we need (5-N) sets + 1 pair from concealed tiles
+  // No strict tile count check - just verify if tiles can form the required structure
+  // This handles varying hand sizes during gameplay and will work with Kong
+  const setsNeeded = 5 - exposedMeldCount;
 
-  if (tiles.length !== expectedTileCount) {
+  // Quick sanity check: need at least 2 tiles for pair + 3 per set needed
+  const minTilesNeeded = 2 + (3 * setsNeeded);
+  if (tiles.length < minTilesNeeded) {
     return false;
   }
-
-  // Number of sets we need to form from concealed tiles
-  const setsNeeded = 5 - exposedMeldCount;
 
   // Separate Gold tiles (wildcards) from regular tiles
   const goldTiles = tiles.filter(t => isGoldTile(t, goldTileType));
@@ -327,14 +327,37 @@ function tryFormSetsAndPair(
     return canFormPair(tileCounts, wildcards);
   }
 
-  // Find first non-zero tile type
-  let firstType: TileType | null = null;
+  // Get all tile types with count > 0 and sort them for consistent processing
+  // Sort by suit, then by value to ensure chow detection works properly
+  const tilesWithCount: TileType[] = [];
   for (const [type, count] of tileCounts.entries()) {
     if (count > 0) {
-      firstType = type;
-      break;
+      tilesWithCount.push(type);
     }
   }
+
+  // Sort tiles: winds/dragons first, then suits by name, then by number
+  tilesWithCount.sort((a, b) => {
+    const parsedA = parseTileType(a);
+    const parsedB = parseTileType(b);
+
+    // Non-suit before suit (so they get processed first and form pairs/pungs)
+    if (parsedA.category !== 'suit' && parsedB.category === 'suit') return -1;
+    if (parsedA.category === 'suit' && parsedB.category !== 'suit') return 1;
+
+    // Within suits, sort by suit name then value
+    if (parsedA.category === 'suit' && parsedB.category === 'suit') {
+      if (parsedA.suit !== parsedB.suit) {
+        return (parsedA.suit || '').localeCompare(parsedB.suit || '');
+      }
+      return (parsedA.value as number) - (parsedB.value as number);
+    }
+
+    return 0;
+  });
+
+  // Find first non-zero tile type (now sorted)
+  const firstType: TileType | null = tilesWithCount.length > 0 ? tilesWithCount[0] : null;
 
   // If no regular tiles, use wildcards
   if (firstType === null) {
@@ -686,16 +709,8 @@ export function canWinOnDiscard(
   goldTileType: TileType,
   exposedMeldCount: number = 0
 ): boolean {
-  // Calculate expected hand size based on exposed melds
-  // With N exposed melds: 16 - 3*N concealed tiles (before adding discard)
-  const expectedHandSize = 16 - (3 * exposedMeldCount);
-  if (hand.length !== expectedHandSize) {
-    return false;
-  }
-
-  // Gold tiles CAN be won on (they're valid winning tiles)
-  // No restriction here unlike Pung/Chow
-
+  // Just check if hand + discard can form a winning hand
+  // No hand size check - let canFormWinningHand validate the structure
   const testHand = [...hand, discardTile];
   return canFormWinningHand(testHand, goldTileType, exposedMeldCount);
 }

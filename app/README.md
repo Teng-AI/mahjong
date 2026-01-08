@@ -1,36 +1,124 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Fujian Mahjong - Multiplayer Game
+
+A real-time multiplayer Fujian Mahjong game built with Next.js and Firebase.
+
+## Features
+
+### Implemented
+- **Real-time Multiplayer**: 4-player games with Firebase Realtime Database sync
+- **Room System**: Create/join rooms with 6-character codes
+- **Full Game Loop**: Deal, draw, discard, call (Pung/Chow), win
+- **Calling System**: Pung (triplet) and Chow (sequence) with priority resolution
+- **Win Detection**: Validates winning hands (5 sets + 1 pair) with Gold tile wildcards
+- **Gold Tiles**: Random suit tile becomes wildcard each round
+- **Bonus Tile Exposure**: Winds and dragons exposed at start for bonus points
+- **Scoring System**: Base + bonus tiles + gold tiles, with self-draw multiplier
+- **Cumulative Scoring**: Track scores across multiple rounds with settlement calculator
+- **Three Golds Win**: Instant win when drawing 3 Gold tiles
+
+### Fujian Mahjong Rules
+- **128 tiles**: 108 suited (dots, bamboo, characters) + 16 winds + 4 red dragons
+- **No flowers/seasons**: Unlike other variants
+- **Gold tile**: One random suit tile type becomes wildcard each game
+- **Winning hand**: 5 sets (pungs or chows) + 1 pair = 17 tiles
+- **Bonus tiles**: Winds and dragons are exposed and give bonus points
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+- Node.js 18+
+- Firebase project with Realtime Database
 
+### Setup
+
+1. Clone and install:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd app
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Configure Firebase:
+```bash
+cp .env.local.example .env.local
+# Edit .env.local with your Firebase credentials
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Run development server:
+```bash
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Open http://localhost:3000
 
-## Learn More
+### Testing Multiplayer
 
-To learn more about Next.js, take a look at the following resources:
+For quick 4-player testing:
+```bash
+node scripts/setup-test-game.mjs
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+This creates a room with 4 test players. Open the provided URLs in separate browser tabs.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project Structure
 
-## Deploy on Vercel
+```
+app/
+├── src/
+│   ├── app/              # Next.js App Router pages
+│   │   ├── page.tsx      # Home - create/join rooms
+│   │   ├── create/       # Room creation
+│   │   ├── room/[code]/  # Waiting room
+│   │   └── game/[code]/  # Main game UI
+│   ├── components/       # Reusable UI components
+│   ├── hooks/            # React hooks
+│   │   ├── useAuth.ts    # Firebase authentication
+│   │   ├── useRoom.ts    # Room state management
+│   │   └── useGame.ts    # Game state and actions
+│   ├── lib/              # Core game logic
+│   │   ├── game.ts       # Game actions (draw, discard, call, win)
+│   │   ├── tiles.ts      # Tile utilities and win detection
+│   │   └── settle.ts     # Score settlement calculator
+│   ├── firebase/         # Firebase configuration
+│   └── types/            # TypeScript type definitions
+├── scripts/              # Development utilities
+│   ├── setup-test-game.mjs   # Quick 4-player test setup
+│   ├── force-win.mjs         # Force a win for testing
+│   └── restart-game.mjs      # Restart game with new dealer
+└── FUTURE_FEATURES.md    # Planned features
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Game Flow
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Create Room**: Host creates room, gets 6-character code
+2. **Join Room**: Players join using code, select seats (East/South/West/North)
+3. **Start Game**: Host starts when 4 players ready
+4. **Bonus Exposure**: Players expose wind/dragon tiles (clockwise from dealer)
+5. **Gold Reveal**: Random suit tile revealed as wildcard
+6. **Play**: Draw, discard, call pung/chow, declare wins
+7. **Scoring**: Winner scores based on hand composition
+8. **Next Round**: Play additional rounds, track cumulative scores
+9. **Settlement**: Calculate minimum transfers to balance scores
+
+## Tech Stack
+
+- **Frontend**: Next.js 14, React 18, TypeScript, Tailwind CSS
+- **Backend**: Firebase Realtime Database
+- **Auth**: Firebase Anonymous Authentication
+- **State**: React hooks with Firebase real-time sync
+
+## Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Build for production |
+| `npm run lint` | Run ESLint |
+| `node scripts/setup-test-game.mjs` | Create test game with 4 players |
+| `node scripts/force-win.mjs <room> [seat] [score]` | Force a win for testing |
+| `node scripts/restart-game.mjs <room>` | Restart game with rotated dealer |
+
+## Future Features
+
+See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md) for planned features including:
+- Dealer streak bonus system
+- Kong (quad) declarations

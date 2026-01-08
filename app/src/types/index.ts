@@ -195,6 +195,38 @@ export interface Room {
   };
   settings: RoomSettings;
   game?: GameState;
+  session?: SessionScores;
+}
+
+// ============================================
+// SESSION/SCORING TYPES
+// ============================================
+
+/** A completed game round result */
+export interface GameRound {
+  roundNumber: number;
+  winnerSeat: SeatIndex | null;  // null for draw games
+  winnerName: string;
+  score: number;                  // Points won this round (0 for draws)
+  timestamp: number;
+}
+
+/** Cumulative session scores across multiple rounds */
+export interface SessionScores {
+  rounds: GameRound[];
+  cumulative: {
+    seat0: number;
+    seat1: number;
+    seat2: number;
+    seat3: number;
+  };
+}
+
+/** Settlement transaction */
+export interface Settlement {
+  from: SeatIndex;
+  to: SeatIndex;
+  amount: number;
 }
 
 // ============================================

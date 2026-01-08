@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { ref, onValue, off } from 'firebase/database';
 import { db } from '@/firebase/config';
-import { GameState, PrivateHand, SeatIndex, TileId, CallAction, PendingCall, ValidCalls } from '@/types';
+import { GameState, PrivateHand, SeatIndex, TileId, CallAction, PendingCall, ValidCalls, SessionScores } from '@/types';
 import {
   initializeGame,
   exposeBonusTiles,
@@ -30,6 +30,7 @@ interface UseGameOptions {
 interface UseGameReturn {
   gameState: GameState | null;
   myHand: TileId[];
+  sessionScores: SessionScores | null;
   loading: boolean;
   error: string | null;
   startGame: (dealerSeat: SeatIndex) => Promise<void>;
@@ -55,6 +56,7 @@ interface UseGameReturn {
 export function useGame({ roomCode, mySeat }: UseGameOptions): UseGameReturn {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [myHand, setMyHand] = useState<TileId[]>([]);
+  const [sessionScores, setSessionScores] = useState<SessionScores | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -98,6 +100,25 @@ export function useGame({ roomCode, mySeat }: UseGameOptions): UseGameReturn {
 
     return () => off(handRef);
   }, [roomCode, mySeat]);
+
+  // Subscribe to session scores (cumulative scoring across rounds)
+  useEffect(() => {
+    if (!roomCode) {
+      return;
+    }
+
+    const sessionRef = ref(db, `rooms/${roomCode}/session`);
+
+    const unsubscribe = onValue(sessionRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setSessionScores(snapshot.val() as SessionScores);
+      } else {
+        setSessionScores(null);
+      }
+    });
+
+    return () => off(sessionRef);
+  }, [roomCode]);
 
   // Start game (host only)
   const startGame = useCallback(
@@ -178,17 +199,23 @@ export function useGame({ roomCode, mySeat }: UseGameOptions): UseGameReturn {
     if (!gameState || mySeat === null || gameState.phase !== 'playing' || gameState.currentPlayerSeat !== mySeat) {
       return false;
     }
-    const myExposedMelds = gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds] || [];
-    const expectedHandSize = 17 - (3 * myExposedMelds.length);
-    if (myHand.length !== expectedHandSize) {
+    // If player just called (chow/pung), they already chose not to win - don't show win button
+    if (
+      gameState.lastAction &&
+      (gameState.lastAction.type === 'chow' || gameState.lastAction.type === 'pung') &&
+      gameState.lastAction.playerSeat === mySeat
+    ) {
       return false;
     }
+    const myExposedMelds = gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds] || [];
+    // No hand size check - let canWin validate the winning structure
     return canWin(myHand, gameState.goldTileType, myExposedMelds.length);
   }, [gameState, mySeat, myHand]);
 
   // Phase 6: Check if player can win on the last discarded tile
   const canWinOnLastDiscard = useMemo(() => {
-    if (!gameState || mySeat === null || gameState.phase !== 'playing') {
+    // Allow both 'playing' and 'calling' phases - calling is when players can win on a discard
+    if (!gameState || mySeat === null || (gameState.phase !== 'playing' && gameState.phase !== 'calling')) {
       return false;
     }
     if (!gameState.lastAction?.tile || gameState.lastAction.type !== 'discard') {
@@ -198,10 +225,7 @@ export function useGame({ roomCode, mySeat }: UseGameOptions): UseGameReturn {
       return false; // Can't win on your own discard
     }
     const myExposedMelds = gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds] || [];
-    const expectedHandSize = 16 - (3 * myExposedMelds.length);
-    if (myHand.length !== expectedHandSize) {
-      return false;
-    }
+    // No hand size check - let canWinOnDiscard validate the winning structure
     return canWinOnDiscard(myHand, gameState.lastAction.tile, gameState.goldTileType, myExposedMelds.length);
   }, [gameState, mySeat, myHand]);
 
@@ -327,6 +351,7 @@ export function useGame({ roomCode, mySeat }: UseGameOptions): UseGameReturn {
   return {
     gameState,
     myHand,
+    sessionScores,
     loading,
     error,
     startGame,
