@@ -473,10 +473,10 @@ export default function GamePage() {
   // Loading state
   if (authLoading || roomLoading || gameLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-green-900 to-green-950 text-white flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-white flex items-center justify-center">
         <div className="text-center">
           <div className="text-2xl mb-2">Loading game...</div>
-          <div className="text-green-400">Room: {roomCode}</div>
+          <div className="text-slate-400">Room: {roomCode}</div>
         </div>
       </div>
     );
@@ -485,7 +485,7 @@ export default function GamePage() {
   // No game state
   if (!room || !gameState || mySeat === null) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-green-900 to-green-950 text-white flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-white flex items-center justify-center">
         <div className="text-center">
           <div className="text-2xl mb-4 text-red-400">Game Not Found</div>
           <button
@@ -504,7 +504,7 @@ export default function GamePage() {
     // Draw game (no winner)
     if (!gameState.winner) {
       return (
-        <div className="min-h-screen bg-gradient-to-b from-green-900 to-green-950 text-white flex items-center justify-center">
+        <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-white flex items-center justify-center">
           <div className="text-center max-w-md">
             <div className="text-4xl mb-4">🤝 Draw Game</div>
             <div className="text-xl mb-4 text-green-300">Wall exhausted - no winner</div>
@@ -529,7 +529,7 @@ export default function GamePage() {
       : null;
 
     return (
-      <div className="min-h-screen bg-gradient-to-b from-green-900 to-green-950 text-white flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-white flex items-center justify-center">
         <div className="text-center max-w-md">
           <div className="text-4xl mb-4">
             {winner.isThreeGolds ? '🀄🀄🀄 THREE GOLDS!' : '🎉 Winner!'}
@@ -873,6 +873,24 @@ export default function GamePage() {
       {/* ========== COMBINED HEADER + PHASE BAR ========== */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3 bg-slate-700/40 rounded-lg px-3 py-2">
         <div className="flex items-center gap-4">
+          {/* Rules tooltip */}
+          <div className="relative group">
+            <button className="w-7 h-7 rounded-full bg-slate-600 hover:bg-slate-500 text-slate-300 hover:text-white text-lg font-bold flex items-center justify-center">
+              ?
+            </button>
+            <div className="absolute left-0 top-full mt-2 w-80 bg-slate-800 border border-slate-600 rounded-lg p-4 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+              <h3 className="text-amber-400 font-bold mb-2">How to Play</h3>
+              <div className="text-sm text-slate-300 space-y-2">
+                <p><strong className="text-white">Goal:</strong> Form a winning hand of 5 sets + 1 pair (17 tiles total)</p>
+                <p><strong className="text-white">Sets:</strong> Either 3 of a kind (Pung) or 3 in a row of the same suit (Chow)</p>
+                <p><strong className="text-white">Gold Tile:</strong> Acts as a wildcard - can substitute for any suited tile</p>
+                <p><strong className="text-white">Bonus Tiles:</strong> Winds and dragons are exposed at the start for extra points</p>
+                <p><strong className="text-white">On Your Turn:</strong> Draw a tile, then discard one (click to select, then click Discard)</p>
+                <p><strong className="text-white">Calling:</strong> When someone discards, you can call Pung (3 of a kind) or Chow (sequence) if you have matching tiles</p>
+                <p><strong className="text-white">Winning:</strong> Click WIN when your hand is complete!</p>
+              </div>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <span className="text-slate-400 text-lg">Room</span>
             <span className="font-mono text-amber-400 font-bold">{roomCode}</span>
