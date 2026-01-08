@@ -42,9 +42,9 @@ function Tile({ tileId, goldTileType, onClick, selected, isJustDrawn, isChowVali
   };
 
   const sizeClasses = {
-    sm: 'w-8 h-10 text-lg',
-    md: 'w-12 h-16 text-xl',
-    lg: 'w-16 h-20 text-3xl',  // Larger size for player's hand and discard
+    sm: 'w-9 h-11 text-lg',
+    md: 'w-14 h-[72px] text-2xl',
+    lg: 'w-20 h-24 text-4xl',  // Larger size for player's hand
   };
 
   return (
@@ -126,7 +126,7 @@ function BonusTilesDisplay({ tiles, label }: BonusTilesProps) {
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-base text-green-300">{label}:</span>
+      <span className="text-lg text-green-300">{label}:</span>
       <div className="flex gap-0.5">
         {tiles.map((tile, index) => (
           <Tile key={`${tile}-${index}`} tileId={tile} size="md" />
@@ -176,19 +176,19 @@ function PlayerInfo({
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <span className="text-base text-green-400">{SEAT_LABELS[seat]}</span>
+          <span className="text-lg text-green-400">{SEAT_LABELS[seat]}</span>
           {isBot && <span className="text-cyan-400">🤖</span>}
           <span className="font-semibold">{name}</span>
-          {isSelf && <span className="text-base text-blue-300">(You)</span>}
-          {isBot && <span className="text-base text-cyan-400">(Bot)</span>}
+          {isSelf && <span className="text-lg text-blue-300">(You)</span>}
+          {isBot && <span className="text-lg text-cyan-400">(Bot)</span>}
         </div>
         <div className="flex items-center gap-2">
           {isDealer && (
-            <span className="px-2 py-0.5 bg-yellow-500 text-black rounded text-base font-bold">
+            <span className="px-2 py-0.5 bg-yellow-500 text-black rounded text-lg font-bold">
               DEALER
             </span>
           )}
-          <span className="text-base text-green-400">{tileCount} tiles</span>
+          <span className="text-lg text-green-400">{tileCount} tiles</span>
         </div>
       </div>
 
@@ -535,7 +535,7 @@ export default function GamePage() {
             {winner.isThreeGolds ? '🀄🀄🀄 THREE GOLDS!' : '🎉 Winner!'}
           </div>
           <div className="text-2xl mb-2">{winnerName}</div>
-          <div className="text-base text-green-300 mb-4">
+          <div className="text-lg text-green-300 mb-4">
             {winner.isThreeGolds
               ? 'Instant win with 3 Gold tiles!'
               : winner.isSelfDraw
@@ -546,7 +546,7 @@ export default function GamePage() {
           {/* Show full winning hand */}
           {winner.hand && (
             <div className="mb-4">
-              <div className="text-green-400 text-base mb-2">Winning Hand:</div>
+              <div className="text-green-400 text-lg mb-2">Winning Hand:</div>
 
               {/* Gold tiles - prominently displayed at top */}
               {(() => {
@@ -556,7 +556,7 @@ export default function GamePage() {
                 if (goldTiles.length === 0) return null;
                 return (
                   <div className="mb-3">
-                    <div className="text-yellow-400 text-base mb-1">Gold Tiles:</div>
+                    <div className="text-yellow-400 text-lg mb-1">Gold Tiles:</div>
                     <div className="flex flex-wrap justify-center gap-1">
                       {goldTiles.map((tileId: string, index: number) => {
                         const isWinningTile = tileId === winner.winningTile;
@@ -580,7 +580,7 @@ export default function GamePage() {
 
               {/* Concealed hand tiles (non-gold, with winning tile integrated and highlighted) */}
               <div className="mb-2">
-                <div className="text-green-300 text-base mb-1">Concealed:</div>
+                <div className="text-green-300 text-lg mb-1">Concealed:</div>
                 <div className="flex flex-wrap justify-center gap-1">
                   {(() => {
                     // Get non-gold tiles and sort them
@@ -611,7 +611,7 @@ export default function GamePage() {
               {/* Exposed melds (called from discard pile) */}
               {gameState.exposedMelds?.[`seat${winner.seat}` as keyof typeof gameState.exposedMelds]?.length > 0 && (
                 <div className="mt-3">
-                  <div className="text-green-300 text-base mb-1">Called:</div>
+                  <div className="text-green-300 text-lg mb-1">Called:</div>
                   <div className="flex flex-wrap justify-center gap-2">
                     {gameState.exposedMelds[`seat${winner.seat}` as keyof typeof gameState.exposedMelds].map((meld, meldIndex) => (
                       <div key={`meld-${meldIndex}`} className="flex gap-0.5 bg-green-700/50 px-1 py-0.5 rounded">
@@ -634,7 +634,7 @@ export default function GamePage() {
           {/* Show viewing player's hand (only if they're not the winner) */}
           {mySeat !== null && mySeat !== winner.seat && myHand.length > 0 && (
             <div className="mb-4 mt-6 pt-4 border-t border-green-700">
-              <div className="text-blue-400 text-base mb-2">Your Hand:</div>
+              <div className="text-blue-400 text-lg mb-2">Your Hand:</div>
 
               {/* Concealed tiles */}
               <div className="mb-2">
@@ -653,7 +653,7 @@ export default function GamePage() {
               {/* My exposed melds */}
               {gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds]?.length > 0 && (
                 <div className="mt-2">
-                  <div className="text-blue-300 text-base mb-1">Called:</div>
+                  <div className="text-blue-300 text-lg mb-1">Called:</div>
                   <div className="flex flex-wrap justify-center gap-2">
                     {gameState.exposedMelds[`seat${mySeat}` as keyof typeof gameState.exposedMelds].map((meld, meldIndex) => (
                       <div key={`my-meld-${meldIndex}`} className="flex gap-0.5 bg-green-700/50 px-1 py-0.5 rounded">
@@ -675,7 +675,7 @@ export default function GamePage() {
 
           <div className="bg-green-800/50 rounded-lg p-4 mb-6 text-left">
             <h3 className="font-semibold mb-2">Score Breakdown</h3>
-            <div className="text-base space-y-1">
+            <div className="text-lg space-y-1">
               <div className="flex justify-between">
                 <span>Base:</span>
                 <span>{winner.score.base}</span>
@@ -727,9 +727,9 @@ export default function GamePage() {
                   }
                 }
                 return (
-                  <div className="text-base">
+                  <div className="text-lg">
                     {/* Header row */}
-                    <div className="flex justify-between text-green-300 text-base mb-1 border-b border-blue-700 pb-1">
+                    <div className="flex justify-between text-green-300 text-lg mb-1 border-b border-blue-700 pb-1">
                       <span>Player</span>
                       <div className="flex gap-4">
                         <span className="w-16 text-right">Won</span>
@@ -796,7 +796,7 @@ export default function GamePage() {
               )}
             </div>
             {room?.hostId !== user?.uid && (
-              <p className="text-base text-gray-400">Waiting for host to start next round...</p>
+              <p className="text-lg text-gray-400">Waiting for host to start next round...</p>
             )}
           </div>
 
@@ -805,7 +805,7 @@ export default function GamePage() {
             <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
               <div className="bg-green-900 rounded-lg p-6 max-w-md w-full mx-4 border-2 border-green-700">
                 <h3 className="text-xl font-bold mb-4 text-center">Settlement Summary</h3>
-                <p className="text-green-300 text-base mb-4 text-center">
+                <p className="text-green-300 text-lg mb-4 text-center">
                   To balance all scores:
                 </p>
                 {(() => {
@@ -852,7 +852,7 @@ export default function GamePage() {
                   </button>
                   <button
                     onClick={() => router.push('/')}
-                    className="w-full px-4 py-2 bg-red-700 hover:bg-red-600 rounded-lg font-semibold text-base"
+                    className="w-full px-4 py-2 bg-red-700 hover:bg-red-600 rounded-lg font-semibold text-lg"
                   >
                     End Session & Leave
                   </button>
@@ -874,22 +874,22 @@ export default function GamePage() {
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3 bg-slate-700/40 rounded-lg px-3 py-2">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <span className="text-slate-400 text-sm">Room</span>
+            <span className="text-slate-400 text-lg">Room</span>
             <span className="font-mono text-amber-400 font-bold">{roomCode}</span>
           </div>
           {gameState.goldTileType && (
             <div className="flex items-center gap-1">
-              <span className="text-slate-400 text-sm">Gold</span>
+              <span className="text-slate-400 text-lg">Gold</span>
               <Tile tileId={gameState.exposedGold} goldTileType={gameState.goldTileType} size="md" />
             </div>
           )}
           <div className="flex items-center gap-1">
-            <span className="text-slate-400 text-sm">Wall</span>
+            <span className="text-slate-400 text-lg">Wall</span>
             <span className="font-mono text-white">{gameState.wall.length}</span>
           </div>
         </div>
         {/* Phase indicator - right side */}
-        <div className={`px-3 py-1 rounded-md text-sm font-medium ${
+        <div className={`px-3 py-1 rounded-md text-lg font-medium ${
           isBonusPhase ? 'bg-blue-500/40 text-blue-200' :
           isCallingPhase ? 'bg-orange-500/40 text-orange-200' :
           isMyTurn ? 'bg-emerald-500/40 text-emerald-200' : 'bg-slate-600/60 text-slate-300'
@@ -904,7 +904,7 @@ export default function GamePage() {
       {/* ========== YOUR HAND SECTION ========== */}
       <div className="bg-slate-700/60 rounded-xl p-3 mb-3 border border-slate-600">
         {/* Header row: Name + Melds + Bonus */}
-        <div className="flex flex-wrap items-center gap-3 mb-2 text-sm">
+        <div className="flex flex-wrap items-center gap-3 mb-2 text-lg">
           <div className="flex items-center gap-2">
             <span className="text-white font-medium">{room.players[`seat${mySeat}` as keyof typeof room.players]?.name || 'You'}</span>
             <span className="text-slate-500">({SEAT_LABELS[mySeat]})</span>
@@ -1051,7 +1051,7 @@ export default function GamePage() {
 
           {/* Waiting status */}
           {isCallingPhase && myPendingCall !== null && myPendingCall !== 'discarder' && (
-            <div className="px-4 py-2 bg-slate-600/50 rounded-lg text-base">
+            <div className="px-4 py-2 bg-slate-600/50 rounded-lg text-lg">
               <span className="text-slate-300">You chose </span>
               <span className="text-white font-bold uppercase">{myPendingCall}</span>
               <span className="text-slate-400 animate-pulse ml-2">waiting...</span>
@@ -1106,15 +1106,15 @@ export default function GamePage() {
       {/* End of Primary Hand Section */}
 
       {/* ========== MIDDLE ROW: GAME LOG + LAST DISCARD + DISCARD PILE ========== */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+      <div className="grid grid-cols-1 md:grid-cols-[2fr_auto_3fr] gap-3 mb-3">
         {/* Game Log */}
         <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-600">
-          <div className="text-base text-slate-300 font-medium mb-3">Game Log</div>
+          <div className="text-lg text-slate-300 font-medium mb-3">Game Log</div>
           <div ref={logRef} className="max-h-32 overflow-y-auto space-y-1">
             {(gameState.actionLog || []).slice(-10).map((entry, index, arr) => (
               <div
                 key={index}
-                className={`text-base py-0.5 ${index === arr.length - 1 ? 'text-white font-medium' : 'text-slate-300'}`}
+                className={`text-lg py-0.5 ${index === arr.length - 1 ? 'text-white font-medium' : 'text-slate-300'}`}
               >
                 {entry}
               </div>
@@ -1130,18 +1130,18 @@ export default function GamePage() {
         }`}>
           {gameState.lastAction?.type === 'discard' && gameState.lastAction.tile ? (
             <>
-              <span className="text-red-300 text-base font-medium mb-2">Last Discard</span>
+              <span className="text-red-300 text-lg font-medium mb-2">Last Discard</span>
               <Tile tileId={gameState.lastAction.tile} goldTileType={gameState.goldTileType} size="lg" />
-              <span className="text-white text-base mt-2">by <span className="font-semibold">{SEAT_LABELS[gameState.lastAction.playerSeat]}</span></span>
+              <span className="text-white text-lg mt-2">by <span className="font-semibold">{SEAT_LABELS[gameState.lastAction.playerSeat]}</span></span>
             </>
           ) : (
-            <span className="text-slate-400 text-base">No discard yet</span>
+            <span className="text-slate-400 text-lg">No discard yet</span>
           )}
         </div>
 
         {/* Discard Pile */}
         <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-600">
-          <div className="text-base text-slate-300 font-medium mb-3 flex items-center justify-between">
+          <div className="text-lg text-slate-300 font-medium mb-3 flex items-center justify-between">
             <span>Discard Pile</span>
             <span className="text-slate-400">{gameState.discardPile?.length || 0} tiles</span>
           </div>
@@ -1170,14 +1170,14 @@ export default function GamePage() {
               })()}
             </div>
           ) : (
-            <div className="text-slate-400 text-base">No discards yet</div>
+            <div className="text-slate-400 text-lg">No discards yet</div>
           )}
         </div>
       </div>
 
       {/* ========== OTHER PLAYERS WITH MELDS ========== */}
       <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-600">
-        <div className="text-base text-slate-300 font-medium mb-3">Other Players</div>
+        <div className="text-lg text-slate-300 font-medium mb-3">Other Players</div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {([0, 1, 2, 3] as SeatIndex[])
             .filter((seat) => seat !== mySeat)
@@ -1201,11 +1201,11 @@ export default function GamePage() {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       {player.isBot && <span className="text-cyan-400 text-lg">🤖</span>}
-                      <span className={`font-semibold text-base ${isCurrentTurn ? 'text-emerald-200' : 'text-white'}`}>
+                      <span className={`font-semibold text-lg ${isCurrentTurn ? 'text-emerald-200' : 'text-white'}`}>
                         {player.name}
                       </span>
                       <span className="text-slate-400">({SEAT_LABELS[seat]})</span>
-                      {isDealer && <span className="bg-amber-500 text-black text-sm px-1.5 py-0.5 rounded font-bold">D</span>}
+                      {isDealer && <span className="bg-amber-500 text-black text-lg px-1.5 py-0.5 rounded font-bold">D</span>}
                     </div>
                     <span className="text-slate-300 font-medium">{tileCount} tiles</span>
                   </div>
@@ -1221,7 +1221,7 @@ export default function GamePage() {
                       ))}
                       {bonusTiles.length > 0 && (
                         <div className="bg-amber-500/30 rounded px-3 py-1 flex items-center gap-1">
-                          <span className="text-amber-300 text-sm">Bonus:</span>
+                          <span className="text-amber-300 text-lg">Bonus:</span>
                           <span className="text-amber-400 text-2xl font-bold">+{bonusTiles.length}</span>
                         </div>
                       )}
