@@ -30,6 +30,7 @@ import {
   canWinOnDiscard as canWinOnDiscardValidation,
   validateChowSelection,
   hasGoldenPair,
+  getWinningTiles,
 } from './tiles';
 
 // Seat labels for log messages
@@ -403,6 +404,7 @@ export async function advanceBonusExposure(
 export async function revealGoldTile(roomCode: string): Promise<{
   goldTileType: TileType;
   threeGoldsWinner: SeatIndex | null;
+  robbingGoldWinner: SeatIndex | null;
 }> {
   const gameSnapshot = await get(ref(db, `rooms/${roomCode}/game`));
   if (!gameSnapshot.exists()) {
@@ -472,7 +474,15 @@ export async function revealGoldTile(roomCode: string): Promise<{
   // Check all players for Three Golds
   const threeGoldsWinner = await checkAllPlayersForThreeGolds(roomCode, goldTileType);
 
-  return { goldTileType, threeGoldsWinner };
+  // If Three Golds winner, game is already ended
+  if (threeGoldsWinner !== null) {
+    return { goldTileType, threeGoldsWinner, robbingGoldWinner: null };
+  }
+
+  // Check for Robbing the Gold (抢金)
+  const robbingGoldWinner = await checkRobbingGold(roomCode, goldTileType, exposedGold, dealerSeat);
+
+  return { goldTileType, threeGoldsWinner, robbingGoldWinner };
 }
 
 /**
@@ -551,6 +561,7 @@ async function handleThreeGoldsWin(
       seat: winnerSeat,
       isSelfDraw: true,
       isThreeGolds: true,
+      isRobbingGold: false,
       hand,
       ...(winningTile ? { winningTile } : {}),
       score: {
@@ -573,6 +584,171 @@ async function handleThreeGoldsWin(
   // Record round result for cumulative scoring
   const winnerName = await getPlayerName(roomCode, winnerSeat);
   await recordRoundResult(roomCode, winnerSeat, winnerName, total, gameState.dealerSeat);
+
+  // Log the win
+  await addToLog(roomCode, `${SEAT_NAMES[winnerSeat]} wins with Three Golds! Score: ${total}`);
+}
+
+/**
+ * Check for Robbing the Gold (抢金) after Gold tile is revealed
+ * Priority order:
+ * 1. Dealer - already has winning hand (no swap needed)
+ * 2. Non-dealers in turn order - tenpai and Gold completes hand
+ * 3. Dealer - can swap any tile with Gold to win
+ */
+async function checkRobbingGold(
+  roomCode: string,
+  goldTileType: TileType,
+  exposedGold: TileId,
+  dealerSeat: SeatIndex
+): Promise<SeatIndex | null> {
+  // Get all hands
+  const hands: Map<SeatIndex, TileId[]> = new Map();
+  for (const seat of [0, 1, 2, 3] as SeatIndex[]) {
+    const handSnapshot = await get(ref(db, `rooms/${roomCode}/privateHands/seat${seat}`));
+    if (handSnapshot.exists()) {
+      const hand = handSnapshot.val() as PrivateHand;
+      hands.set(seat, hand.concealedTiles);
+    }
+  }
+
+  // Priority 1: Dealer already has winning hand (17 tiles, no Gold needed)
+  const dealerHand = hands.get(dealerSeat);
+  if (dealerHand && canFormWinningHand(dealerHand, goldTileType, 0)) {
+    await handleRobbingGoldWin(roomCode, dealerSeat, dealerHand, goldTileType, exposedGold, 'dealer_no_swap');
+    return dealerSeat;
+  }
+
+  // Priority 2: Non-dealers in turn order (counter-clockwise from dealer)
+  // Check if they're tenpai and the Gold tile type completes their hand
+  const nonDealerOrder = [
+    ((dealerSeat + 1) % 4) as SeatIndex,
+    ((dealerSeat + 2) % 4) as SeatIndex,
+    ((dealerSeat + 3) % 4) as SeatIndex,
+  ];
+
+  for (const seat of nonDealerOrder) {
+    const hand = hands.get(seat);
+    if (hand && hand.length === 16) {
+      // Check if this player is tenpai on the Gold tile type
+      const winningTypes = getWinningTiles(hand, goldTileType);
+      if (winningTypes.includes(goldTileType)) {
+        // This player can win by taking the Gold tile
+        const winningHand = [...hand, exposedGold];
+        await handleRobbingGoldWin(roomCode, seat, winningHand, goldTileType, exposedGold, 'non_dealer');
+        return seat;
+      }
+    }
+  }
+
+  // Priority 3: Dealer can swap any tile with Gold to form winning hand
+  if (dealerHand && dealerHand.length === 17) {
+    for (let i = 0; i < dealerHand.length; i++) {
+      const tileToSwap = dealerHand[i];
+      // Don't swap Gold tiles (they're already wildcards)
+      if (isGoldTile(tileToSwap, goldTileType)) continue;
+
+      // Create test hand with swap
+      const testHand = [...dealerHand];
+      testHand.splice(i, 1); // Remove the tile
+      testHand.push(exposedGold); // Add the Gold tile
+
+      if (canFormWinningHand(testHand, goldTileType, 0)) {
+        // Dealer can win by swapping this tile
+        await handleRobbingGoldWin(roomCode, dealerSeat, testHand, goldTileType, exposedGold, 'dealer_swap', tileToSwap);
+        return dealerSeat;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Handle Robbing the Gold win
+ */
+async function handleRobbingGoldWin(
+  roomCode: string,
+  winnerSeat: SeatIndex,
+  hand: TileId[],
+  goldTileType: TileType,
+  exposedGold: TileId,
+  winType: 'dealer_no_swap' | 'non_dealer' | 'dealer_swap',
+  swappedTile?: TileId
+): Promise<void> {
+  // Get game state for bonus tiles and dealer info
+  const gameSnapshot = await get(ref(db, `rooms/${roomCode}/game`));
+  const gameState = gameSnapshot.val() as GameState;
+  const bonusTiles = gameState.bonusTiles?.[`seat${winnerSeat}` as keyof typeof gameState.bonusTiles] || [];
+
+  // Get dealer streak bonus (only if winner is dealer)
+  const currentStreak = await getDealerStreak(roomCode);
+  const dealerStreakBonus = (winnerSeat === gameState.dealerSeat && currentStreak > 0) ? currentStreak : 0;
+
+  // Calculate score
+  const goldCount = countGoldTiles(hand, goldTileType);
+  const bonusCount = bonusTiles.length;
+  const base = 1;
+  const subtotal = base + bonusCount + goldCount + dealerStreakBonus;
+  const multiplier = 2; // Self-draw multiplier
+  const robbingGoldBonus = 20;
+
+  // Check for special bonuses
+  const goldenPairBonus = hasGoldenPair(hand, goldTileType, 0) ? 30 : 0;
+  const noBonusBonus = bonusCount === 0 ? 10 : 0;
+
+  const total = (subtotal * multiplier) + robbingGoldBonus + goldenPairBonus + noBonusBonus;
+
+  // Update the winner's hand in private hands (for dealer swap case)
+  if (winType === 'dealer_swap' || winType === 'non_dealer') {
+    await set(ref(db, `rooms/${roomCode}/privateHands/seat${winnerSeat}`), {
+      concealedTiles: hand,
+    });
+  }
+
+  // Update game state
+  await update(ref(db, `rooms/${roomCode}/game`), {
+    phase: 'ended',
+    winner: {
+      seat: winnerSeat,
+      isSelfDraw: true,
+      isThreeGolds: false,
+      isRobbingGold: true,
+      winningTile: exposedGold,
+      hand,
+      score: {
+        base,
+        bonusTiles: bonusCount,
+        golds: goldCount,
+        dealerStreakBonus,
+        subtotal,
+        multiplier,
+        robbingGoldBonus,
+        ...(goldenPairBonus > 0 ? { goldenPairBonus } : {}),
+        ...(noBonusBonus > 0 ? { noBonusBonus } : {}),
+        total,
+      },
+    },
+  });
+
+  await update(ref(db, `rooms/${roomCode}`), {
+    status: 'ended',
+  });
+
+  // Record round result
+  const winnerName = await getPlayerName(roomCode, winnerSeat);
+  await recordRoundResult(roomCode, winnerSeat, winnerName, total, gameState.dealerSeat);
+
+  // Log the win with appropriate message
+  const goldName = getTileDisplayText(goldTileType);
+  if (winType === 'dealer_no_swap') {
+    await addToLog(roomCode, `${SEAT_NAMES[winnerSeat]} (Dealer) wins by Robbing the Gold (${goldName})! Already had winning hand. Score: ${total}`);
+  } else if (winType === 'non_dealer') {
+    await addToLog(roomCode, `${SEAT_NAMES[winnerSeat]} wins by Robbing the Gold (${goldName})! Score: ${total}`);
+  } else {
+    const swappedName = swappedTile ? getTileDisplayText(getTileType(swappedTile)) : '?';
+    await addToLog(roomCode, `${SEAT_NAMES[winnerSeat]} (Dealer) wins by Robbing the Gold! Swapped ${swappedName} for ${goldName}. Score: ${total}`);
+  }
 }
 
 // ============================================
@@ -1336,6 +1512,7 @@ export async function declareSelfDrawWin(
       seat,
       isSelfDraw: true,
       isThreeGolds: false,
+      isRobbingGold: false,
       hand,
       ...(winningTile ? { winningTile } : {}),
       score: {
@@ -1472,6 +1649,7 @@ export async function declareDiscardWin(
       seat: winnerSeat,
       isSelfDraw: false,
       isThreeGolds: false,
+      isRobbingGold: false,
       winningTile: discardedTile,
       discarderSeat,
       hand: fullHand,

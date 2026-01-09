@@ -505,21 +505,22 @@ export default function GamePage() {
     if (!gameState.winner) {
       return (
         <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-white p-4">
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-4xl mx-auto">
             {/* Header */}
-            <div className="text-center mb-6">
+            <div className="text-center mb-4">
               <div className="text-4xl mb-2">🤝 Draw Game</div>
               <div className="text-xl text-slate-300">Wall exhausted - no winner</div>
-              <p className="text-slate-400 mt-2">No payment this round. Dealer stays.</p>
+              <p className="text-slate-400 mt-1">No payment this round. Dealer stays.</p>
             </div>
 
-            {/* Session Scores */}
-            {sessionScores && sessionScores.rounds && (
-              <div className="bg-slate-700/50 rounded-xl p-4 border border-slate-600 mb-6">
+            {/* 2-column grid: Session Scores + Game Log */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              {/* Session Scores */}
+              <div className="bg-slate-700/50 rounded-xl p-4 border border-slate-600">
                 <h3 className="text-lg font-semibold text-blue-400 mb-3">
-                  Session Scores (Round {sessionScores.rounds?.length || 1})
+                  Session Scores {sessionScores?.rounds ? `(Round ${sessionScores.rounds.length})` : ''}
                 </h3>
-                {(() => {
+                {sessionScores && sessionScores.rounds ? (() => {
                   const netPositions = calculateNetPositions(sessionScores.rounds || []);
                   const rawPoints: Record<string, number> = { seat0: 0, seat1: 0, seat2: 0, seat3: 0 };
                   for (const round of sessionScores.rounds || []) {
@@ -559,9 +560,21 @@ export default function GamePage() {
                       })}
                     </div>
                   );
-                })()}
+                })() : <p className="text-slate-400">No session data</p>}
               </div>
-            )}
+
+              {/* Game Log */}
+              <div className="bg-slate-700/50 rounded-xl p-4 border border-slate-600">
+                <h3 className="text-lg font-semibold text-slate-300 mb-2">Game Log</h3>
+                <div className="max-h-40 overflow-y-auto space-y-0.5">
+                  {(gameState.actionLog || []).map((entry, index) => (
+                    <div key={index} className="text-xs py-0.5 text-slate-400">
+                      {entry}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
 
             {/* Action buttons */}
             <div className="flex flex-col items-center gap-3">
@@ -667,15 +680,17 @@ export default function GamePage() {
           {/* Header */}
           <div className="text-center mb-6">
             <div className="text-4xl mb-2">
-              {winner.isThreeGolds ? '🀄🀄🀄 THREE GOLDS!' : '🎉 Winner!'}
+              {winner.isThreeGolds ? '🀄🀄🀄 THREE GOLDS!' : winner.isRobbingGold ? '💰 ROBBING THE GOLD!' : '🎉 Winner!'}
             </div>
             <div className="text-2xl font-bold text-amber-400">{winnerName}</div>
             <div className="text-lg text-slate-300">
               {winner.isThreeGolds
                 ? 'Instant win with 3 Gold tiles!'
-                : winner.isSelfDraw
-                  ? 'Won by self-draw'
-                  : `Won on ${discarderName}'s discard`}
+                : winner.isRobbingGold
+                  ? 'Claimed the revealed Gold tile!'
+                  : winner.isSelfDraw
+                    ? 'Won by self-draw'
+                    : `Won on ${discarderName}'s discard`}
             </div>
             {winner.seat === gameState.dealerSeat && (
               <div className="text-base text-orange-400 mt-1">
@@ -704,10 +719,7 @@ export default function GamePage() {
                       return sortedHand.map((tileId: string, index: number) => {
                         const isWinningTile = tileId === winner.winningTile;
                         return (
-                          <div key={`hand-${index}`} className="relative">
-                            {isWinningTile && (
-                              <div className="absolute -inset-1 bg-amber-400 rounded animate-pulse" />
-                            )}
+                          <div key={`hand-${index}`} className={`relative ${isWinningTile ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-slate-700 rounded-md' : ''}`}>
                             <Tile
                               tileId={tileId}
                               goldTileType={gameState.goldTileType}
@@ -815,6 +827,12 @@ export default function GamePage() {
                       <span>+{winner.score.threeGoldsBonus}</span>
                     </div>
                   )}
+                  {winner.isRobbingGold && winner.score.robbingGoldBonus && (
+                    <div className="flex justify-between text-amber-400">
+                      <span>Robbing Gold bonus:</span>
+                      <span>+{winner.score.robbingGoldBonus}</span>
+                    </div>
+                  )}
                   {winner.score.goldenPairBonus && winner.score.goldenPairBonus > 0 && (
                     <div className="flex justify-between text-yellow-400">
                       <span>Golden Pair bonus:</span>
@@ -884,6 +902,18 @@ export default function GamePage() {
                   })()}
                 </div>
               )}
+
+              {/* Game Log */}
+              <div className="bg-slate-700/50 rounded-xl p-4 border border-slate-600">
+                <h3 className="text-lg font-semibold text-slate-300 mb-2">Game Log</h3>
+                <div className="max-h-40 overflow-y-auto space-y-0.5">
+                  {(gameState.actionLog || []).map((entry, index) => (
+                    <div key={index} className="text-sm py-0.5 text-slate-300">
+                      {entry}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1224,17 +1254,8 @@ export default function GamePage() {
           )}
 
           {/* Win buttons */}
-          {gameState.phase === 'playing' && canWinOnLastDiscard && (
-            <button
-              onClick={onDeclareDiscardWin}
-              disabled={processingAction}
-              className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg"
-            >
-              🎉 WIN!
-            </button>
-          )}
 
-          {gameState.phase === 'playing' && isMyTurn && canWinNow && (
+          {gameState.phase === 'playing' && isMyTurn && !shouldDraw && canWinNow && (
             <button
               onClick={onDeclareWin}
               disabled={processingAction}

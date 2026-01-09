@@ -105,6 +105,7 @@ export interface WinnerInfo {
   seat: SeatIndex;
   isSelfDraw: boolean;
   isThreeGolds: boolean;
+  isRobbingGold: boolean; // Won by claiming the flipped Gold tile at game start
   winningTile?: TileId; // The tile that completed the hand (for discard wins)
   discarderSeat?: SeatIndex; // Who discarded the winning tile
   hand: TileId[];
@@ -121,6 +122,7 @@ export interface ScoreBreakdown {
   multiplier: number;
   // Special bonuses (added after multiplier)
   threeGoldsBonus?: number; // Three Golds instant win (+20)
+  robbingGoldBonus?: number; // Robbing the Gold at game start (+20)
   goldenPairBonus?: number; // Winning pair is 2 Gold tiles (+30)
   noBonusBonus?: number; // No exposed bonus tiles (+10)
   total: number;
