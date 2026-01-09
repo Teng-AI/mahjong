@@ -38,7 +38,7 @@ interface UseGameReturn {
   // Phase 5: Turn loop
   shouldDraw: boolean;
   handleDraw: () => Promise<{ success: boolean; wallEmpty?: boolean; threeGoldsWin?: boolean }>;
-  handleDiscard: (tileId: TileId) => Promise<{ success: boolean }>;
+  handleDiscard: (tileId: TileId) => Promise<{ success: boolean; error?: string }>;
   // Phase 6: Win detection
   canWinNow: boolean;
   canWinOnLastDiscard: boolean;
@@ -179,7 +179,7 @@ export function useGame({ roomCode, mySeat }: UseGameOptions): UseGameReturn {
   }, [roomCode, mySeat, gameState]);
 
   // Phase 5: Discard a tile
-  const handleDiscard = useCallback(async (tileId: TileId) => {
+  const handleDiscard = useCallback(async (tileId: TileId): Promise<{ success: boolean; error?: string }> => {
     if (mySeat === null || !gameState) {
       return { success: false };
     }

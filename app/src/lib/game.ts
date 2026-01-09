@@ -926,7 +926,7 @@ export async function discardTile(
   roomCode: string,
   seat: SeatIndex,
   tileId: TileId
-): Promise<{ success: boolean }> {
+): Promise<{ success: boolean; error?: string }> {
   // Get current game state
   const gameSnapshot = await get(ref(db, `rooms/${roomCode}/game`));
   if (!gameSnapshot.exists()) {
@@ -952,7 +952,7 @@ export async function discardTile(
     gameState.lastAction.tile &&
     getTileType(tileId) === getTileType(gameState.lastAction.tile)
   ) {
-    return { success: false };
+    return { success: false, error: 'Cannot discard the same tile type you just called' };
   }
 
   // Get current hand

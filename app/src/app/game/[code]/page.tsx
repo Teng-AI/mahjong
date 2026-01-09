@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRoom } from '@/hooks/useRoom';
 import { useGame } from '@/hooks/useGame';
 import { useBotRunner } from '@/hooks/useBotRunner';
+import { useSounds } from '@/hooks/useSounds';
 import { getTileType, getTileDisplayText, isBonusTile, isGoldTile, sortTilesForDisplay } from '@/lib/tiles';
 import { calculateSettlement, calculateNetPositions } from '@/lib/settle';
 import { SeatIndex, TileId, TileType, Meld, CallAction, PendingCall, PendingCalls, Settlement } from '@/types';
@@ -41,10 +42,11 @@ function Tile({ tileId, goldTileType, onClick, selected, isJustDrawn, isChowVali
     return 'text-gray-800'; // Honors (winds/dragons) stay black
   };
 
+  // Responsive tile sizes: smaller on mobile (< 640px)
   const sizeClasses = {
-    sm: 'w-9 h-11 text-lg',
-    md: 'w-14 h-[72px] text-2xl',
-    lg: 'w-20 h-24 text-4xl',  // Larger size for player's hand
+    sm: 'w-7 h-9 text-base sm:w-9 sm:h-11 sm:text-lg',           // Melds, bonus tiles
+    md: 'w-10 h-12 text-xl sm:w-14 sm:h-[72px] sm:text-2xl',     // Discard pile, other player melds
+    lg: 'w-12 h-14 text-2xl sm:w-16 sm:h-20 sm:text-3xl md:w-20 md:h-24 md:text-4xl',  // Player's hand
   };
 
   return (
@@ -273,6 +275,9 @@ export default function GamePage() {
     botDelay: 800, // 800ms delay for bot actions
   });
 
+  // Sound effects
+  const { playSound, soundEnabled, toggleSound } = useSounds();
+
   const [processingBonus, setProcessingBonus] = useState(false);
   const [selectedTile, setSelectedTile] = useState<TileId | null>(null);
   const [processingAction, setProcessingAction] = useState(false);
@@ -283,6 +288,15 @@ export default function GamePage() {
 
   // Settlement modal
   const [showSettleModal, setShowSettleModal] = useState(false);
+
+  // Toast message for errors
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
 
   // Game log auto-scroll
   const logRef = useRef<HTMLDivElement>(null);
@@ -313,10 +327,12 @@ export default function GamePage() {
     setProcessingAction(true);
     try {
       const result = await handleDraw();
+      playSound('draw');
       if (result.wallEmpty) {
         console.log('Wall exhausted - game ends in draw');
       }
       if (result.threeGoldsWin) {
+        playSound('win');
         console.log('Three Golds! You win!');
       }
     } catch (err) {
@@ -332,8 +348,13 @@ export default function GamePage() {
 
     setProcessingAction(true);
     try {
-      await handleDiscard(selectedTile);
-      setSelectedTile(null); // Clear selection after discard
+      const result = await handleDiscard(selectedTile);
+      if (result.success) {
+        playSound('discard');
+        setSelectedTile(null); // Clear selection after successful discard
+      } else if (result.error) {
+        setToastMessage(result.error);
+      }
     } catch (err) {
       console.error('Discard failed:', err);
     } finally {
@@ -347,6 +368,8 @@ export default function GamePage() {
     if (!isMyTurn || shouldDraw || gameState?.phase !== 'playing') return;
     // Gold tiles cannot be selected for discard
     if (gameState?.goldTileType && isGoldTile(tile, gameState.goldTileType)) return;
+
+    playSound(selectedTile === tile ? 'tileClick' : 'tileSelect');
     setSelectedTile(selectedTile === tile ? null : tile);
   };
 
@@ -357,7 +380,9 @@ export default function GamePage() {
     setProcessingAction(true);
     try {
       const result = await handleSelfDrawWin();
-      if (!result.success) {
+      if (result.success) {
+        playSound('win');
+      } else {
         console.error('Win declaration failed:', result.error);
       }
     } catch (err) {
@@ -391,7 +416,12 @@ export default function GamePage() {
     setProcessingAction(true);
     try {
       const result = await handleCallResponse(action);
-      if (!result.success) {
+      if (result.success) {
+        // Play appropriate sound for the action
+        if (action === 'win') playSound('win');
+        else if (action === 'pung') playSound('pung');
+        else if (action === 'pass') playSound('pass');
+      } else {
         console.error('Call response failed:', result.error);
       }
       // Reset chow selection state
@@ -450,7 +480,9 @@ export default function GamePage() {
     setProcessingAction(true);
     try {
       const result = await handleCallResponse('chow', selectedChowTiles as [TileId, TileId]);
-      if (!result.success) {
+      if (result.success) {
+        playSound('chow');
+      } else {
         console.error('Chow failed:', result.error);
       }
       setChowSelectionMode(false);
@@ -469,6 +501,20 @@ export default function GamePage() {
       setSelectedChowTiles([]);
     }
   }, [isCallingPhase]);
+
+  // Play sound when it becomes my turn
+  const prevTurnRef = useRef<SeatIndex | null>(null);
+  useEffect(() => {
+    if (
+      gameState?.phase === 'playing' &&
+      gameState.currentPlayerSeat === mySeat &&
+      prevTurnRef.current !== mySeat &&
+      prevTurnRef.current !== null // Don't play on initial load
+    ) {
+      playSound('yourTurn');
+    }
+    prevTurnRef.current = gameState?.currentPlayerSeat ?? null;
+  }, [gameState?.currentPlayerSeat, gameState?.phase, mySeat, playSound]);
 
   // Loading state
   if (authLoading || roomLoading || gameLoading) {
@@ -1030,16 +1076,23 @@ export default function GamePage() {
   const isBonusPhase = gameState.phase === 'bonus_exposure';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-white p-3">
+    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-white p-2 sm:p-3">
+      {/* Toast message */}
+      {toastMessage && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-500/90 text-white px-4 py-2 rounded-lg shadow-lg text-sm sm:text-base font-medium animate-pulse">
+          {toastMessage}
+        </div>
+      )}
+
       {/* ========== COMBINED HEADER + PHASE BAR ========== */}
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-3 bg-slate-700/40 rounded-lg px-3 py-2">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-1 sm:gap-2 mb-2 sm:mb-3 bg-slate-700/40 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2">
+        <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
           {/* Rules tooltip */}
           <div className="relative group">
-            <button className="w-7 h-7 rounded-full bg-slate-600 hover:bg-slate-500 text-slate-300 hover:text-white text-lg font-bold flex items-center justify-center">
+            <button className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-slate-600 hover:bg-slate-500 text-slate-300 hover:text-white text-sm sm:text-lg font-bold flex items-center justify-center">
               ?
             </button>
-            <div className="absolute left-0 top-full mt-2 w-[420px] max-h-[80vh] overflow-y-auto bg-slate-800 border border-slate-600 rounded-lg p-4 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+            <div className="absolute left-0 top-full mt-2 w-[280px] sm:w-[420px] max-h-[80vh] overflow-y-auto bg-slate-800 border border-slate-600 rounded-lg p-3 sm:p-4 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
               <h3 className="text-amber-400 font-bold text-lg mb-3">How to Play</h3>
               <div className="text-base text-slate-300 space-y-2">
                 <p><strong className="text-white">Goal:</strong> Form a winning hand of 5 sets + 1 pair (17 tiles total)</p>
@@ -1068,23 +1121,31 @@ export default function GamePage() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-slate-400 text-lg">Room</span>
-            <span className="font-mono text-amber-400 font-bold">{roomCode}</span>
+          <div className="flex items-center gap-1 sm:gap-2">
+            <span className="text-slate-400 text-sm sm:text-lg">Room</span>
+            <span className="font-mono text-amber-400 font-bold text-sm sm:text-base">{roomCode}</span>
           </div>
           {gameState.goldTileType && gameState.exposedGold && (
             <div className="flex items-center gap-1">
-              <span className="text-slate-400 text-lg">Gold</span>
-              <Tile tileId={gameState.exposedGold} goldTileType={gameState.goldTileType} size="md" />
+              <span className="text-slate-400 text-sm sm:text-lg hidden sm:inline">Gold</span>
+              <Tile tileId={gameState.exposedGold} goldTileType={gameState.goldTileType} size="sm" />
             </div>
           )}
           <div className="flex items-center gap-1">
-            <span className="text-slate-400 text-lg">Wall</span>
-            <span className="font-mono text-white">{gameState.wall?.length ?? 0}</span>
+            <span className="text-slate-400 text-sm sm:text-lg">Wall</span>
+            <span className="font-mono text-white text-sm sm:text-base">{gameState.wall?.length ?? 0}</span>
           </div>
+          {/* Sound toggle */}
+          <button
+            onClick={toggleSound}
+            className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-slate-600 hover:bg-slate-500 text-slate-300 hover:text-white text-sm sm:text-lg flex items-center justify-center"
+            title={soundEnabled ? 'Mute sounds' : 'Enable sounds'}
+          >
+            {soundEnabled ? '🔊' : '🔇'}
+          </button>
         </div>
         {/* Phase indicator - right side */}
-        <div className={`px-3 py-1 rounded-md text-lg font-medium ${
+        <div className={`px-2 sm:px-3 py-1 rounded-md text-sm sm:text-lg font-medium ${
           isBonusPhase ? 'bg-blue-500/40 text-blue-200' :
           isCallingPhase ? 'bg-orange-500/40 text-orange-200' :
           isMyTurn ? 'bg-emerald-500/40 text-emerald-200' : 'bg-slate-600/60 text-slate-300'
@@ -1097,21 +1158,21 @@ export default function GamePage() {
       </div>
 
       {/* ========== YOUR HAND SECTION ========== */}
-      <div className="bg-slate-700/60 rounded-xl p-3 mb-3 border border-slate-600">
+      <div className="bg-slate-700/60 rounded-xl p-2 sm:p-3 mb-2 sm:mb-3 border border-slate-600">
         {/* Header row: Name + Melds + Bonus */}
-        <div className="flex flex-wrap items-center gap-3 mb-2 text-lg">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2 text-sm sm:text-lg">
+          <div className="flex items-center gap-1 sm:gap-2">
             <span className="text-white font-medium">{room.players[`seat${mySeat}` as keyof typeof room.players]?.name || 'You'}</span>
-            <span className="text-slate-500">({SEAT_LABELS[mySeat]})</span>
-            {gameState.dealerSeat === mySeat && <span className="bg-amber-500 text-black text-xs px-1.5 py-0.5 rounded font-bold">D</span>}
+            <span className="text-slate-500 text-xs sm:text-base">({SEAT_LABELS[mySeat]})</span>
+            {gameState.dealerSeat === mySeat && <span className="bg-amber-500 text-black text-xs px-1 sm:px-1.5 py-0.5 rounded font-bold">D</span>}
           </div>
           {/* Melds inline */}
           {(gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds] || []).length > 0 && (
             <div className="flex items-center gap-1">
-              <span className="text-slate-500">Melds:</span>
+              <span className="text-slate-500 text-xs sm:text-base">Melds:</span>
               {(gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds] || []).map((meld, meldIdx) => (
                 <div key={meldIdx} className="flex gap-0.5 bg-slate-800/50 rounded px-1">
-                  {meld.tiles.map((tile, i) => <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="md" />)}
+                  {meld.tiles.map((tile, i) => <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="sm" />)}
                 </div>
               ))}
             </div>
@@ -1119,13 +1180,13 @@ export default function GamePage() {
           {/* Bonus inline */}
           {(gameState.bonusTiles?.[`seat${mySeat}` as keyof typeof gameState.bonusTiles] || []).length > 0 && (
             <div className="flex items-center gap-1">
-              <span className="text-slate-500">Bonus:</span>
+              <span className="text-slate-500 text-xs sm:text-base">Bonus:</span>
               {(gameState.bonusTiles?.[`seat${mySeat}` as keyof typeof gameState.bonusTiles] || []).map((tile, i) => (
-                <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="md" />
+                <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="sm" />
               ))}
             </div>
           )}
-          <span className="text-slate-500 ml-auto">{myHand.length} tiles</span>
+          <span className="text-slate-500 text-xs sm:text-base ml-auto">{myHand.length} tiles</span>
         </div>
 
         {/* Hand tiles */}
@@ -1172,13 +1233,13 @@ export default function GamePage() {
         )}
 
         {/* Action Buttons - inside the hand section */}
-        <div className="mt-4 flex flex-wrap justify-center gap-3">
+        <div className="mt-2 sm:mt-4 flex flex-wrap justify-center gap-2 sm:gap-3">
           {/* Bonus exposure button */}
           {isBonusPhase && isMyTurn && (
             <button
               onClick={handleBonusExposure}
               disabled={processingBonus}
-              className="px-6 py-3 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-500 text-black font-bold rounded-lg"
+              className="px-4 sm:px-6 py-2 sm:py-3 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-500 text-black font-bold rounded-lg text-sm sm:text-base"
             >
               {processingBonus ? 'Processing...' : 'Expose Bonus Tiles'}
             </button>
@@ -1191,7 +1252,7 @@ export default function GamePage() {
                 <button
                   onClick={() => onCallResponse('win')}
                   disabled={processingAction}
-                  className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg"
+                  className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-sm sm:text-base"
                 >
                   WIN!
                 </button>
@@ -1200,7 +1261,7 @@ export default function GamePage() {
                 <button
                   onClick={() => onCallResponse('pung')}
                   disabled={processingAction}
-                  className="px-6 py-3 bg-purple-500 hover:bg-purple-400 disabled:bg-gray-500 text-white font-bold rounded-lg"
+                  className="px-4 sm:px-6 py-2 sm:py-3 bg-purple-500 hover:bg-purple-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
                 >
                   PUNG
                 </button>
@@ -1209,7 +1270,7 @@ export default function GamePage() {
                 <button
                   onClick={onChowClick}
                   disabled={processingAction}
-                  className="px-6 py-3 bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-500 text-white font-bold rounded-lg"
+                  className="px-4 sm:px-6 py-2 sm:py-3 bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
                 >
                   CHOW
                 </button>
@@ -1217,7 +1278,7 @@ export default function GamePage() {
               <button
                 onClick={() => onCallResponse('pass')}
                 disabled={processingAction}
-                className="px-6 py-3 bg-slate-600 hover:bg-slate-500 disabled:bg-gray-700 text-white font-bold rounded-lg"
+                className="px-4 sm:px-6 py-2 sm:py-3 bg-slate-600 hover:bg-slate-500 disabled:bg-gray-700 text-white font-bold rounded-lg text-sm sm:text-base"
               >
                 PASS
               </button>
@@ -1230,14 +1291,14 @@ export default function GamePage() {
               <button
                 onClick={onConfirmChow}
                 disabled={selectedChowTiles.length !== 2 || processingAction}
-                className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-500 text-white font-bold rounded-lg"
+                className="px-4 sm:px-6 py-2 sm:py-3 bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
               >
                 Confirm Chow ({selectedChowTiles.length}/2)
               </button>
               <button
                 onClick={onCancelChow}
                 disabled={processingAction}
-                className="px-6 py-3 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-lg"
+                className="px-4 sm:px-6 py-2 sm:py-3 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-lg text-sm sm:text-base"
               >
                 Cancel
               </button>
@@ -1246,7 +1307,7 @@ export default function GamePage() {
 
           {/* Waiting status */}
           {isCallingPhase && myPendingCall !== null && myPendingCall !== 'discarder' && (
-            <div className="px-4 py-2 bg-slate-600/50 rounded-lg text-lg">
+            <div className="px-3 sm:px-4 py-2 bg-slate-600/50 rounded-lg text-sm sm:text-lg">
               <span className="text-slate-300">You chose </span>
               <span className="text-white font-bold uppercase">{myPendingCall}</span>
               <span className="text-slate-400 animate-pulse ml-2">waiting...</span>
@@ -1259,7 +1320,7 @@ export default function GamePage() {
             <button
               onClick={onDeclareWin}
               disabled={processingAction}
-              className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg"
+              className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-sm sm:text-base"
             >
               🎉 WIN!
             </button>
@@ -1272,7 +1333,7 @@ export default function GamePage() {
                 <button
                   onClick={onDraw}
                   disabled={processingAction}
-                  className="px-8 py-3 bg-blue-500 hover:bg-blue-400 disabled:bg-gray-500 text-white font-bold rounded-lg"
+                  className="px-6 sm:px-8 py-2 sm:py-3 bg-blue-500 hover:bg-blue-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
                 >
                   {processingAction ? 'Drawing...' : 'Draw Tile'}
                 </button>
@@ -1280,7 +1341,7 @@ export default function GamePage() {
                 <button
                   onClick={onDiscard}
                   disabled={processingAction || !selectedTile}
-                  className="px-8 py-3 bg-red-500 hover:bg-red-400 disabled:bg-gray-500 text-white font-bold rounded-lg"
+                  className="px-6 sm:px-8 py-2 sm:py-3 bg-red-500 hover:bg-red-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
                 >
                   {selectedTile ? 'Discard' : 'Select a tile'}
                 </button>
@@ -1292,15 +1353,15 @@ export default function GamePage() {
       {/* End of Primary Hand Section */}
 
       {/* ========== MIDDLE ROW: GAME LOG + LAST DISCARD + DISCARD PILE ========== */}
-      <div className="grid grid-cols-1 md:grid-cols-[2fr_auto_3fr] gap-3 mb-3">
+      <div className="grid grid-cols-1 md:grid-cols-[2fr_auto_3fr] gap-2 sm:gap-3 mb-2 sm:mb-3">
         {/* Game Log */}
-        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-600">
-          <div className="text-lg text-slate-300 font-medium mb-3">Game Log</div>
-          <div ref={logRef} className="max-h-40 overflow-y-auto space-y-1">
+        <div className="bg-slate-800/50 rounded-xl p-2 sm:p-4 border border-slate-600">
+          <div className="text-sm sm:text-lg text-slate-300 font-medium mb-2 sm:mb-3">Game Log</div>
+          <div ref={logRef} className="max-h-28 sm:max-h-40 overflow-y-auto space-y-0.5 sm:space-y-1">
             {(gameState.actionLog || []).map((entry, index, arr) => (
               <div
                 key={index}
-                className={`text-lg py-0.5 ${index === arr.length - 1 ? 'text-white font-medium' : 'text-slate-300'}`}
+                className={`text-xs sm:text-lg py-0.5 ${index === arr.length - 1 ? 'text-white font-medium' : 'text-slate-300'}`}
               >
                 {entry}
               </div>
@@ -1309,30 +1370,30 @@ export default function GamePage() {
         </div>
 
         {/* Last Discard - Center column */}
-        <div className={`rounded-xl p-4 border flex flex-col items-center justify-center ${
+        <div className={`rounded-xl p-2 sm:p-4 border flex flex-col items-center justify-center ${
           gameState.lastAction?.type === 'discard' && gameState.lastAction.tile
             ? 'bg-red-500/20 border-red-500/40'
             : 'bg-slate-800/50 border-slate-600'
         }`}>
           {gameState.lastAction?.type === 'discard' && gameState.lastAction.tile ? (
             <>
-              <span className="text-red-300 text-lg font-medium mb-2">Last Discard</span>
-              <Tile tileId={gameState.lastAction.tile} goldTileType={gameState.goldTileType} size="lg" />
-              <span className="text-white text-lg mt-2">by <span className="font-semibold">{SEAT_LABELS[gameState.lastAction.playerSeat]}</span></span>
+              <span className="text-red-300 text-xs sm:text-lg font-medium mb-1 sm:mb-2">Last Discard</span>
+              <Tile tileId={gameState.lastAction.tile} goldTileType={gameState.goldTileType} size="md" />
+              <span className="text-white text-xs sm:text-lg mt-1 sm:mt-2">by <span className="font-semibold">{SEAT_LABELS[gameState.lastAction.playerSeat]}</span></span>
             </>
           ) : (
-            <span className="text-slate-400 text-lg">No discard yet</span>
+            <span className="text-slate-400 text-sm sm:text-lg">No discard yet</span>
           )}
         </div>
 
         {/* Discard Pile */}
-        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-600">
-          <div className="text-lg text-slate-300 font-medium mb-3 flex items-center justify-between">
+        <div className="bg-slate-800/50 rounded-xl p-2 sm:p-4 border border-slate-600">
+          <div className="text-sm sm:text-lg text-slate-300 font-medium mb-2 sm:mb-3 flex items-center justify-between">
             <span>Discard Pile</span>
-            <span className="text-slate-400">{gameState.discardPile?.length || 0} tiles</span>
+            <span className="text-slate-400 text-xs sm:text-base">{gameState.discardPile?.length || 0} tiles</span>
           </div>
           {gameState.discardPile?.length > 0 ? (
-            <div className="flex gap-1.5 flex-wrap">
+            <div className="flex gap-1 sm:gap-1.5 flex-wrap">
               {(() => {
                 const tileCounts = new Map<string, { tileId: TileId; count: number }>();
                 gameState.discardPile.forEach((tile) => {
@@ -1345,9 +1406,9 @@ export default function GamePage() {
                   .sort((a, b) => a[0].localeCompare(b[0]))
                   .map(([tileType, { tileId, count }]) => (
                     <div key={tileType} className="relative">
-                      <Tile tileId={tileId} goldTileType={gameState.goldTileType || ''} size="md" />
+                      <Tile tileId={tileId} goldTileType={gameState.goldTileType || ''} size="sm" />
                       {count > 1 && (
-                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                        <span className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 bg-red-500 text-white text-[10px] sm:text-xs rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center font-bold">
                           {count}
                         </span>
                       )}
@@ -1356,15 +1417,15 @@ export default function GamePage() {
               })()}
             </div>
           ) : (
-            <div className="text-slate-400 text-lg">No discards yet</div>
+            <div className="text-slate-400 text-sm sm:text-lg">No discards yet</div>
           )}
         </div>
       </div>
 
       {/* ========== OTHER PLAYERS WITH MELDS ========== */}
-      <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-600">
-        <div className="text-lg text-slate-300 font-medium mb-3">Other Players</div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="bg-slate-800/50 rounded-xl p-2 sm:p-4 border border-slate-600">
+        <div className="text-sm sm:text-lg text-slate-300 font-medium mb-2 sm:mb-3">Other Players</div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
           {([0, 1, 2, 3] as SeatIndex[])
             .filter((seat) => seat !== mySeat)
             .map((seat) => {
@@ -1381,34 +1442,34 @@ export default function GamePage() {
               return (
                 <div
                   key={seat}
-                  className={`p-3 rounded-lg ${isCurrentTurn ? 'bg-emerald-500/25 border-2 border-emerald-500/50' : 'bg-slate-700/40 border border-slate-600'}`}
+                  className={`p-2 sm:p-3 rounded-lg ${isCurrentTurn ? 'bg-emerald-500/25 border-2 border-emerald-500/50' : 'bg-slate-700/40 border border-slate-600'}`}
                 >
                   {/* Player info row */}
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      {player.isBot && <span className="text-cyan-400 text-lg">🤖</span>}
-                      <span className={`font-semibold text-lg ${isCurrentTurn ? 'text-emerald-200' : 'text-white'}`}>
+                  <div className="flex items-center justify-between mb-1 sm:mb-2">
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      {player.isBot && <span className="text-cyan-400 text-sm sm:text-lg">🤖</span>}
+                      <span className={`font-semibold text-sm sm:text-lg ${isCurrentTurn ? 'text-emerald-200' : 'text-white'}`}>
                         {player.name}
                       </span>
-                      <span className="text-slate-400">({SEAT_LABELS[seat]})</span>
-                      {isDealer && <span className="bg-amber-500 text-black text-lg px-1.5 py-0.5 rounded font-bold">D</span>}
+                      <span className="text-slate-400 text-xs sm:text-base">({SEAT_LABELS[seat]})</span>
+                      {isDealer && <span className="bg-amber-500 text-black text-xs sm:text-lg px-1 sm:px-1.5 py-0.5 rounded font-bold">D</span>}
                     </div>
-                    <span className="text-slate-300 font-medium">{tileCount} tiles</span>
+                    <span className="text-slate-300 font-medium text-xs sm:text-base">{tileCount} tiles</span>
                   </div>
                   {/* Melds and bonus tiles */}
                   {(exposedMelds.length > 0 || bonusTiles.length > 0) && (
-                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1 sm:mt-2">
                       {exposedMelds.map((meld, meldIdx) => (
-                        <div key={meldIdx} className="flex gap-0.5 bg-slate-800/70 rounded p-1">
+                        <div key={meldIdx} className="flex gap-0.5 bg-slate-800/70 rounded p-0.5 sm:p-1">
                           {meld.tiles.map((tile, i) => (
-                            <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="md" />
+                            <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="sm" />
                           ))}
                         </div>
                       ))}
                       {bonusTiles.length > 0 && (
-                        <div className="bg-amber-500/30 rounded px-3 py-1 flex items-center gap-1">
-                          <span className="text-amber-300 text-lg">Bonus:</span>
-                          <span className="text-amber-400 text-2xl font-bold">+{bonusTiles.length}</span>
+                        <div className="bg-amber-500/30 rounded px-2 sm:px-3 py-0.5 sm:py-1 flex items-center gap-1">
+                          <span className="text-amber-300 text-xs sm:text-lg">Bonus:</span>
+                          <span className="text-amber-400 text-lg sm:text-2xl font-bold">+{bonusTiles.length}</span>
                         </div>
                       )}
                     </div>

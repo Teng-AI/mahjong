@@ -1,0 +1,183 @@
+'use client';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+// Sound types available in the game
+export type SoundType =
+  | 'tileClick'
+  | 'tileSelect'
+  | 'discard'
+  | 'draw'
+  | 'pung'
+  | 'chow'
+  | 'win'
+  | 'yourTurn'
+  | 'gameStart'
+  | 'pass';
+
+interface UseSoundsReturn {
+  playSound: (type: SoundType) => void;
+  soundEnabled: boolean;
+  toggleSound: () => void;
+}
+
+// Generate sounds using Web Audio API
+function createOscillatorSound(
+  audioContext: AudioContext,
+  frequency: number,
+  duration: number,
+  type: OscillatorType = 'sine',
+  volume: number = 0.3
+): void {
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+
+  // Envelope for smoother sound
+  gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+  gainNode.gain.linearRampToValueAtTime(volume, audioContext.currentTime + 0.01);
+  gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
+
+  oscillator.start(audioContext.currentTime);
+  oscillator.stop(audioContext.currentTime + duration);
+}
+
+// Play a sequence of notes
+function playNoteSequence(
+  audioContext: AudioContext,
+  notes: { freq: number; duration: number; delay: number }[],
+  type: OscillatorType = 'sine',
+  volume: number = 0.3
+): void {
+  notes.forEach(({ freq, duration, delay }) => {
+    setTimeout(() => {
+      createOscillatorSound(audioContext, freq, duration, type, volume);
+    }, delay * 1000);
+  });
+}
+
+// Sound definitions - subtle and non-intrusive
+const soundDefinitions: Record<SoundType, (ctx: AudioContext) => void> = {
+  tileClick: (ctx) => {
+    // Short soft click
+    createOscillatorSound(ctx, 600, 0.03, 'sine', 0.08);
+  },
+
+  tileSelect: (ctx) => {
+    // Gentle selection tone
+    createOscillatorSound(ctx, 500, 0.06, 'sine', 0.1);
+  },
+
+  discard: (ctx) => {
+    // Soft thud
+    createOscillatorSound(ctx, 150, 0.08, 'sine', 0.12);
+  },
+
+  draw: (ctx) => {
+    // Gentle pickup sound
+    createOscillatorSound(ctx, 400, 0.06, 'sine', 0.08);
+  },
+
+  pung: (ctx) => {
+    // Subtle two-tone
+    playNoteSequence(ctx, [
+      { freq: 440, duration: 0.08, delay: 0 },
+      { freq: 550, duration: 0.1, delay: 0.06 },
+    ], 'sine', 0.12);
+  },
+
+  chow: (ctx) => {
+    // Soft ascending
+    playNoteSequence(ctx, [
+      { freq: 400, duration: 0.06, delay: 0 },
+      { freq: 500, duration: 0.08, delay: 0.05 },
+    ], 'sine', 0.1);
+  },
+
+  win: (ctx) => {
+    // Pleasant but subtle win sound
+    playNoteSequence(ctx, [
+      { freq: 523, duration: 0.1, delay: 0 },       // C5
+      { freq: 659, duration: 0.1, delay: 0.08 },    // E5
+      { freq: 784, duration: 0.15, delay: 0.16 },   // G5
+    ], 'sine', 0.15);
+  },
+
+  yourTurn: (ctx) => {
+    // Gentle notification chime
+    createOscillatorSound(ctx, 660, 0.12, 'sine', 0.1);
+  },
+
+  gameStart: (ctx) => {
+    // Soft start tone
+    playNoteSequence(ctx, [
+      { freq: 400, duration: 0.1, delay: 0 },
+      { freq: 500, duration: 0.15, delay: 0.08 },
+    ], 'sine', 0.1);
+  },
+
+  pass: (ctx) => {
+    // Very subtle pass
+    createOscillatorSound(ctx, 250, 0.05, 'sine', 0.05);
+  },
+};
+
+export function useSounds(): UseSoundsReturn {
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+
+  // Initialize AudioContext on first user interaction
+  const getAudioContext = useCallback(() => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    }
+    // Resume if suspended (browsers require user interaction)
+    if (audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume();
+    }
+    return audioContextRef.current;
+  }, []);
+
+  // Load sound preference from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('mahjong-sound-enabled');
+    if (stored !== null) {
+      setSoundEnabled(stored === 'true');
+    }
+  }, []);
+
+  // Play a sound
+  const playSound = useCallback((type: SoundType) => {
+    if (!soundEnabled) return;
+
+    try {
+      const ctx = getAudioContext();
+      const soundFn = soundDefinitions[type];
+      if (soundFn) {
+        soundFn(ctx);
+      }
+    } catch (err) {
+      console.warn('Sound playback failed:', err);
+    }
+  }, [soundEnabled, getAudioContext]);
+
+  // Toggle sound on/off
+  const toggleSound = useCallback(() => {
+    setSoundEnabled(prev => {
+      const newValue = !prev;
+      localStorage.setItem('mahjong-sound-enabled', String(newValue));
+      return newValue;
+    });
+  }, []);
+
+  return {
+    playSound,
+    soundEnabled,
+    toggleSound,
+  };
+}
