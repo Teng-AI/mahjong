@@ -13,3 +13,5 @@ npm test --silent || {
 }
 
 echo "Pre-commit checks passed!"
+echo ""
+echo "Tip: Run /docs-sync to update changelog/roadmap before pushing"
