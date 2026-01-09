@@ -11,6 +11,9 @@ import { getTileType, getTileDisplayText, isBonusTile, isGoldTile, sortTilesForD
 import { calculateSettlement, calculateNetPositions } from '@/lib/settle';
 import { SeatIndex, TileId, TileType, Meld, CallAction, PendingCall, PendingCalls, Settlement, BotDifficulty } from '@/types';
 
+// Debug logging - only enabled in development
+const DEBUG_GAME = process.env.NODE_ENV === 'development';
+
 // ============================================
 // TILE COMPONENT
 // ============================================
@@ -324,7 +327,7 @@ export default function GamePage() {
     try {
       await processBonusExposure();
     } catch (err) {
-      console.error('Bonus exposure failed:', err);
+      if (DEBUG_GAME) console.error('Bonus exposure failed:', err);
     } finally {
       setProcessingBonus(false);
     }
@@ -339,14 +342,14 @@ export default function GamePage() {
       const result = await handleDraw();
       playSound('draw');
       if (result.wallEmpty) {
-        console.log('Wall exhausted - game ends in draw');
+        if (DEBUG_GAME) console.log('Wall exhausted - game ends in draw');
       }
       if (result.threeGoldsWin) {
         playSound('win');
-        console.log('Three Golds! You win!');
+        if (DEBUG_GAME) console.log('Three Golds! You win!');
       }
     } catch (err) {
-      console.error('Draw failed:', err);
+      if (DEBUG_GAME) console.error('Draw failed:', err);
     } finally {
       setProcessingAction(false);
     }
@@ -366,7 +369,7 @@ export default function GamePage() {
         setToastMessage(result.error);
       }
     } catch (err) {
-      console.error('Discard failed:', err);
+      if (DEBUG_GAME) console.error('Discard failed:', err);
     } finally {
       setProcessingAction(false);
     }
@@ -393,10 +396,10 @@ export default function GamePage() {
       if (result.success) {
         playSound('win');
       } else {
-        console.error('Win declaration failed:', result.error);
+        if (DEBUG_GAME) console.error('Win declaration failed:', result.error);
       }
     } catch (err) {
-      console.error('Win declaration failed:', err);
+      if (DEBUG_GAME) console.error('Win declaration failed:', err);
     } finally {
       setProcessingAction(false);
     }
@@ -410,10 +413,10 @@ export default function GamePage() {
     try {
       const result = await handleDiscardWin();
       if (!result.success) {
-        console.error('Win declaration failed:', result.error);
+        if (DEBUG_GAME) console.error('Win declaration failed:', result.error);
       }
     } catch (err) {
-      console.error('Win declaration failed:', err);
+      if (DEBUG_GAME) console.error('Win declaration failed:', err);
     } finally {
       setProcessingAction(false);
     }
@@ -432,13 +435,13 @@ export default function GamePage() {
         else if (action === 'pung') playSound('pung');
         else if (action === 'pass') playSound('pass');
       } else {
-        console.error('Call response failed:', result.error);
+        if (DEBUG_GAME) console.error('Call response failed:', result.error);
       }
       // Reset chow selection state
       setChowSelectionMode(false);
       setSelectedChowTiles([]);
     } catch (err) {
-      console.error('Call response failed:', err);
+      if (DEBUG_GAME) console.error('Call response failed:', err);
     } finally {
       setProcessingAction(false);
     }
@@ -493,12 +496,12 @@ export default function GamePage() {
       if (result.success) {
         playSound('chow');
       } else {
-        console.error('Chow failed:', result.error);
+        if (DEBUG_GAME) console.error('Chow failed:', result.error);
       }
       setChowSelectionMode(false);
       setSelectedChowTiles([]);
     } catch (err) {
-      console.error('Chow failed:', err);
+      if (DEBUG_GAME) console.error('Chow failed:', err);
     } finally {
       setProcessingAction(false);
     }

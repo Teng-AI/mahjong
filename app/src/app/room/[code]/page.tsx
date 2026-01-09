@@ -1,12 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useRoom } from '@/hooks/useRoom';
 import { joinRoom, findUserSeat, fillWithBots, addBotPlayer, removePlayer } from '@/lib/rooms';
 import { initializeGame } from '@/lib/game';
 import { SeatIndex, RoomPlayer, BotDifficulty } from '@/types';
+
+// Debug logging - only enabled in development
+const DEBUG_ROOM = process.env.NODE_ENV === 'development';
 
 const SEAT_LABELS = ['East', 'South', 'West', 'North'] as const;
 const SEAT_COLORS = [
@@ -141,6 +144,25 @@ export default function RoomPage() {
   const [shouldAutoJoin, setShouldAutoJoin] = useState(false);
   const [addingBot, setAddingBot] = useState(false);
   const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>('medium');
+  const [copied, setCopied] = useState(false);
+
+  const copyRoomCode = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(roomCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      // Fallback for browsers that don't support clipboard API
+      const textArea = document.createElement('textarea');
+      textArea.value = roomCode;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, [roomCode]);
 
   const {
     room,
@@ -236,7 +258,7 @@ export default function RoomPage() {
       // Room status will update to 'playing' and redirect to game
       router.push(`/game/${roomCode}`);
     } catch (err) {
-      console.error('Failed to start game:', err);
+      if (DEBUG_ROOM) console.error('Failed to start game:', err);
     }
   };
 
@@ -246,7 +268,7 @@ export default function RoomPage() {
     try {
       await addBotPlayer(roomCode, botDifficulty);
     } catch (err) {
-      console.error('Failed to add bot:', err);
+      if (DEBUG_ROOM) console.error('Failed to add bot:', err);
     } finally {
       setAddingBot(false);
     }
@@ -258,7 +280,7 @@ export default function RoomPage() {
     try {
       await fillWithBots(roomCode, botDifficulty);
     } catch (err) {
-      console.error('Failed to fill with bots:', err);
+      if (DEBUG_ROOM) console.error('Failed to fill with bots:', err);
     } finally {
       setAddingBot(false);
     }
@@ -268,7 +290,7 @@ export default function RoomPage() {
     try {
       await removePlayer(roomCode, seat);
     } catch (err) {
-      console.error('Failed to remove bot:', err);
+      if (DEBUG_ROOM) console.error('Failed to remove bot:', err);
     }
   };
 
@@ -343,8 +365,17 @@ export default function RoomPage() {
 
             <div className="text-center mb-8">
               <h1 className="text-4xl font-bold mb-2">Join Room</h1>
-              <div className="text-3xl font-mono tracking-widest text-yellow-400">
-                {roomCode}
+              <div className="flex items-center justify-center gap-2">
+                <div className="text-3xl font-mono tracking-widest text-yellow-400">
+                  {roomCode}
+                </div>
+                <button
+                  onClick={copyRoomCode}
+                  className="px-2 py-1 bg-green-700/50 hover:bg-green-600/50 border border-green-500/50 rounded text-sm transition-colors"
+                  title="Copy room code"
+                >
+                  {copied ? '✓ Copied!' : 'Copy'}
+                </button>
               </div>
               <p className="text-green-200 mt-2">
                 {playerCount}/4 players • {isFull ? 'Room Full' : 'Waiting for players'}
@@ -406,8 +437,17 @@ export default function RoomPage() {
           </button>
           <div className="text-center">
             <h1 className="text-2xl font-bold">Room Lobby</h1>
-            <div className="text-3xl font-mono tracking-widest text-yellow-400 mt-1">
-              {roomCode}
+            <div className="flex items-center justify-center gap-2 mt-1">
+              <div className="text-3xl font-mono tracking-widest text-yellow-400">
+                {roomCode}
+              </div>
+              <button
+                onClick={copyRoomCode}
+                className="px-2 py-1 bg-green-700/50 hover:bg-green-600/50 border border-green-500/50 rounded text-sm transition-colors"
+                title="Copy room code"
+              >
+                {copied ? '✓ Copied!' : 'Copy'}
+              </button>
             </div>
           </div>
           <div className="text-right text-green-300">

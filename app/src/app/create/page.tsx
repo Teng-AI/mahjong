@@ -59,7 +59,7 @@ export default function CreateRoomPage() {
 
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold mb-2">Create Room</h1>
-            <p className="text-green-200">Start a new game of Fujian Mahjong</p>
+            <p className="text-green-200">Start a new game of Mahjong Vibes</p>
           </div>
 
           <form onSubmit={handleCreate} className="bg-green-800/50 rounded-lg p-6 space-y-6">

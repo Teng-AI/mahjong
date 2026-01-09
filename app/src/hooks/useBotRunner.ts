@@ -567,7 +567,7 @@ function shouldCallChow(
 
   if (!bestOption) return null;
 
-  console.log(`[Chow eval] shanten before=${shantenBefore}, after=${bestShantenAfter}, difficulty=${difficulty}, wall=${wallRemaining}`);
+  if (DEBUG_BOT) console.log(`[Chow eval] shanten before=${shantenBefore}, after=${bestShantenAfter}, difficulty=${difficulty}, wall=${wallRemaining}`);
 
   // Difficulty-specific calling thresholds - made more aggressive
   if (difficulty === 'easy') {
@@ -602,6 +602,9 @@ function shouldCallChow(
 // ============================================
 // BOT RUNNER HOOK
 // ============================================
+
+// Debug logging - only enabled in development
+const DEBUG_BOT = process.env.NODE_ENV === 'development';
 
 
 // Get delay based on difficulty (adds variability for harder bots)
@@ -661,21 +664,21 @@ export function useBotRunner({
 
   // Handle bonus exposure phase
   const handleBonusPhase = useCallback(async (seat: SeatIndex) => {
-    console.log(`[Bot ${seat}] Handling bonus exposure`);
+    if (DEBUG_BOT) console.log(`[Bot ${seat}] Handling bonus exposure`);
 
     try {
       const result = await exposeBonusTiles(roomCode, seat);
-      console.log(`[Bot ${seat}] exposeBonusTiles result:`, result);
+      if (DEBUG_BOT) console.log(`[Bot ${seat}] exposeBonusTiles result:`, result);
 
       if (result.success) {
-        console.log(`[Bot ${seat}] Advancing bonus exposure`);
+        if (DEBUG_BOT) console.log(`[Bot ${seat}] Advancing bonus exposure`);
         await advanceBonusExposure(roomCode, seat, gameState!.dealerSeat);
-        console.log(`[Bot ${seat}] Bonus exposure advanced`);
+        if (DEBUG_BOT) console.log(`[Bot ${seat}] Bonus exposure advanced`);
       } else {
-        console.error(`[Bot ${seat}] exposeBonusTiles failed`);
+        if (DEBUG_BOT) console.error(`[Bot ${seat}] exposeBonusTiles failed`);
       }
     } catch (err) {
-      console.error(`[Bot ${seat}] Bonus phase error:`, err);
+      if (DEBUG_BOT) console.error(`[Bot ${seat}] Bonus phase error:`, err);
     }
   }, [roomCode, gameState]);
 
@@ -697,7 +700,7 @@ export function useBotRunner({
       ? getOpponentInfo(gameState!, seat, discardPile, gameState!.actionLog || [])
       : [];
 
-    console.log(`[Bot ${seat}] Turn (${difficulty}) - ${tiles.length} tiles, ${meldCount} melds`);
+    if (DEBUG_BOT) console.log(`[Bot ${seat}] Turn (${difficulty}) - ${tiles.length} tiles, ${meldCount} melds`);
 
     // Check if we need to draw
     const lastAction = gameState!.lastAction;
@@ -712,7 +715,7 @@ export function useBotRunner({
     const calledBySelf = justCalled && lastAction?.playerSeat === seat;
 
     if (needsDraw && !calledBySelf) {
-      console.log(`[Bot ${seat}] Drawing tile`);
+      if (DEBUG_BOT) console.log(`[Bot ${seat}] Drawing tile`);
       const drawResult = await drawTile(roomCode, seat);
 
       if (drawResult.wallEmpty || drawResult.threeGoldsWin) {
@@ -727,7 +730,7 @@ export function useBotRunner({
 
       // Check for win after draw
       if (canFormWinningHand(newTiles, goldType, meldCount)) {
-        console.log(`[Bot ${seat}] Declaring win!`);
+        if (DEBUG_BOT) console.log(`[Bot ${seat}] Declaring win!`);
         await declareSelfDrawWin(roomCode, seat);
         return;
       }
@@ -739,14 +742,14 @@ export function useBotRunner({
       );
 
       if (tileToDiscard) {
-        console.log(`[Bot ${seat}] Discarding ${getTileType(tileToDiscard)}`);
+        if (DEBUG_BOT) console.log(`[Bot ${seat}] Discarding ${getTileType(tileToDiscard)}`);
         await discardTile(roomCode, seat, tileToDiscard);
       }
     } else {
       // Already drew (or just called) - need to discard
       // Check for win first
       if (canFormWinningHand(tiles, goldType, meldCount)) {
-        console.log(`[Bot ${seat}] Declaring win!`);
+        if (DEBUG_BOT) console.log(`[Bot ${seat}] Declaring win!`);
         await declareSelfDrawWin(roomCode, seat);
         return;
       }
@@ -763,7 +766,7 @@ export function useBotRunner({
       );
 
       if (tileToDiscard) {
-        console.log(`[Bot ${seat}] Discarding ${getTileType(tileToDiscard)}`);
+        if (DEBUG_BOT) console.log(`[Bot ${seat}] Discarding ${getTileType(tileToDiscard)}`);
         await discardTile(roomCode, seat, tileToDiscard);
       }
     }
@@ -773,22 +776,22 @@ export function useBotRunner({
   const handleCallingPhase = useCallback(async (seat: SeatIndex, difficulty: BotDifficulty) => {
     const pendingCalls = gameState!.pendingCalls;
     if (!pendingCalls) {
-      console.log(`[Bot ${seat}] No pending calls, skipping`);
+      if (DEBUG_BOT) console.log(`[Bot ${seat}] No pending calls, skipping`);
       return;
     }
 
     const myCall = pendingCalls[`seat${seat}` as keyof typeof pendingCalls];
-    console.log(`[Bot ${seat}] My current call status: ${myCall}`);
+    if (DEBUG_BOT) console.log(`[Bot ${seat}] My current call status: ${myCall}`);
 
     // Already responded or is discarder
     if (myCall !== null && myCall !== undefined) {
-      console.log(`[Bot ${seat}] Already responded with: ${myCall}, skipping`);
+      if (DEBUG_BOT) console.log(`[Bot ${seat}] Already responded with: ${myCall}, skipping`);
       return;
     }
 
     const hand = await getPrivateHand(roomCode, seat);
     if (!hand) {
-      console.log(`[Bot ${seat}] No hand data, skipping`);
+      if (DEBUG_BOT) console.log(`[Bot ${seat}] No hand data, skipping`);
       return;
     }
 
@@ -803,12 +806,12 @@ export function useBotRunner({
 
     if (!discardTileId || discarderSeat === undefined) return;
 
-    console.log(`[Bot ${seat}] Responding to discard ${getTileType(discardTileId)} (${difficulty})`);
+    if (DEBUG_BOT) console.log(`[Bot ${seat}] Responding to discard ${getTileType(discardTileId)} (${difficulty})`);
 
     // Check for win - always take wins regardless of difficulty
     const testHand = [...tiles, discardTileId];
     if (canFormWinningHand(testHand, goldType, meldCount)) {
-      console.log(`[Bot ${seat}] Calling WIN!`);
+      if (DEBUG_BOT) console.log(`[Bot ${seat}] Calling WIN!`);
       await submitCallResponse(roomCode, seat, 'win');
       return;
     }
@@ -816,10 +819,10 @@ export function useBotRunner({
     // Check for pung (with difficulty-aware logic)
     if (canPung(tiles, discardTileId, goldType, meldCount) &&
         shouldCallPung(tiles, discardTileId, goldType, meldCount, difficulty, wallRemaining)) {
-      console.log(`[Bot ${seat}] Calling PUNG!`);
+      if (DEBUG_BOT) console.log(`[Bot ${seat}] Calling PUNG!`);
       const result = await submitCallResponse(roomCode, seat, 'pung');
       if (!result.success) {
-        console.error(`[Bot ${seat}] Pung failed: ${result.error}, falling back to pass`);
+        if (DEBUG_BOT) console.error(`[Bot ${seat}] Pung failed: ${result.error}, falling back to pass`);
         await submitCallResponse(roomCode, seat, 'pass');
       }
       return;
@@ -827,17 +830,17 @@ export function useBotRunner({
 
     // Check for chow (only if next in turn, with difficulty-aware logic)
     const isNextInTurn = seat === getNextSeat(discarderSeat);
-    console.log(`[Bot ${seat}] Next in turn check: seat=${seat}, discarder=${discarderSeat}, nextSeat=${getNextSeat(discarderSeat)}, isNext=${isNextInTurn}`);
+    if (DEBUG_BOT) console.log(`[Bot ${seat}] Next in turn check: seat=${seat}, discarder=${discarderSeat}, nextSeat=${getNextSeat(discarderSeat)}, isNext=${isNextInTurn}`);
     if (isNextInTurn) {
       const chowOptions = getChowOptions(tiles, discardTileId, goldType);
-      console.log(`[Bot ${seat}] Chow options available: ${chowOptions.length}`);
+      if (DEBUG_BOT) console.log(`[Bot ${seat}] Chow options available: ${chowOptions.length}`);
       const chowTiles = shouldCallChow(tiles, discardTileId, goldType, meldCount, difficulty, wallRemaining);
-      console.log(`[Bot ${seat}] Should call chow: ${chowTiles ? 'yes' : 'no'}`);
+      if (DEBUG_BOT) console.log(`[Bot ${seat}] Should call chow: ${chowTiles ? 'yes' : 'no'}`);
       if (chowTiles) {
-        console.log(`[Bot ${seat}] Calling CHOW!`);
+        if (DEBUG_BOT) console.log(`[Bot ${seat}] Calling CHOW!`);
         const result = await submitCallResponse(roomCode, seat, 'chow', chowTiles);
         if (!result.success) {
-          console.error(`[Bot ${seat}] Chow failed: ${result.error}, falling back to pass`);
+          if (DEBUG_BOT) console.error(`[Bot ${seat}] Chow failed: ${result.error}, falling back to pass`);
           await submitCallResponse(roomCode, seat, 'pass');
         }
         return;
@@ -845,7 +848,7 @@ export function useBotRunner({
     }
 
     // Pass
-    console.log(`[Bot ${seat}] Passing`);
+    if (DEBUG_BOT) console.log(`[Bot ${seat}] Passing`);
     await submitCallResponse(roomCode, seat, 'pass');
   }, [roomCode, gameState]);
 
@@ -917,7 +920,7 @@ export function useBotRunner({
           }
         }
       } catch (err) {
-        console.error('[Bot] Action failed:', err);
+        if (DEBUG_BOT) console.error('[Bot] Action failed:', err);
       }
     };
 

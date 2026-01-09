@@ -48,7 +48,9 @@ export function useAuth() {
     // Check for test mode
     const testUserId = getTestUserId();
     if (testUserId) {
-      console.log(`Test mode: Using test user ${testUserId}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Test mode: Using test user ${testUserId}`);
+      }
       setUser(createTestUser(testUserId));
       setLoading(false);
       return;
