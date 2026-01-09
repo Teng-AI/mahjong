@@ -1,0 +1,15 @@
+#!/usr/bin/env sh
+
+echo "Running pre-commit checks..."
+
+# Change to app directory
+cd app
+
+# Run tests
+echo "Running tests..."
+npm test --silent || {
+  echo "Tests failed. Fix tests before committing."
+  exit 1
+}
+
+echo "Pre-commit checks passed!"

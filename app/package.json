@@ -1,12 +1,13 @@
 {
-  "name": "app",
-  "version": "0.1.0",
+  "name": "mahjong-vibes",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint . --ext .ts,.tsx",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "test": "jest",
     "test:watch": "jest --watch"
   },
@@ -27,8 +28,10 @@
     "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
+    "husky": "^9.1.7",
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.2.0",
+    "lint-staged": "^16.2.7",
     "tailwindcss": "^4",
     "ts-jest": "^29.4.6",
     "typescript": "^5"
