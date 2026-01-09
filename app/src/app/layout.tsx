@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Fujian Mahjong",
+  title: "Mahjong Vibes",
   description: "Multiplayer Fujian Mahjong (Gold Rush Mahjong) game",
 };
 
