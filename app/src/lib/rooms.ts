@@ -1,6 +1,6 @@
 import { ref, set, get, update, serverTimestamp, onValue, off } from 'firebase/database';
 import { db } from '@/firebase/config';
-import { Room, RoomPlayer, SeatIndex, RoomStatus } from '@/types';
+import { Room, RoomPlayer, SeatIndex, RoomStatus, BotDifficulty } from '@/types';
 
 // ============================================
 // ROOM CODE GENERATION
@@ -147,13 +147,22 @@ export async function joinRoom(
 // BOT PLAYERS
 // ============================================
 
-const BOT_NAMES = ['Bot-East', 'Bot-South', 'Bot-West', 'Bot-North'];
+const BOT_NAMES: Record<BotDifficulty, string[]> = {
+  easy: ['Bot-Easy', 'Bot-Easy', 'Bot-Easy', 'Bot-Easy'],
+  medium: ['Bot-Medium', 'Bot-Medium', 'Bot-Medium', 'Bot-Medium'],
+  hard: ['Bot-Hard', 'Bot-Hard', 'Bot-Hard', 'Bot-Hard'],
+};
 
 /**
  * Add a bot player to the first empty seat
+ * @param roomCode - Room code to add bot to
+ * @param difficulty - Bot difficulty level (default: 'medium')
  * Returns the seat index where the bot was added, or null if room is full
  */
-export async function addBotPlayer(roomCode: string): Promise<SeatIndex | null> {
+export async function addBotPlayer(
+  roomCode: string,
+  difficulty: BotDifficulty = 'medium'
+): Promise<SeatIndex | null> {
   const roomRef = ref(db, `rooms/${roomCode}`);
   const snapshot = await get(roomRef);
 
@@ -185,13 +194,14 @@ export async function addBotPlayer(roomCode: string): Promise<SeatIndex | null> 
   // Generate unique bot ID
   const botId = `bot_${roomCode}_seat${emptySeat}_${Date.now()}`;
 
-  // Add bot to seat
+  // Add bot to seat with difficulty
   const botData: RoomPlayer = {
     id: botId,
-    name: BOT_NAMES[emptySeat],
+    name: BOT_NAMES[difficulty][emptySeat],
     connected: true,
     lastSeen: Date.now(),
     isBot: true,
+    botDifficulty: difficulty,
   };
 
   await set(ref(db, `rooms/${roomCode}/players/seat${emptySeat}`), botData);
@@ -200,17 +210,22 @@ export async function addBotPlayer(roomCode: string): Promise<SeatIndex | null> 
 }
 
 /**
- * Fill all empty seats with bot players
+ * Fill all empty seats with bot players of specified difficulty
+ * @param roomCode - Room code to fill
+ * @param difficulty - Bot difficulty level (default: 'medium')
  * Returns array of seats that were filled
  */
-export async function fillWithBots(roomCode: string): Promise<SeatIndex[]> {
+export async function fillWithBots(
+  roomCode: string,
+  difficulty: BotDifficulty = 'medium'
+): Promise<SeatIndex[]> {
   const filledSeats: SeatIndex[] = [];
 
   // Keep adding bots until room is full
-  let seat = await addBotPlayer(roomCode);
+  let seat = await addBotPlayer(roomCode, difficulty);
   while (seat !== null) {
     filledSeats.push(seat);
-    seat = await addBotPlayer(roomCode);
+    seat = await addBotPlayer(roomCode, difficulty);
   }
 
   return filledSeats;

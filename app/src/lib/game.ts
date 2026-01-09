@@ -902,12 +902,12 @@ export async function drawTile(
     concealedTiles: sortedHand,
   });
 
-  // Log the draw action
+  // Log the draw action (drew first, then exposed bonus if any)
+  await addToLog(roomCode, `${SEAT_NAMES[seat]} drew a tile`);
   if (bonusTilesExposed.length > 0) {
     const bonusNames = bonusTilesExposed.map(t => getTileDisplayText(getTileType(t))).join(', ');
     await addToLog(roomCode, `${SEAT_NAMES[seat]} exposed bonus: ${bonusNames}`);
   }
-  await addToLog(roomCode, `${SEAT_NAMES[seat]} drew a tile`);
 
   return {
     success: true,

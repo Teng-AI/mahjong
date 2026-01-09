@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useCallback, useState } from 'react';
-import { GameState, SeatIndex, TileId, TileType, Room } from '@/types';
+import { useEffect, useCallback } from 'react';
+import { GameState, SeatIndex, TileId, TileType, Room, BotDifficulty, Meld } from '@/types';
 import {
   drawTile,
   discardTile,
@@ -156,6 +156,151 @@ function analyzeHand(hand: TileId[], goldType: TileType, discardPile: TileId[] =
   };
 }
 
+// ============================================
+// DEFENSIVE PLAY HELPERS
+// ============================================
+
+interface OpponentInfo {
+  seat: SeatIndex;
+  meldCount: number;
+  melds: Meld[];
+  isNextInTurn: boolean;
+  recentDiscards: TileType[];  // Last 3 discards by this player
+}
+
+function getOpponentInfo(
+  gameState: GameState,
+  mySeat: SeatIndex,
+  discardPile: TileId[],
+  actionLog: string[]
+): OpponentInfo[] {
+  const opponents: OpponentInfo[] = [];
+
+  for (let i = 0; i < 4; i++) {
+    if (i === mySeat) continue;
+    const seat = i as SeatIndex;
+    const seatKey = `seat${seat}` as 'seat0' | 'seat1' | 'seat2' | 'seat3';
+    const melds = gameState.exposedMelds?.[seatKey] || [];
+
+    // Get recent discards by this player from action log (simplified - just track types)
+    const recentDiscards: TileType[] = [];
+
+    opponents.push({
+      seat,
+      meldCount: melds.length,
+      melds,
+      isNextInTurn: seat === ((mySeat + 1) % 4),
+      recentDiscards,
+    });
+  }
+
+  return opponents;
+}
+
+// Check if a tile type is "safe" to discard (genbutsu - tiles the target already discarded)
+function isTileSafeFromPlayer(
+  tileType: TileType,
+  playerDiscards: TileId[],
+  discardPile: TileId[]
+): boolean {
+  // A tile is safe if the player already discarded the same type
+  return playerDiscards.some(d => getTileType(d) === tileType);
+}
+
+// Calculate danger score for a tile (higher = more dangerous to discard)
+function calculateTileDanger(
+  tileId: TileId,
+  opponents: OpponentInfo[],
+  discardPile: TileId[],
+  goldType: TileType
+): number {
+  const type = getTileType(tileId);
+  let danger = 0;
+
+  // Gold tiles are never dangerous to keep but risky to discard
+  if (type === goldType) {
+    danger += 30;
+  }
+
+  for (const opp of opponents) {
+    // More danger if opponent has many melds (closer to winning)
+    const meldDanger = opp.meldCount * 15;
+    danger += meldDanger;
+
+    // Check if tile could complete opponent's sequences
+    for (const meld of opp.melds) {
+      if (meld.type === 'chow') {
+        // If opponent has a chow, same suit tiles nearby are dangerous
+        const meldType = getTileType(meld.tiles[0]);
+        const meldParts = meldType.split('_');
+        const tileParts = type.split('_');
+
+        if (meldParts[0] === tileParts[0] && meldParts[0] !== 'wind' && meldParts[0] !== 'dragon') {
+          // Same suit - tiles in that suit are more dangerous
+          danger += 5;
+        }
+      } else if (meld.type === 'pung') {
+        // If opponent has pungs, they might be going for all pungs
+        // Honor tiles become more valuable/dangerous
+        if (isHonorTile(tileId)) {
+          danger += 8;
+        }
+      }
+    }
+  }
+
+  // Tiles with fewer copies remaining are more dangerous (opponent more likely to need them)
+  const discardedCount = discardPile.filter(d => getTileType(d) === type).length;
+  // 4 copies total - if 3 are visible, the tile is safer
+  if (discardedCount >= 3) {
+    danger -= 20; // Very safe - only 1 copy remains
+  } else if (discardedCount >= 2) {
+    danger -= 10; // Somewhat safe
+  } else if (discardedCount === 0) {
+    danger += 5; // No copies visible - more dangerous
+  }
+
+  return danger;
+}
+
+// Estimate if an opponent is tenpai (ready to win) - for hard mode
+function isOpponentLikelyTenpai(
+  opponent: OpponentInfo,
+  wallRemaining: number
+): boolean {
+  // With 3+ melds, opponent is likely close to winning
+  if (opponent.meldCount >= 3) return true;
+
+  // With 2 melds and wall nearly empty, assume dangerous
+  if (opponent.meldCount >= 2 && wallRemaining < 20) return true;
+
+  return false;
+}
+
+// Decide whether to play defensively - for hard mode
+function shouldPlayDefensively(
+  opponents: OpponentInfo[],
+  myShanten: number,
+  wallRemaining: number
+): boolean {
+  // If we're close to winning, keep attacking
+  if (myShanten <= 1) return false;
+
+  // If any opponent appears tenpai and we're far from winning, defend
+  const dangerousOpponents = opponents.filter(o => isOpponentLikelyTenpai(o, wallRemaining));
+
+  if (dangerousOpponents.length > 0 && myShanten >= 3) {
+    return true;
+  }
+
+  // Late game with far hand, play safe
+  if (wallRemaining < 15 && myShanten >= 2) {
+    return true;
+  }
+
+  return false;
+}
+
 function calculateShanten(hand: TileId[], goldType: TileType, meldCount: number = 0): number {
   const analysis = analyzeHand(hand, goldType);
   const setsNeeded = 5 - meldCount;
@@ -200,12 +345,16 @@ function calculateShanten(hand: TileId[], goldType: TileType, meldCount: number 
 // STRATEGIC DECISIONS
 // ============================================
 
+// Discard selection based on difficulty level
 function selectBestDiscard(
   hand: TileId[],
   goldType: TileType,
   discardPile: TileId[],
-  _meldCount: number = 0,
-  excludeTileType?: TileType  // Cannot discard tiles of this type (e.g., tile just called on)
+  meldCount: number = 0,
+  excludeTileType?: TileType,  // Cannot discard tiles of this type (e.g., tile just called on)
+  difficulty: BotDifficulty = 'medium',
+  opponents: OpponentInfo[] = [],
+  wallRemaining: number = 50
 ): TileId | null {
   const analysis = analyzeHand(hand, goldType, discardPile);
   // Filter out tiles that match the excluded type (illegal to discard tile you just called on)
@@ -217,28 +366,77 @@ function selectBestDiscard(
     return null;
   }
 
+  // Calculate shanten for defensive decisions (hard mode)
+  const myShanten = calculateShanten(hand, goldType, meldCount);
+  const shouldDefend = difficulty === 'hard' && shouldPlayDefensively(opponents, myShanten, wallRemaining);
+
   const scores: { tile: TileId; type: string; score: number }[] = [];
 
   for (const tile of candidates) {
     const type = getTileType(tile);
     let score = 50;
 
+    // ========== OFFENSIVE SCORING (all difficulties) ==========
+    // Keep tiles that form triplets
     if (analysis.triplets.includes(type)) score += 100;
 
+    // Keep pairs (especially if we have few)
     const count = analysis.typeCounts.get(type) || 0;
     if (count >= 2) {
       score += analysis.pairs.length <= 1 ? 60 : 30;
     }
 
+    // Keep tiles in partial sequences
     const inPartial = analysis.partials.some(p => p.tiles && p.tiles.includes(type));
     if (inPartial) score += 40;
+
+    // Discard isolated tiles first
     if (analysis.isolated.includes(type)) score -= 30;
+
+    // Discard isolated honors/terminals first
     if (isHonorTile(tile) && count === 1) score -= 20;
     if (isTerminal(tile) && count === 1) score -= 10;
 
-    const discardCount = analysis.discardCounts.get(type) || 0;
-    if (discardCount >= 3) score -= 25;
-    else if (discardCount >= 2) score -= 15;
+    // ========== DIFFICULTY-SPECIFIC ADJUSTMENTS ==========
+
+    if (difficulty === 'easy') {
+      // EASY: No defensive consideration - pure offensive play
+      // Don't consider discard pile for "dead tiles" (remove this advantage)
+      // Just play offensively
+    } else if (difficulty === 'medium') {
+      // MEDIUM: Basic defensive awareness
+      // Consider dead tiles (tiles with 3+ already discarded are safer to hold)
+      const discardCount = analysis.discardCounts.get(type) || 0;
+      if (discardCount >= 3) score -= 25;  // Safe to discard (3 visible)
+      else if (discardCount >= 2) score -= 15;
+
+      // Basic danger avoidance - avoid discarding to opponents with many melds
+      if (opponents.length > 0) {
+        const dangerScore = calculateTileDanger(tile, opponents, discardPile, goldType);
+        // Medium penalty for dangerous tiles
+        score += dangerScore * 0.3;
+      }
+    } else if (difficulty === 'hard') {
+      // HARD: Full defensive awareness
+      const discardCount = analysis.discardCounts.get(type) || 0;
+      if (discardCount >= 3) score -= 25;
+      else if (discardCount >= 2) score -= 15;
+
+      if (opponents.length > 0) {
+        const dangerScore = calculateTileDanger(tile, opponents, discardPile, goldType);
+
+        if (shouldDefend) {
+          // In defensive mode, danger is the PRIMARY factor
+          // Lower score = more likely to discard, so subtract danger
+          score -= dangerScore * 0.8;  // Heavily weight safety
+          // Also reduce offensive value of tiles
+          score = score * 0.5;  // Reduce all offensive scores
+        } else {
+          // Balanced mode - consider both offense and defense
+          score += dangerScore * 0.5;
+        }
+      }
+    }
 
     scores.push({ tile, type, score });
   }
@@ -247,7 +445,15 @@ function selectBestDiscard(
   return scores[0]?.tile || null;
 }
 
-function shouldCallPung(hand: TileId[], discardTile: TileId, goldType: TileType, meldCount: number): boolean {
+// Pung calling based on difficulty
+function shouldCallPung(
+  hand: TileId[],
+  discardTile: TileId,
+  goldType: TileType,
+  meldCount: number,
+  difficulty: BotDifficulty = 'medium',
+  wallRemaining: number = 50
+): boolean {
   const type = getTileType(discardTile);
   const matchingTiles = hand.filter(t => getTileType(t) === type && !isGoldTile(t, goldType));
 
@@ -266,7 +472,25 @@ function shouldCallPung(hand: TileId[], discardTile: TileId, goldType: TileType,
 
   const shantenAfter = calculateShanten(newHand, goldType, meldCount + 1);
 
-  return shantenAfter < shantenBefore || (shantenAfter <= 1 && shantenBefore <= 2);
+  // Difficulty-specific calling thresholds
+  if (difficulty === 'easy') {
+    // EASY: More aggressive calling - call if shanten stays same OR improves
+    // Also call more readily in general
+    return shantenAfter <= shantenBefore || (shantenAfter <= 2 && shantenBefore <= 3);
+  } else if (difficulty === 'medium') {
+    // MEDIUM: Standard calling - must improve OR be close to winning
+    return shantenAfter < shantenBefore || (shantenAfter <= 1 && shantenBefore <= 2);
+  } else {
+    // HARD: Strategic calling - consider timing and hand flexibility
+    // Only call if it clearly improves position
+    // In late game, be more conservative
+    if (wallRemaining < 20) {
+      // Late game - only call if it puts us at tenpai or winning
+      return shantenAfter <= 0 || (shantenAfter === 1 && shantenBefore >= 2);
+    }
+    // Early/mid game - standard improvement required
+    return shantenAfter < shantenBefore;
+  }
 }
 
 function getChowOptions(hand: TileId[], discardTile: TileId, goldType: TileType): [TileId, TileId][] {
@@ -314,7 +538,15 @@ function getChowOptions(hand: TileId[], discardTile: TileId, goldType: TileType)
   return options;
 }
 
-function shouldCallChow(hand: TileId[], discardTile: TileId, goldType: TileType, meldCount: number): [TileId, TileId] | null {
+// Chow calling based on difficulty
+function shouldCallChow(
+  hand: TileId[],
+  discardTile: TileId,
+  goldType: TileType,
+  meldCount: number,
+  difficulty: BotDifficulty = 'medium',
+  wallRemaining: number = 50
+): [TileId, TileId] | null {
   const options = getChowOptions(hand, discardTile, goldType);
   if (options.length === 0) return null;
 
@@ -335,10 +567,33 @@ function shouldCallChow(hand: TileId[], discardTile: TileId, goldType: TileType,
 
   if (!bestOption) return null;
 
-  // Use same criteria as pung: call if shanten improves OR if already close to ready
-  // This makes chow equally viable as pung for building hands
-  if (bestShantenAfter < shantenBefore || (bestShantenAfter <= 1 && shantenBefore <= 2)) {
-    return bestOption;
+  console.log(`[Chow eval] shanten before=${shantenBefore}, after=${bestShantenAfter}, difficulty=${difficulty}, wall=${wallRemaining}`);
+
+  // Difficulty-specific calling thresholds - made more aggressive
+  if (difficulty === 'easy') {
+    // EASY: Very aggressive - almost always call if we have the option
+    // Call if shanten improves, stays same, or only gets slightly worse
+    if (bestShantenAfter <= shantenBefore + 1) {
+      return bestOption;
+    }
+  } else if (difficulty === 'medium') {
+    // MEDIUM: Call if shanten stays same or improves
+    if (bestShantenAfter <= shantenBefore) {
+      return bestOption;
+    }
+  } else {
+    // HARD: Strategic but still willing to chow
+    if (wallRemaining < 20) {
+      // Late game - call if improves or maintains good position
+      if (bestShantenAfter <= shantenBefore && bestShantenAfter <= 2) {
+        return bestOption;
+      }
+    } else {
+      // Early/mid game - call if improves or maintains
+      if (bestShantenAfter <= shantenBefore) {
+        return bestOption;
+      }
+    }
   }
 
   return null;
@@ -347,6 +602,22 @@ function shouldCallChow(hand: TileId[], discardTile: TileId, goldType: TileType,
 // ============================================
 // BOT RUNNER HOOK
 // ============================================
+
+
+// Get delay based on difficulty (adds variability for harder bots)
+function getBotDelay(difficulty: BotDifficulty, baseDelay: number): number {
+  if (difficulty === 'easy') {
+    // Easy: Fixed delay, predictable
+    return baseDelay;
+  } else if (difficulty === 'medium') {
+    // Medium: Slight variation (±250ms)
+    return baseDelay + Math.random() * 500 - 250;
+  } else {
+    // Hard: More variation (500-2000ms total), sometimes "thinks" longer
+    const thinkTime = Math.random() < 0.2 ? 1500 : 0; // 20% chance of longer think
+    return baseDelay + Math.random() * 500 + thinkTime;
+  }
+}
 
 interface UseBotRunnerOptions {
   roomCode: string;
@@ -363,15 +634,18 @@ export function useBotRunner({
   enabled = true,
   botDelay = 1000,
 }: UseBotRunnerOptions) {
-  const processingRef = useRef(false);
-  const lastActionRef = useRef<string | null>(null);
-  const [recheckTrigger, setRecheckTrigger] = useState(0);
-
   // Check if a seat has a bot
   const isBotSeat = useCallback((seat: SeatIndex): boolean => {
     if (!room) return false;
     const player = room.players[`seat${seat}` as keyof typeof room.players];
     return player?.isBot === true;
+  }, [room]);
+
+  // Get bot difficulty for a seat (defaults to 'medium')
+  const getBotDifficulty = useCallback((seat: SeatIndex): BotDifficulty => {
+    if (!room) return 'medium';
+    const player = room.players[`seat${seat}` as keyof typeof room.players];
+    return player?.botDifficulty || 'medium';
   }, [room]);
 
   // Get list of bot seats
@@ -385,38 +659,28 @@ export function useBotRunner({
     return seats;
   }, [isBotSeat]);
 
-  // Run bot action with delay
-  const runBotAction = useCallback(async (action: () => Promise<void>) => {
-    if (processingRef.current) return;
-    processingRef.current = true;
-
-    await new Promise(resolve => setTimeout(resolve, botDelay));
-
-    try {
-      await action();
-    } catch (err) {
-      console.error('Bot action failed:', err);
-    } finally {
-      processingRef.current = false;
-      // Reset action signature and trigger recheck
-      // This handles the case where gameState updated while we were processing
-      lastActionRef.current = null;
-      setRecheckTrigger(prev => prev + 1);
-    }
-  }, [botDelay]);
-
   // Handle bonus exposure phase
   const handleBonusPhase = useCallback(async (seat: SeatIndex) => {
     console.log(`[Bot ${seat}] Handling bonus exposure`);
 
-    const result = await exposeBonusTiles(roomCode, seat);
-    if (result.success) {
-      await advanceBonusExposure(roomCode, seat, gameState!.dealerSeat);
+    try {
+      const result = await exposeBonusTiles(roomCode, seat);
+      console.log(`[Bot ${seat}] exposeBonusTiles result:`, result);
+
+      if (result.success) {
+        console.log(`[Bot ${seat}] Advancing bonus exposure`);
+        await advanceBonusExposure(roomCode, seat, gameState!.dealerSeat);
+        console.log(`[Bot ${seat}] Bonus exposure advanced`);
+      } else {
+        console.error(`[Bot ${seat}] exposeBonusTiles failed`);
+      }
+    } catch (err) {
+      console.error(`[Bot ${seat}] Bonus phase error:`, err);
     }
   }, [roomCode, gameState]);
 
   // Handle playing phase - bot's turn
-  const handlePlayingPhase = useCallback(async (seat: SeatIndex) => {
+  const handlePlayingPhase = useCallback(async (seat: SeatIndex, difficulty: BotDifficulty) => {
     const hand = await getPrivateHand(roomCode, seat);
     if (!hand) return;
 
@@ -425,8 +689,15 @@ export function useBotRunner({
     const seatKey = `seat${seat}` as 'seat0' | 'seat1' | 'seat2' | 'seat3';
     const melds = gameState!.exposedMelds?.[seatKey] || [];
     const meldCount = melds.length;
+    const discardPile = gameState!.discardPile || [];
+    const wallRemaining = gameState!.wall?.length || 0;
 
-    console.log(`[Bot ${seat}] Turn - ${tiles.length} tiles, ${meldCount} melds`);
+    // Get opponent info for defensive play (medium/hard)
+    const opponents = difficulty !== 'easy'
+      ? getOpponentInfo(gameState!, seat, discardPile, gameState!.actionLog || [])
+      : [];
+
+    console.log(`[Bot ${seat}] Turn (${difficulty}) - ${tiles.length} tiles, ${meldCount} melds`);
 
     // Check if we need to draw
     const lastAction = gameState!.lastAction;
@@ -461,9 +732,11 @@ export function useBotRunner({
         return;
       }
 
-      // Select and make discard
-      const discardPile = gameState!.discardPile || [];
-      const tileToDiscard = selectBestDiscard(newTiles, goldType, discardPile, meldCount);
+      // Select and make discard (with difficulty-aware logic)
+      const tileToDiscard = selectBestDiscard(
+        newTiles, goldType, discardPile, meldCount,
+        undefined, difficulty, opponents, wallRemaining
+      );
 
       if (tileToDiscard) {
         console.log(`[Bot ${seat}] Discarding ${getTileType(tileToDiscard)}`);
@@ -478,12 +751,16 @@ export function useBotRunner({
         return;
       }
 
-      const discardPile = gameState!.discardPile || [];
       // If we just called pung/chow, we cannot discard the same tile type
       const calledTileType = (gameState!.lastAction?.type === 'pung' || gameState!.lastAction?.type === 'chow')
         ? getTileType(gameState!.lastAction.tile!)
         : undefined;
-      const tileToDiscard = selectBestDiscard(tiles, goldType, discardPile, meldCount, calledTileType);
+
+      // Select discard with difficulty-aware logic
+      const tileToDiscard = selectBestDiscard(
+        tiles, goldType, discardPile, meldCount,
+        calledTileType, difficulty, opponents, wallRemaining
+      );
 
       if (tileToDiscard) {
         console.log(`[Bot ${seat}] Discarding ${getTileType(tileToDiscard)}`);
@@ -493,17 +770,27 @@ export function useBotRunner({
   }, [roomCode, gameState]);
 
   // Handle calling phase - bot's response
-  const handleCallingPhase = useCallback(async (seat: SeatIndex) => {
+  const handleCallingPhase = useCallback(async (seat: SeatIndex, difficulty: BotDifficulty) => {
     const pendingCalls = gameState!.pendingCalls;
-    if (!pendingCalls) return;
+    if (!pendingCalls) {
+      console.log(`[Bot ${seat}] No pending calls, skipping`);
+      return;
+    }
 
     const myCall = pendingCalls[`seat${seat}` as keyof typeof pendingCalls];
+    console.log(`[Bot ${seat}] My current call status: ${myCall}`);
 
     // Already responded or is discarder
-    if (myCall !== null && myCall !== undefined) return;
+    if (myCall !== null && myCall !== undefined) {
+      console.log(`[Bot ${seat}] Already responded with: ${myCall}, skipping`);
+      return;
+    }
 
     const hand = await getPrivateHand(roomCode, seat);
-    if (!hand) return;
+    if (!hand) {
+      console.log(`[Bot ${seat}] No hand data, skipping`);
+      return;
+    }
 
     const tiles = hand.concealedTiles;
     const goldType = gameState!.goldTileType;
@@ -512,12 +799,13 @@ export function useBotRunner({
     const meldCount = melds.length;
     const discardTileId = gameState!.lastAction?.tile;
     const discarderSeat = gameState!.lastAction?.playerSeat;
+    const wallRemaining = gameState!.wall?.length || 0;
 
     if (!discardTileId || discarderSeat === undefined) return;
 
-    console.log(`[Bot ${seat}] Responding to discard ${getTileType(discardTileId)}`);
+    console.log(`[Bot ${seat}] Responding to discard ${getTileType(discardTileId)} (${difficulty})`);
 
-    // Check for win
+    // Check for win - always take wins regardless of difficulty
     const testHand = [...tiles, discardTileId];
     if (canFormWinningHand(testHand, goldType, meldCount)) {
       console.log(`[Bot ${seat}] Calling WIN!`);
@@ -525,8 +813,9 @@ export function useBotRunner({
       return;
     }
 
-    // Check for pung
-    if (canPung(tiles, discardTileId, goldType, meldCount) && shouldCallPung(tiles, discardTileId, goldType, meldCount)) {
+    // Check for pung (with difficulty-aware logic)
+    if (canPung(tiles, discardTileId, goldType, meldCount) &&
+        shouldCallPung(tiles, discardTileId, goldType, meldCount, difficulty, wallRemaining)) {
       console.log(`[Bot ${seat}] Calling PUNG!`);
       const result = await submitCallResponse(roomCode, seat, 'pung');
       if (!result.success) {
@@ -536,10 +825,14 @@ export function useBotRunner({
       return;
     }
 
-    // Check for chow (only if next in turn)
+    // Check for chow (only if next in turn, with difficulty-aware logic)
     const isNextInTurn = seat === getNextSeat(discarderSeat);
+    console.log(`[Bot ${seat}] Next in turn check: seat=${seat}, discarder=${discarderSeat}, nextSeat=${getNextSeat(discarderSeat)}, isNext=${isNextInTurn}`);
     if (isNextInTurn) {
-      const chowTiles = shouldCallChow(tiles, discardTileId, goldType, meldCount);
+      const chowOptions = getChowOptions(tiles, discardTileId, goldType);
+      console.log(`[Bot ${seat}] Chow options available: ${chowOptions.length}`);
+      const chowTiles = shouldCallChow(tiles, discardTileId, goldType, meldCount, difficulty, wallRemaining);
+      console.log(`[Bot ${seat}] Should call chow: ${chowTiles ? 'yes' : 'no'}`);
       if (chowTiles) {
         console.log(`[Bot ${seat}] Calling CHOW!`);
         const result = await submitCallResponse(roomCode, seat, 'chow', chowTiles);
@@ -557,6 +850,7 @@ export function useBotRunner({
   }, [roomCode, gameState]);
 
   // Main effect - watch game state and run bot actions
+  // Uses effect cleanup to cancel pending actions when state changes
   useEffect(() => {
     if (!enabled || !gameState || !room) return;
     if (gameState.phase === 'ended' || gameState.phase === 'waiting') return;
@@ -564,53 +858,86 @@ export function useBotRunner({
     const bots = botSeats();
     if (bots.length === 0) return;
 
-    // Create action signature to prevent duplicate actions
-    const actionSig = `${gameState.phase}-${gameState.currentPlayerSeat}-${gameState.lastAction?.timestamp || 0}-${JSON.stringify(gameState.pendingCalls)}`;
-    if (actionSig === lastActionRef.current) return;
-    lastActionRef.current = actionSig;
+    const currentSeat = gameState.currentPlayerSeat;
+    const isCurrentPlayerBot = isBotSeat(currentSeat);
+
+    // Track if this effect instance is still valid (not cleaned up)
+    let cancelled = false;
+
+    // For playing/bonus_exposure: only proceed if current player is a bot
+    if ((gameState.phase === 'playing' || gameState.phase === 'bonus_exposure') && !isCurrentPlayerBot) {
+      return;
+    }
+
+    // For calling: check if any bot still needs to respond
+    if (gameState.phase === 'calling') {
+      const pendingCalls = gameState.pendingCalls;
+      if (!pendingCalls) return;
+
+      const botsNeedingResponse = bots.filter(seat => {
+        const callStatus = pendingCalls[`seat${seat}` as keyof typeof pendingCalls];
+        return callStatus === null || callStatus === undefined;
+      });
+
+      if (botsNeedingResponse.length === 0) {
+        return;
+      }
+    }
 
     const runBotActions = async () => {
-      // Handle bonus exposure phase
-      if (gameState.phase === 'bonus_exposure') {
-        const currentSeat = gameState.currentPlayerSeat;
-        if (isBotSeat(currentSeat)) {
-          await runBotAction(() => handleBonusPhase(currentSeat));
-        }
-        return;
-      }
+      // Small delay for natural feel
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (cancelled) return;
 
-      // Handle playing phase
-      if (gameState.phase === 'playing') {
-        const currentSeat = gameState.currentPlayerSeat;
-        if (isBotSeat(currentSeat)) {
-          await runBotAction(() => handlePlayingPhase(currentSeat));
+      try {
+        // Handle bonus exposure phase
+        if (gameState.phase === 'bonus_exposure' && isCurrentPlayerBot) {
+          await handleBonusPhase(currentSeat);
+          return;
         }
-        return;
-      }
 
-      // Handle calling phase - all bots need to respond
-      if (gameState.phase === 'calling') {
-        for (const seat of bots) {
-          const myCall = gameState.pendingCalls?.[`seat${seat}` as keyof typeof gameState.pendingCalls];
-          if (myCall === null || myCall === undefined) {
-            await runBotAction(() => handleCallingPhase(seat));
+        // Handle playing phase
+        if (gameState.phase === 'playing' && isCurrentPlayerBot) {
+          const difficulty = getBotDifficulty(currentSeat);
+          await handlePlayingPhase(currentSeat, difficulty);
+          return;
+        }
+
+        // Handle calling phase - all bots respond
+        if (gameState.phase === 'calling') {
+          for (const seat of bots) {
+            if (cancelled) return;
+            const myCall = gameState.pendingCalls?.[`seat${seat}` as keyof typeof gameState.pendingCalls];
+            if (myCall === null || myCall === undefined) {
+              const difficulty = getBotDifficulty(seat);
+              await handleCallingPhase(seat, difficulty);
+              // Small delay between bots
+              await new Promise(resolve => setTimeout(resolve, 200));
+            }
           }
         }
+      } catch (err) {
+        console.error('[Bot] Action failed:', err);
       }
     };
 
     runBotActions();
+
+    // Cleanup: mark this effect instance as cancelled
+    return () => {
+      cancelled = true;
+    };
   }, [
     enabled,
     gameState,
     room,
     botSeats,
     isBotSeat,
-    runBotAction,
+    getBotDifficulty,
+    botDelay,
     handleBonusPhase,
     handlePlayingPhase,
     handleCallingPhase,
-    recheckTrigger, // Re-run effect after bot action completes
   ]);
 
   return {

@@ -9,7 +9,7 @@ import { useBotRunner } from '@/hooks/useBotRunner';
 import { useSounds } from '@/hooks/useSounds';
 import { getTileType, getTileDisplayText, isBonusTile, isGoldTile, sortTilesForDisplay } from '@/lib/tiles';
 import { calculateSettlement, calculateNetPositions } from '@/lib/settle';
-import { SeatIndex, TileId, TileType, Meld, CallAction, PendingCall, PendingCalls, Settlement } from '@/types';
+import { SeatIndex, TileId, TileType, Meld, CallAction, PendingCall, PendingCalls, Settlement, BotDifficulty } from '@/types';
 
 // ============================================
 // TILE COMPONENT
@@ -152,6 +152,7 @@ interface PlayerInfoProps {
   tileCount: number;
   isSelf: boolean;
   isBot?: boolean;
+  botDifficulty?: BotDifficulty;
 }
 
 const SEAT_LABELS = ['East', 'South', 'West', 'North'] as const;
@@ -166,7 +167,12 @@ function PlayerInfo({
   tileCount,
   isSelf,
   isBot,
+  botDifficulty,
 }: PlayerInfoProps) {
+  // Get difficulty color
+  const difficultyColor = botDifficulty === 'easy' ? 'text-green-400' :
+                          botDifficulty === 'hard' ? 'text-red-400' : 'text-yellow-400';
+
   return (
     <div
       className={`
@@ -182,7 +188,11 @@ function PlayerInfo({
           {isBot && <span className="text-cyan-400">🤖</span>}
           <span className="font-semibold">{name}</span>
           {isSelf && <span className="text-lg text-blue-300">(You)</span>}
-          {isBot && <span className="text-lg text-cyan-400">(Bot)</span>}
+          {isBot && (
+            <span className={`text-sm ${difficultyColor}`}>
+              ({botDifficulty ? botDifficulty.charAt(0).toUpperCase() + botDifficulty.slice(1) : 'Bot'})
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {isDealer && (
@@ -1452,6 +1462,15 @@ export default function GamePage() {
                         {player.name}
                       </span>
                       <span className="text-slate-400 text-xs sm:text-base">({SEAT_LABELS[seat]})</span>
+                      {player.isBot && player.botDifficulty && (
+                        <span className={`text-xs px-1.5 py-0.5 rounded ${
+                          player.botDifficulty === 'easy' ? 'bg-green-500/30 text-green-300' :
+                          player.botDifficulty === 'hard' ? 'bg-red-500/30 text-red-300' :
+                          'bg-yellow-500/30 text-yellow-300'
+                        }`}>
+                          {player.botDifficulty.charAt(0).toUpperCase() + player.botDifficulty.slice(1)}
+                        </span>
+                      )}
                       {isDealer && <span className="bg-amber-500 text-black text-xs sm:text-lg px-1 sm:px-1.5 py-0.5 rounded font-bold">D</span>}
                     </div>
                     <span className="text-slate-300 font-medium text-xs sm:text-base">{tileCount} tiles</span>

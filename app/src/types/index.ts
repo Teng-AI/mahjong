@@ -39,6 +39,9 @@ export interface Meld {
 /** Seat positions (0-3, counter-clockwise from East) */
 export type SeatIndex = 0 | 1 | 2 | 3;
 
+/** Bot difficulty levels */
+export type BotDifficulty = 'easy' | 'medium' | 'hard';
+
 /** Player in a room (before game starts) */
 export interface RoomPlayer {
   id: string;
@@ -46,6 +49,7 @@ export interface RoomPlayer {
   connected: boolean;
   lastSeen: number;
   isBot?: boolean;  // True if this is an AI bot player
+  botDifficulty?: BotDifficulty;  // Difficulty level for bot players
 }
 
 /** Player state during game */

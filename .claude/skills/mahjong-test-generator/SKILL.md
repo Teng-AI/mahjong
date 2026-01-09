@@ -340,7 +340,7 @@ const selfDrawWin = {
 // With bonus tiles
 const withBonusTiles = {
   winner: {
-    bonusTiles: ['wind_east', 'wind_south', 'season_1'],
+    bonusTiles: ['wind_east', 'wind_south', 'dragon_red'],
     goldsInHand: 0,
     isSelfDraw: true
   },
@@ -438,7 +438,7 @@ const lastTileWins = {
 const lastTileBonus = {
   scenario: 'Player draws last tile and it is a bonus tile',
   wallCount: 1,
-  drawnTile: 'season_3',
+  drawnTile: 'dragon_red',
   expected: {
     result: 'draw_game',
     reason: 'Last tile is bonus, cannot replace'
@@ -472,7 +472,7 @@ const bonusTileChain = {
   draws: [
     { tile: 'wind_east', type: 'bonus', action: 'expose_and_replace' },
     { tile: 'wind_south', type: 'bonus', action: 'expose_and_replace' },
-    { tile: 'season_1', type: 'bonus', action: 'expose_and_replace' },
+    { tile: 'dragon_red', type: 'bonus', action: 'expose_and_replace' },
     { tile: 'bamboo_5', type: 'suit', action: 'add_to_hand' }
   ],
   expected: {

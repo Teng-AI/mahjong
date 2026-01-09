@@ -11,8 +11,10 @@ A beginner-friendly variant popular in Fujian Province, also known as **"Gold Ru
 | **Dots (筒子)** | 1-9 | 36 | 4 copies each |
 | **Bamboo (条子)** | 1-9 | 36 | 4 copies each |
 | **Characters (万子)** | 1-9 | 36 | 4 copies each |
-| **Winds (风牌)** | East, South, West, North | 16 | Bonus tiles |
-| **Seasons (季节牌)** | Spring, Summer, Autumn, Winter | 4 | Bonus tiles |
+| **Winds (风牌)** | East, South, West, North | 16 | Bonus tiles (4 copies each) |
+| **Red Dragon (红中)** | 中 | 4 | Bonus tiles |
+
+**Note**: This variant uses Red Dragons instead of Flowers/Seasons.
 
 ### Gold Tile (金牌)
 
@@ -25,7 +27,7 @@ The defining feature of Fujian Mahjong:
 
 ### Bonus Tiles (20 total)
 
-Winds (16) and Seasons (4) are bonus tiles. When drawn:
+Winds (16) and Red Dragons (4) are bonus tiles. When drawn:
 1. Expose face-up in front of you (fixed in place)
 2. Draw a replacement from the wall
 3. If replacement is also a bonus tile, expose it and draw again
@@ -137,7 +139,7 @@ When a tile is discarded, other players may call it:
 ### Formula
 
 ```
-Non-Special Points = Base + Flowers + Golds + Kongs
+Non-Special Points = Base + Bonus + Golds + Kongs
 
 If self-draw: Non-Special Points × 2
 
@@ -149,7 +151,7 @@ Total = Non-Special Points + Special Hand Bonuses
 | Component | Points |
 |-----------|--------|
 | Base (winning) | +1 |
-| Per bonus tile (wind/season) | +1 |
+| Per bonus tile (wind/dragon) | +1 |
 | Per Gold tile in hand | +1 (physical Golds, regardless of how used) |
 | Per Concealed Kong | +2 |
 | Per Exposed Kong | +1 |
@@ -179,12 +181,12 @@ Added after the self-draw multiplier (not multiplied):
 
 ```
 Hand: 5 sets + 1 pair (Golden Pair)
-Bonus tiles: 3 (wind_east, wind_south, season_1)
+Bonus tiles: 3 (wind_east, wind_south, dragon_red)
 Golds in hand: 2 (used as pair)
 Kongs: 0
 Self-draw: Yes
 
-Non-Special: 1 (base) + 3 (flowers) + 2 (golds) = 6
+Non-Special: 1 (base) + 3 (bonus) + 2 (golds) = 6
 Self-draw:   6 × 2 = 12
 Golden Pair: +30
 Total:       42 points (each loser pays 42)
@@ -218,7 +220,7 @@ Total:       42 points (each loser pays 42)
 
 ### Tile Counts
 - Suit tiles: 108 (playable)
-- Bonus tiles: 20 (winds + seasons)
+- Bonus tiles: 20 (winds + dragons)
 - Gold tiles: 3 in play (1 exposed)
 - No dead wall (play until wall is empty)
 
@@ -241,7 +243,7 @@ Total:       42 points (each loser pays 42)
 ```
 Suits:   dots_1-9, bamboo_1-9, characters_1-9
 Winds:   wind_east, wind_south, wind_west, wind_north
-Seasons: season_1, season_2, season_3, season_4
+Dragons: dragon_red (4 copies)
 Gold:    Determined at game start (3 copies in play)
 ```
 

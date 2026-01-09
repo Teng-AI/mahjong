@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRoom } from '@/hooks/useRoom';
 import { joinRoom, findUserSeat, fillWithBots, addBotPlayer, removePlayer } from '@/lib/rooms';
 import { initializeGame } from '@/lib/game';
-import { SeatIndex, RoomPlayer } from '@/types';
+import { SeatIndex, RoomPlayer, BotDifficulty } from '@/types';
 
 const SEAT_LABELS = ['East', 'South', 'West', 'North'] as const;
 const SEAT_COLORS = [
@@ -75,8 +75,14 @@ function PlayerSlot({
               </span>
             )}
             {player.isBot && (
-              <span className="px-2 py-0.5 bg-cyan-500/30 text-cyan-200 rounded text-xs">
-                AI Bot
+              <span className={`px-2 py-0.5 rounded text-xs ${
+                player.botDifficulty === 'easy'
+                  ? 'bg-green-500/30 text-green-200'
+                  : player.botDifficulty === 'hard'
+                  ? 'bg-red-500/30 text-red-200'
+                  : 'bg-yellow-500/30 text-yellow-200'
+              }`}>
+                {player.botDifficulty ? `${player.botDifficulty.charAt(0).toUpperCase() + player.botDifficulty.slice(1)} Bot` : 'AI Bot'}
               </span>
             )}
             {!player.connected && !player.isBot && (
@@ -134,6 +140,7 @@ export default function RoomPage() {
   const [joinError, setJoinError] = useState<string | null>(null);
   const [shouldAutoJoin, setShouldAutoJoin] = useState(false);
   const [addingBot, setAddingBot] = useState(false);
+  const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>('medium');
 
   const {
     room,
@@ -237,7 +244,7 @@ export default function RoomPage() {
     if (addingBot) return;
     setAddingBot(true);
     try {
-      await addBotPlayer(roomCode);
+      await addBotPlayer(roomCode, botDifficulty);
     } catch (err) {
       console.error('Failed to add bot:', err);
     } finally {
@@ -249,7 +256,7 @@ export default function RoomPage() {
     if (addingBot) return;
     setAddingBot(true);
     try {
-      await fillWithBots(roomCode);
+      await fillWithBots(roomCode, botDifficulty);
     } catch (err) {
       console.error('Failed to fill with bots:', err);
     } finally {
@@ -449,16 +456,39 @@ export default function RoomPage() {
           </ul>
         </div>
 
-        {/* Fill with Bots button (host only, if room not full) */}
+        {/* Bot difficulty selector and Fill with Bots button (host only, if room not full) */}
         {isHost && !isFull && (
-          <div className="max-w-md mx-auto mb-6">
+          <div className="max-w-md mx-auto mb-6 space-y-3">
+            {/* Difficulty selector */}
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-green-300 text-sm">Bot Difficulty:</span>
+              <div className="flex rounded-lg overflow-hidden border border-green-600">
+                {(['easy', 'medium', 'hard'] as BotDifficulty[]).map((diff) => (
+                  <button
+                    key={diff}
+                    onClick={() => setBotDifficulty(diff)}
+                    className={`px-3 py-1.5 text-sm font-medium transition-colors capitalize ${
+                      botDifficulty === diff
+                        ? diff === 'easy'
+                          ? 'bg-green-500 text-white'
+                          : diff === 'medium'
+                          ? 'bg-yellow-500 text-black'
+                          : 'bg-red-500 text-white'
+                        : 'bg-green-900/50 text-green-300 hover:bg-green-800/50'
+                    }`}
+                  >
+                    {diff}
+                  </button>
+                ))}
+              </div>
+            </div>
             <button
               onClick={handleFillWithBots}
               disabled={addingBot}
               className="w-full py-3 px-4 bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
             >
               <span>🤖</span>
-              {addingBot ? 'Adding Bots...' : 'Fill Empty Seats with AI Bots'}
+              {addingBot ? 'Adding Bots...' : `Fill Empty Seats with ${botDifficulty.charAt(0).toUpperCase() + botDifficulty.slice(1)} Bots`}
             </button>
           </div>
         )}

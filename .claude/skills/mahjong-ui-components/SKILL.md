@@ -91,8 +91,8 @@ function TileContent({ category, value }) {
   if (category === 'wind') {
     return <WindIcon direction={value} />;
   }
-  if (category === 'season') {
-    return <SeasonIcon number={value} />;
+  if (category === 'dragon') {
+    return <DragonIcon type={value} />;
   }
 }
 
@@ -599,8 +599,9 @@ function PlayerSlots({ players, currentUserId, onSelectDealer, selectedDealer, i
 function getTileType(tileId) {
   // "dots_5_2" -> "dots_5"
   // "wind_east_0" -> "wind_east"
+  // "dragon_red_0" -> "dragon_red"
   const parts = tileId.split('_');
-  if (parts[0] === 'wind' || parts[0] === 'season') {
+  if (parts[0] === 'wind' || parts[0] === 'dragon') {
     return `${parts[0]}_${parts[1]}`;
   }
   return `${parts[0]}_${parts[1]}`;
@@ -615,7 +616,7 @@ function parseTileType(tileType) {
 }
 
 function sortTiles(tiles, goldTileType) {
-  const order = { dots: 0, bamboo: 1, characters: 2, wind: 3, season: 4 };
+  const order = { dots: 0, bamboo: 1, characters: 2, wind: 3, dragon: 4 };
   const windOrder = { east: 0, south: 1, west: 2, north: 3 };
 
   return [...tiles].sort((a, b) => {

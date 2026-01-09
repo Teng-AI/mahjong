@@ -86,7 +86,7 @@ Patterns for implementing real-time multiplayer using Firebase Realtime Database
   },
 
   bonusTiles: {
-    seat0: ["wind_east_0", "season_1_0"],
+    seat0: ["wind_east_0", "dragon_red_0"],
     seat1: [],
     seat2: [],
     seat3: []
@@ -291,9 +291,9 @@ function generateTileIds() {
     }
   });
 
-  // Seasons (1 copy each)
-  for (let i = 1; i <= 4; i++) {
-    tiles.push(`season_${i}_0`);
+  // Red Dragons (4 copies)
+  for (let copy = 0; copy < 4; copy++) {
+    tiles.push(`dragon_red_${copy}`);
   }
 
   return tiles;  // 128 tiles
@@ -304,8 +304,8 @@ function getTileType(tileId) {
   const parts = tileId.split('_');
   if (parts[0] === 'wind') {
     return `wind_${parts[1]}`;
-  } else if (parts[0] === 'season') {
-    return `season_${parts[1]}`;
+  } else if (parts[0] === 'dragon') {
+    return `dragon_${parts[1]}`;
   }
   return `${parts[0]}_${parts[1]}`;
 }

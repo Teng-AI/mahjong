@@ -53,7 +53,7 @@ if (isGoldenPair(hand)) {
 
 **Correct tile counts:**
 - [ ] 108 suit tiles (dots, bamboo, characters 1-9, 4 copies each)
-- [ ] 20 bonus tiles (16 winds, 4 seasons)
+- [ ] 20 bonus tiles (16 winds, 4 red dragons)
 - [ ] Total: 128 tiles
 
 **Tile ID format:**
@@ -61,7 +61,7 @@ if (isGoldenPair(hand)) {
 // ✅ CORRECT
 'dots_1', 'dots_9', 'bamboo_5', 'characters_3'
 'wind_east', 'wind_south', 'wind_west', 'wind_north'
-'season_1', 'season_2', 'season_3', 'season_4'
+'dragon_red' (4 copies)
 
 // ❌ INCORRECT
 'dot_1', 'Dots_1', 'DOTS_1', '1_dots'

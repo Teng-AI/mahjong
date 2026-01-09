@@ -33,7 +33,7 @@ Suits (108 tiles):
 
 Bonus (20 tiles):
   wind_east, wind_south, wind_west, wind_north (4 copies each = 16)
-  season_1, season_2, season_3, season_4 (1 copy each = 4)
+  dragon_red (4 copies = 4)
 
 Gold:
   One suit tile flipped at game start (not used in play)
@@ -295,7 +295,7 @@ When validating game code, verify:
 - [ ] 16 tiles (concealed + exposed) maintained during play
 - [ ] 17 tiles after draw, before discard/win
 - [ ] Only 3 Gold tiles in play (1 exposed, not used)
-- [ ] Wind/season tiles auto-exposed with replacement draws
+- [ ] Wind/dragon tiles auto-exposed with replacement draws
 - [ ] Taking discard skips normal draw
 - [ ] **Three Golds**: instant automatic win when player collects all 3 Golds
 - [ ] Scoring: `(1 + bonus + golds) × 2 if self_draw + 20 if three_golds`
