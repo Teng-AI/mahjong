@@ -15,6 +15,16 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Mahjong Vibes",
   description: "Multiplayer Fujian Mahjong (Gold Rush Mahjong) game",
+  openGraph: {
+    title: "Mahjong Vibes",
+    description: "Multiplayer Fujian Mahjong (Gold Rush Mahjong) game",
+    siteName: "Mahjong Vibes",
+  },
+  twitter: {
+    card: "summary",
+    title: "Mahjong Vibes",
+    description: "Multiplayer Fujian Mahjong (Gold Rush Mahjong) game",
+  },
 };
 
 export default function RootLayout({
