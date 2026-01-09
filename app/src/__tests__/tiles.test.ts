@@ -13,8 +13,11 @@ import {
   hasGoldenPair,
   removeTiles,
   sortTilesForDisplay,
+  canKong,
+  canDeclareConcealedKong,
+  canUpgradePungToKong,
 } from '@/lib/tiles';
-import { TileId, TileType } from '@/types';
+import { TileId, TileType, Meld } from '@/types';
 
 // ============================================
 // TILE GENERATION TESTS
@@ -442,5 +445,215 @@ describe('sortTilesForDisplay', () => {
 
     expect(getTileType(sorted[0])).toBe('dots_1');
     expect(getTileType(sorted[1])).toBe('wind_east');
+  });
+});
+
+// ============================================
+// KONG VALIDATION TESTS
+// ============================================
+
+describe('canKong', () => {
+  const goldType: TileType = 'dots_5';
+
+  it('should return true when player has 3 matching tiles', () => {
+    const hand: TileId[] = ['dots_1_0', 'dots_1_1', 'dots_1_2', 'dots_2_0'];
+    const discard: TileId = 'dots_1_3';
+    expect(canKong(hand, discard, goldType)).toBe(true);
+  });
+
+  it('should return false when player has only 2 matching tiles', () => {
+    const hand: TileId[] = ['dots_1_0', 'dots_1_1', 'dots_2_0', 'dots_3_0'];
+    const discard: TileId = 'dots_1_2';
+    expect(canKong(hand, discard, goldType)).toBe(false);
+  });
+
+  it('should return false when discard is a gold tile', () => {
+    const hand: TileId[] = ['dots_5_0', 'dots_5_1', 'dots_5_2', 'dots_2_0'];
+    const discard: TileId = 'dots_5_3';
+    expect(canKong(hand, discard, goldType)).toBe(false);
+  });
+
+  it('should not count gold tiles in hand for kong', () => {
+    // Hand has 2 regular dots_1 and 1 gold (dots_5)
+    // Gold cannot be used in calls
+    const hand: TileId[] = ['dots_1_0', 'dots_1_1', 'dots_5_0', 'dots_2_0'];
+    const discard: TileId = 'dots_1_2';
+    expect(canKong(hand, discard, goldType)).toBe(false);
+  });
+
+  it('should not allow kong of bonus tiles (winds/dragons)', () => {
+    // Bonus tiles are exposed at game start - they can't form melds
+    const hand: TileId[] = ['wind_east_0', 'wind_east_1', 'wind_east_2', 'dots_1_0'];
+    const discard: TileId = 'wind_east_3';
+    expect(canKong(hand, discard, goldType)).toBe(false);
+  });
+});
+
+describe('canDeclareConcealedKong', () => {
+  const goldType: TileType = 'dots_5';
+
+  it('should return tile type when player has 4 identical tiles', () => {
+    const hand: TileId[] = [
+      'dots_1_0', 'dots_1_1', 'dots_1_2', 'dots_1_3',
+      'dots_2_0', 'dots_3_0',
+    ];
+    const result = canDeclareConcealedKong(hand, goldType);
+    expect(result).toContain('dots_1');
+    expect(result.length).toBe(1);
+  });
+
+  it('should return multiple types when player has multiple sets of 4', () => {
+    const hand: TileId[] = [
+      'dots_1_0', 'dots_1_1', 'dots_1_2', 'dots_1_3',
+      'dots_2_0', 'dots_2_1', 'dots_2_2', 'dots_2_3',
+    ];
+    const result = canDeclareConcealedKong(hand, goldType);
+    expect(result).toContain('dots_1');
+    expect(result).toContain('dots_2');
+    expect(result.length).toBe(2);
+  });
+
+  it('should return empty array when no 4-of-a-kind', () => {
+    const hand: TileId[] = ['dots_1_0', 'dots_1_1', 'dots_1_2', 'dots_2_0'];
+    const result = canDeclareConcealedKong(hand, goldType);
+    expect(result).toEqual([]);
+  });
+
+  it('should not allow kong of gold tiles', () => {
+    const hand: TileId[] = [
+      'dots_5_0', 'dots_5_1', 'dots_5_2', 'dots_5_3', // 4 gold tiles
+      'dots_1_0',
+    ];
+    const result = canDeclareConcealedKong(hand, goldType);
+    expect(result).toEqual([]);
+  });
+
+  it('should not allow kong of bonus tiles (winds/dragons)', () => {
+    // Bonus tiles are exposed at game start - they can't form melds
+    const hand: TileId[] = [
+      'wind_east_0', 'wind_east_1', 'wind_east_2', 'wind_east_3',
+      'dots_1_0',
+    ];
+    const result = canDeclareConcealedKong(hand, goldType);
+    expect(result).not.toContain('wind_east');
+    expect(result).toEqual([]);
+  });
+});
+
+describe('canUpgradePungToKong', () => {
+  const goldType: TileType = 'dots_5';
+
+  it('should return meld index and tile when upgrade is possible', () => {
+    const hand: TileId[] = ['dots_1_3', 'dots_2_0', 'dots_3_0'];
+    const exposedMelds: Meld[] = [
+      {
+        type: 'pung',
+        tiles: ['dots_1_0', 'dots_1_1', 'dots_1_2'],
+        calledTile: 'dots_1_2',
+      },
+    ];
+    const result = canUpgradePungToKong(hand, exposedMelds, goldType);
+    expect(result.length).toBe(1);
+    expect(result[0].meldIndex).toBe(0);
+    expect(result[0].tileFromHand).toBe('dots_1_3');
+  });
+
+  it('should return empty array when no matching tile in hand', () => {
+    const hand: TileId[] = ['dots_2_0', 'dots_3_0', 'dots_4_0'];
+    const exposedMelds: Meld[] = [
+      {
+        type: 'pung',
+        tiles: ['dots_1_0', 'dots_1_1', 'dots_1_2'],
+        calledTile: 'dots_1_2',
+      },
+    ];
+    const result = canUpgradePungToKong(hand, exposedMelds, goldType);
+    expect(result.length).toBe(0);
+  });
+
+  it('should return empty array when meld is a chow (not pung)', () => {
+    const hand: TileId[] = ['dots_1_3', 'dots_2_0', 'dots_3_0'];
+    const exposedMelds: Meld[] = [
+      {
+        type: 'chow',
+        tiles: ['dots_1_0', 'dots_2_0', 'dots_3_0'],
+        calledTile: 'dots_1_0',
+      },
+    ];
+    const result = canUpgradePungToKong(hand, exposedMelds, goldType);
+    expect(result.length).toBe(0);
+  });
+
+  it('should return empty array when meld is already a kong', () => {
+    const hand: TileId[] = ['dots_1_3', 'dots_2_0'];
+    const exposedMelds: Meld[] = [
+      {
+        type: 'kong',
+        tiles: ['dots_1_0', 'dots_1_1', 'dots_1_2', 'dots_1_3'],
+        calledTile: 'dots_1_3',
+      },
+    ];
+    const result = canUpgradePungToKong(hand, exposedMelds, goldType);
+    expect(result.length).toBe(0);
+  });
+
+  it('should not allow upgrade with gold tile from hand', () => {
+    // Pung of dots_5 (the gold type) - cannot upgrade even if have 4th
+    const hand: TileId[] = ['dots_5_3', 'dots_2_0', 'dots_3_0'];
+    const exposedMelds: Meld[] = [
+      {
+        type: 'pung',
+        tiles: ['dots_5_0', 'dots_5_1', 'dots_5_2'],
+        calledTile: 'dots_5_2',
+      },
+    ];
+    const result = canUpgradePungToKong(hand, exposedMelds, goldType);
+    // Actually, pung of gold shouldn't be possible in the first place,
+    // but if it somehow exists, we shouldn't upgrade it
+    expect(result.length).toBe(0);
+  });
+
+  it('should return all upgradeable pungs when multiple exist', () => {
+    const hand: TileId[] = ['dots_2_3', 'dots_3_3'];
+    const exposedMelds: Meld[] = [
+      {
+        type: 'pung',
+        tiles: ['dots_3_0', 'dots_3_1', 'dots_3_2'],
+        calledTile: 'dots_3_2',
+      },
+      {
+        type: 'pung',
+        tiles: ['dots_2_0', 'dots_2_1', 'dots_2_2'],
+        calledTile: 'dots_2_2',
+      },
+    ];
+    const result = canUpgradePungToKong(hand, exposedMelds, goldType);
+    expect(result.length).toBe(2);
+    // First pung (dots_3) is at index 0
+    expect(result[0].meldIndex).toBe(0);
+    expect(result[0].tileFromHand).toBe('dots_3_3');
+    // Second pung (dots_2) is at index 1
+    expect(result[1].meldIndex).toBe(1);
+    expect(result[1].tileFromHand).toBe('dots_2_3');
+  });
+
+  it('should skip chows and return pung upgrades only', () => {
+    const hand: TileId[] = ['dots_2_3', 'dots_3_0'];
+    const exposedMelds: Meld[] = [
+      {
+        type: 'chow',
+        tiles: ['dots_4_0', 'dots_5_0', 'dots_6_0'],
+        calledTile: 'dots_4_0',
+      },
+      {
+        type: 'pung',
+        tiles: ['dots_2_0', 'dots_2_1', 'dots_2_2'],
+        calledTile: 'dots_2_2',
+      },
+    ];
+    const result = canUpgradePungToKong(hand, exposedMelds, goldType);
+    expect(result.length).toBe(1);
+    expect(result[0].meldIndex).toBe(1);
+    expect(result[0].tileFromHand).toBe('dots_2_3');
   });
 });

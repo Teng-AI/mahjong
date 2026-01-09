@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { ref, onValue, off } from 'firebase/database';
 import { db } from '@/firebase/config';
-import { GameState, PrivateHand, SeatIndex, TileId, CallAction, PendingCall, ValidCalls, SessionScores } from '@/types';
+import { GameState, PrivateHand, SeatIndex, TileId, TileType, CallAction, PendingCall, ValidCalls, SessionScores } from '@/types';
 import {
   initializeGame,
   exposeBonusTiles,
@@ -15,10 +15,14 @@ import {
   declareDiscardWin,
   getNextSeat,
   submitCallResponse,
+  declareConcealedKong,
+  upgradePungToKong,
 } from '@/lib/game';
 import {
   getValidCalls,
   getValidChowTiles,
+  canDeclareConcealedKong,
+  canUpgradePungToKong,
 } from '@/lib/tiles';
 
 interface UseGameOptions {
@@ -50,6 +54,11 @@ interface UseGameReturn {
   validChowTiles: Map<TileId, TileId[]>;
   isNextInTurn: boolean;
   handleCallResponse: (action: CallAction, chowTiles?: [TileId, TileId]) => Promise<{ success: boolean; error?: string }>;
+  // Kong declarations
+  concealedKongOptions: TileType[];
+  pungUpgradeOptions: { meldIndex: number; tileFromHand: TileId }[];
+  handleConcealedKong: (tileType: TileType) => Promise<{ success: boolean; error?: string }>;
+  handlePungUpgrade: (meldIndex: number, tile: TileId) => Promise<{ success: boolean; error?: string }>;
 }
 
 export function useGame({ roomCode, mySeat }: UseGameOptions): UseGameReturn {
@@ -348,6 +357,75 @@ export function useGame({ roomCode, mySeat }: UseGameOptions): UseGameReturn {
     [roomCode, mySeat, gameState]
   );
 
+  // Kong: Check if player can declare concealed kong (4 of a kind in hand)
+  // Available anytime during your turn before discarding
+  const concealedKongOptions: TileType[] = useMemo(() => {
+    if (
+      !gameState ||
+      mySeat === null ||
+      gameState.phase !== 'playing' ||
+      gameState.currentPlayerSeat !== mySeat
+    ) {
+      return [];
+    }
+    return canDeclareConcealedKong(myHand, gameState.goldTileType);
+  }, [gameState, mySeat, myHand]);
+
+  // Kong: Check if player can upgrade a pung to kong (returns ALL options)
+  // Available anytime during your turn before discarding
+  const pungUpgradeOptions: { meldIndex: number; tileFromHand: TileId }[] = useMemo(() => {
+    if (
+      !gameState ||
+      mySeat === null ||
+      gameState.phase !== 'playing' ||
+      gameState.currentPlayerSeat !== mySeat
+    ) {
+      return [];
+    }
+    const myExposedMelds = gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds] || [];
+    return canUpgradePungToKong(myHand, myExposedMelds, gameState.goldTileType);
+  }, [gameState, mySeat, myHand]);
+
+  // Kong: Declare concealed kong
+  const handleConcealedKong = useCallback(
+    async (tileType: TileType) => {
+      if (mySeat === null || !gameState) {
+        return { success: false, error: 'Invalid state' };
+      }
+
+      try {
+        setError(null);
+        const result = await declareConcealedKong(roomCode, mySeat, tileType);
+        return result;
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to declare kong';
+        setError(errorMsg);
+        return { success: false, error: errorMsg };
+      }
+    },
+    [roomCode, mySeat, gameState]
+  );
+
+  // Kong: Upgrade pung to kong
+  const handlePungUpgrade = useCallback(
+    async (meldIndex: number, tile: TileId) => {
+      if (mySeat === null || !gameState) {
+        return { success: false, error: 'Invalid state' };
+      }
+
+      try {
+        setError(null);
+        const result = await upgradePungToKong(roomCode, mySeat, meldIndex, tile);
+        return result;
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to upgrade to kong';
+        setError(errorMsg);
+        return { success: false, error: errorMsg };
+      }
+    },
+    [roomCode, mySeat, gameState]
+  );
+
   return {
     gameState,
     myHand,
@@ -372,5 +450,10 @@ export function useGame({ roomCode, mySeat }: UseGameOptions): UseGameReturn {
     validChowTiles,
     isNextInTurn,
     handleCallResponse,
+    // Kong declarations
+    concealedKongOptions,
+    pungUpgradeOptions,
+    handleConcealedKong,
+    handlePungUpgrade,
   };
 }

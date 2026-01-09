@@ -164,6 +164,11 @@ export default function GamePage() {
     myValidCalls,
     validChowTiles,
     handleCallResponse,
+    // Kong declarations
+    concealedKongOptions,
+    pungUpgradeOptions,
+    handleConcealedKong,
+    handlePungUpgrade,
   } = useGame({
     roomCode,
     mySeat,
@@ -188,6 +193,9 @@ export default function GamePage() {
   // Phase 8: Chow selection mode
   const [chowSelectionMode, setChowSelectionMode] = useState(false);
   const [selectedChowTiles, setSelectedChowTiles] = useState<TileId[]>([]);
+
+  // Kong: Pung upgrade selection mode
+  const [pungUpgradeMode, setPungUpgradeMode] = useState(false);
 
   // Settlement modal
   const [showSettleModal, setShowSettleModal] = useState(false);
@@ -380,6 +388,61 @@ export default function GamePage() {
     }
   };
 
+  // Kong: Declare concealed kong (4 of a kind in hand)
+  const onConcealedKong = async (tileType: TileType) => {
+    if (processingAction) return;
+
+    setProcessingAction(true);
+    try {
+      const result = await handleConcealedKong(tileType);
+      if (result.success) {
+        playSound('pung'); // Use pung sound for kong
+      } else {
+        if (DEBUG_GAME) console.error('Concealed kong failed:', result.error);
+        setToastMessage(result.error || 'Failed to declare kong');
+      }
+    } catch (err) {
+      if (DEBUG_GAME) console.error('Concealed kong failed:', err);
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  // Kong: Enter pung upgrade selection mode
+  const onPungUpgradeClick = () => {
+    setPungUpgradeMode(true);
+  };
+
+  // Kong: Cancel pung upgrade selection
+  const onCancelPungUpgrade = () => {
+    setPungUpgradeMode(false);
+  };
+
+  // Kong: Confirm pung upgrade by clicking the tile
+  const onConfirmPungUpgrade = async (tile: TileId) => {
+    if (processingAction || pungUpgradeOptions.length === 0) return;
+
+    // Find the upgrade option that matches this tile
+    const option = pungUpgradeOptions.find(opt => opt.tileFromHand === tile);
+    if (!option) return;
+
+    setProcessingAction(true);
+    try {
+      const result = await handlePungUpgrade(option.meldIndex, option.tileFromHand);
+      if (result.success) {
+        playSound('pung'); // Use pung sound for kong
+        setPungUpgradeMode(false);
+      } else {
+        if (DEBUG_GAME) console.error('Pung upgrade failed:', result.error);
+        setToastMessage(result.error || 'Failed to upgrade to kong');
+      }
+    } catch (err) {
+      if (DEBUG_GAME) console.error('Pung upgrade failed:', err);
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
   // Reset chow selection when leaving calling phase
   useEffect(() => {
     if (!isCallingPhase) {
@@ -387,6 +450,14 @@ export default function GamePage() {
       setSelectedChowTiles([]);
     }
   }, [isCallingPhase]);
+
+  // Reset pung upgrade mode when options disappear or turn changes
+  useEffect(() => {
+    const isCurrentlyMyTurn = gameState?.currentPlayerSeat === mySeat;
+    if (pungUpgradeOptions.length === 0 || !isCurrentlyMyTurn || gameState?.phase !== 'playing') {
+      setPungUpgradeMode(false);
+    }
+  }, [pungUpgradeOptions, gameState?.currentPlayerSeat, mySeat, gameState?.phase]);
 
   // Play sound when it becomes my turn
   const prevTurnRef = useRef<SeatIndex | null>(null);
@@ -668,7 +739,7 @@ export default function GamePage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-slate-400 text-sm">Called:</span>
                       {gameState.exposedMelds[`seat${winner.seat}` as keyof typeof gameState.exposedMelds].map((meld, meldIndex) => (
-                        <div key={`meld-${meldIndex}`} className="flex gap-0.5 bg-slate-800/70 rounded p-1">
+                        <div key={`meld-${meldIndex}`} className={`flex gap-0.5 rounded p-1 ${meld.isConcealed ? 'bg-pink-800/50' : 'bg-slate-800/70'}`}>
                           {meld.tiles.map((tileId: string, tileIndex: number) => (
                             <Tile
                               key={`meld-${meldIndex}-${tileIndex}`}
@@ -677,6 +748,7 @@ export default function GamePage() {
                               size="md"
                             />
                           ))}
+                          {meld.isConcealed && <span className="text-pink-300 text-xs ml-1 self-center">C</span>}
                         </div>
                       ))}
                     </div>
@@ -702,7 +774,7 @@ export default function GamePage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-slate-400 text-sm">Called:</span>
                       {gameState.exposedMelds[`seat${mySeat}` as keyof typeof gameState.exposedMelds].map((meld, meldIndex) => (
-                        <div key={`my-meld-${meldIndex}`} className="flex gap-0.5 bg-slate-800/70 rounded p-1">
+                        <div key={`my-meld-${meldIndex}`} className={`flex gap-0.5 rounded p-1 ${meld.isConcealed ? 'bg-pink-800/50' : 'bg-slate-800/70'}`}>
                           {meld.tiles.map((tileId: string, tileIndex: number) => (
                             <Tile
                               key={`my-meld-${meldIndex}-${tileIndex}`}
@@ -711,6 +783,7 @@ export default function GamePage() {
                               size="md"
                             />
                           ))}
+                          {meld.isConcealed && <span className="text-pink-300 text-xs ml-1 self-center">C</span>}
                         </div>
                       ))}
                     </div>
@@ -737,6 +810,18 @@ export default function GamePage() {
                     <span className="text-slate-300">Gold tiles:</span>
                     <span>+{winner.score.golds}</span>
                   </div>
+                  {winner.score.concealedKongBonus > 0 && (
+                    <div className="flex justify-between text-pink-400">
+                      <span>Concealed Kong:</span>
+                      <span>+{winner.score.concealedKongBonus}</span>
+                    </div>
+                  )}
+                  {winner.score.exposedKongBonus > 0 && (
+                    <div className="flex justify-between text-pink-300">
+                      <span>Exposed Kong:</span>
+                      <span>+{winner.score.exposedKongBonus}</span>
+                    </div>
+                  )}
                   {winner.score.dealerStreakBonus > 0 && (
                     <div className="flex justify-between text-orange-400">
                       <span>Dealer streak:</span>
@@ -1057,8 +1142,9 @@ export default function GamePage() {
             <div className="flex items-center gap-1">
               <span className="text-slate-500 text-xs sm:text-base">Melds:</span>
               {(gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds] || []).map((meld, meldIdx) => (
-                <div key={meldIdx} className="flex gap-0.5 bg-slate-800/50 rounded px-1">
+                <div key={meldIdx} className={`flex gap-0.5 rounded px-1 ${meld.isConcealed ? 'bg-pink-800/50' : 'bg-slate-800/50'}`}>
                   {meld.tiles.map((tile, i) => <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="sm" />)}
+                  {meld.isConcealed && <span className="text-pink-300 text-[10px] ml-0.5 self-center">C</span>}
                 </div>
               ))}
             </div>
@@ -1100,6 +1186,25 @@ export default function GamePage() {
               );
             })}
           </div>
+        ) : pungUpgradeMode && pungUpgradeOptions.length > 0 ? (
+          // Pung upgrade selection mode - highlight ALL tiles that can be used for upgrades
+          <div className="flex gap-1 flex-wrap justify-center">
+            {myHand.map((tile, index) => {
+              const isUpgradeTile = pungUpgradeOptions.some(opt => opt.tileFromHand === tile);
+              return (
+                <Tile
+                  key={`${tile}-${index}`}
+                  tileId={tile}
+                  goldTileType={gameState.goldTileType}
+                  size="lg"
+                  onClick={isUpgradeTile ? () => onConfirmPungUpgrade(tile) : undefined}
+                  isChowValid={isUpgradeTile}
+                  isChowSelected={isUpgradeTile}
+                  disabled={!isUpgradeTile}
+                />
+              );
+            })}
+          </div>
         ) : (
           // Normal mode
           <Hand
@@ -1110,9 +1215,11 @@ export default function GamePage() {
             justDrawnTile={
               isMyTurn &&
               !shouldDraw &&
-              gameState.lastAction?.type === 'draw' &&
-              gameState.lastAction.playerSeat === mySeat
-                ? gameState.lastAction.tile
+              gameState.lastAction?.playerSeat === mySeat &&
+              (gameState.lastAction?.type === 'draw' || gameState.lastAction?.type === 'kong')
+                ? (gameState.lastAction.type === 'kong'
+                    ? gameState.lastAction.replacementTile
+                    : gameState.lastAction.tile)
                 : null
             }
           />
@@ -1141,6 +1248,15 @@ export default function GamePage() {
                   className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-sm sm:text-base"
                 >
                   WIN!
+                </button>
+              )}
+              {myValidCalls?.canKong && (
+                <button
+                  onClick={() => onCallResponse('kong')}
+                  disabled={processingAction}
+                  className="px-4 sm:px-6 py-2 sm:py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
+                >
+                  KONG
                 </button>
               )}
               {myValidCalls?.canPung && (
@@ -1210,6 +1326,43 @@ export default function GamePage() {
             >
               🎉 WIN!
             </button>
+          )}
+
+          {/* Kong buttons during playing phase (after drawing) */}
+          {gameState.phase === 'playing' && isMyTurn && !shouldDraw && (
+            <>
+              {/* Concealed Kong button - show if player has 4 of a kind */}
+              {concealedKongOptions.length > 0 && concealedKongOptions.map((tileType) => (
+                <button
+                  key={`kong-${tileType}`}
+                  onClick={() => onConcealedKong(tileType)}
+                  disabled={processingAction}
+                  className="px-4 sm:px-6 py-2 sm:py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
+                >
+                  KONG ({getTileDisplayText(tileType)})
+                </button>
+              ))}
+              {/* Pung upgrade button - show if player can upgrade a pung */}
+              {pungUpgradeOptions.length > 0 && !pungUpgradeMode && (
+                <button
+                  onClick={onPungUpgradeClick}
+                  disabled={processingAction}
+                  className="px-4 sm:px-6 py-2 sm:py-3 bg-pink-600 hover:bg-pink-500 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
+                >
+                  UPGRADE
+                </button>
+              )}
+              {/* Pung upgrade selection mode - cancel button (click tile to confirm) */}
+              {pungUpgradeMode && pungUpgradeOptions.length > 0 && (
+                <button
+                  onClick={onCancelPungUpgrade}
+                  disabled={processingAction}
+                  className="px-4 sm:px-6 py-2 sm:py-3 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-lg text-sm sm:text-base"
+                >
+                  Cancel
+                </button>
+              )}
+            </>
           )}
 
           {/* Draw/Discard buttons */}
@@ -1322,7 +1475,11 @@ export default function GamePage() {
               const exposedMelds = gameState.exposedMelds?.[`seat${seat}` as keyof typeof gameState.exposedMelds] || [];
               const bonusTiles = gameState.bonusTiles?.[`seat${seat}` as keyof typeof gameState.bonusTiles] || [];
               const baseTileCount = isDealer ? 17 : 16;
-              const tileCount = baseTileCount - (2 * exposedMelds.length);
+              // Calculate tiles removed from hand: 2 for most melds, 3 for concealed kong (4 removed, +1 replacement draw)
+              const tilesRemovedFromHand = exposedMelds.reduce((sum, meld) => {
+                return sum + (meld.type === 'kong' && meld.isConcealed ? 3 : 2);
+              }, 0);
+              const tileCount = baseTileCount - tilesRemovedFromHand;
               const isCurrentTurn = gameState.currentPlayerSeat === seat;
 
               return (
@@ -1355,10 +1512,11 @@ export default function GamePage() {
                   {(exposedMelds.length > 0 || bonusTiles.length > 0) && (
                     <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1 sm:mt-2">
                       {exposedMelds.map((meld, meldIdx) => (
-                        <div key={meldIdx} className="flex gap-0.5 bg-slate-800/70 rounded p-0.5 sm:p-1">
+                        <div key={meldIdx} className={`flex gap-0.5 rounded p-0.5 sm:p-1 ${meld.isConcealed ? 'bg-pink-800/50' : 'bg-slate-800/70'}`}>
                           {meld.tiles.map((tile, i) => (
                             <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="sm" />
                           ))}
+                          {meld.isConcealed && <span className="text-pink-300 text-[10px] ml-0.5 self-center">C</span>}
                         </div>
                       ))}
                       {bonusTiles.length > 0 && (

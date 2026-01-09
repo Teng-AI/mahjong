@@ -21,8 +21,8 @@ export type TileCategory = 'suit' | 'wind' | 'dragon' | 'bonus';
 // MELD TYPES
 // ============================================
 
-/** Types of melds (MVP: no kong) */
-export type MeldType = 'chow' | 'pung';
+/** Types of melds */
+export type MeldType = 'chow' | 'pung' | 'kong';
 
 /** A meld (exposed set of tiles) */
 export interface Meld {
@@ -30,6 +30,8 @@ export interface Meld {
   tiles: TileId[];
   /** Which tile was taken from discard (if any) */
   calledTile?: TileId;
+  /** For Kong: whether it's concealed (all 4 from hand) or exposed */
+  isConcealed?: boolean;
 }
 
 // ============================================
@@ -64,7 +66,7 @@ export interface PlayerState {
 // ============================================
 
 /** Possible call actions */
-export type CallAction = 'win' | 'pung' | 'chow' | 'pass';
+export type CallAction = 'win' | 'kong' | 'pung' | 'chow' | 'pass';
 
 /** Call state for a player */
 export type PendingCall = CallAction | 'discarder' | null;
@@ -98,9 +100,10 @@ export type GamePhase =
 
 /** Last action taken in the game */
 export interface LastAction {
-  type: 'discard' | 'draw' | 'pung' | 'chow' | 'win' | 'bonus_expose' | 'game_start';
+  type: 'discard' | 'draw' | 'pung' | 'chow' | 'kong' | 'win' | 'bonus_expose' | 'game_start';
   playerSeat: SeatIndex;
   tile?: TileId;
+  replacementTile?: TileId; // For kong: the tile drawn after declaring kong
   timestamp: number;
 }
 
@@ -121,6 +124,8 @@ export interface ScoreBreakdown {
   base: number;
   bonusTiles: number;
   golds: number;
+  concealedKongBonus: number; // +2 per concealed kong
+  exposedKongBonus: number; // +1 per exposed kong
   dealerStreakBonus: number; // +1 per consecutive dealer win (0 for first win)
   subtotal: number;
   multiplier: number;
@@ -249,6 +254,7 @@ export interface Settlement {
 /** Valid call options for a player */
 export interface ValidCalls {
   canWin: boolean;
+  canKong: boolean;
   canPung: boolean;
   canChow: boolean;
 }

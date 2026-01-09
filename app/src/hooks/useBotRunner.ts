@@ -11,11 +11,16 @@ import {
   declareSelfDrawWin,
   getPrivateHand,
   getNextSeat,
+  declareConcealedKong,
+  upgradePungToKong,
 } from '@/lib/game';
 import {
   getTileType,
   canFormWinningHand,
   canPung,
+  canKong,
+  canDeclareConcealedKong,
+  canUpgradePungToKong,
 } from '@/lib/tiles';
 
 // ============================================
@@ -683,8 +688,8 @@ export function useBotRunner({
       lastAction.type === 'game_start' ||
       (lastAction.type === 'draw' && lastAction.playerSeat !== seat);
 
-    // Skip draw if we just called pung/chow
-    const justCalled = lastAction?.type === 'pung' || lastAction?.type === 'chow';
+    // Skip draw if we just called pung/chow/kong
+    const justCalled = lastAction?.type === 'pung' || lastAction?.type === 'chow' || lastAction?.type === 'kong';
     const calledBySelf = justCalled && lastAction?.playerSeat === seat;
 
     if (needsDraw && !calledBySelf) {
@@ -708,6 +713,31 @@ export function useBotRunner({
         return;
       }
 
+      // Check for concealed kong (4 of a kind in hand)
+      const concealedKongOptions = canDeclareConcealedKong(newTiles, goldType);
+      if (concealedKongOptions.length > 0) {
+        // Bot always declares concealed kong if available (it's usually advantageous)
+        const kongType = concealedKongOptions[0];
+        if (DEBUG_BOT) console.log(`[Bot ${seat}] Declaring concealed kong: ${kongType}`);
+        const kongResult = await declareConcealedKong(roomCode, seat, kongType);
+        if (kongResult.success) {
+          // The function handles replacement draw internally, so we're done
+          return;
+        }
+      }
+
+      // Check for pung upgrade (have 4th tile of an exposed pung)
+      const pungUpgradeOpts = canUpgradePungToKong(newTiles, melds, goldType);
+      if (pungUpgradeOpts.length > 0) {
+        const opt = pungUpgradeOpts[0]; // Bot takes first available upgrade
+        if (DEBUG_BOT) console.log(`[Bot ${seat}] Upgrading pung to kong at index ${opt.meldIndex}`);
+        const upgradeResult = await upgradePungToKong(roomCode, seat, opt.meldIndex, opt.tileFromHand);
+        if (upgradeResult.success) {
+          // The function handles replacement draw internally, so we're done
+          return;
+        }
+      }
+
       // Select and make discard (with difficulty-aware logic)
       const tileToDiscard = selectBestDiscard(
         newTiles, goldType, discardPile, meldCount,
@@ -727,9 +757,31 @@ export function useBotRunner({
         return;
       }
 
-      // If we just called pung/chow, we cannot discard the same tile type
-      const calledTileType = (gameState!.lastAction?.type === 'pung' || gameState!.lastAction?.type === 'chow')
-        ? getTileType(gameState!.lastAction.tile!)
+      // Check for concealed kong (available anytime during turn before discard)
+      const concealedKongOptions = canDeclareConcealedKong(tiles, goldType);
+      if (concealedKongOptions.length > 0) {
+        const kongType = concealedKongOptions[0];
+        if (DEBUG_BOT) console.log(`[Bot ${seat}] Declaring concealed kong: ${kongType}`);
+        const kongResult = await declareConcealedKong(roomCode, seat, kongType);
+        if (kongResult.success) {
+          return;
+        }
+      }
+
+      // Check for pung upgrade (available anytime during turn before discard)
+      const pungUpgradeOpts2 = canUpgradePungToKong(tiles, melds, goldType);
+      if (pungUpgradeOpts2.length > 0) {
+        const opt = pungUpgradeOpts2[0]; // Bot takes first available upgrade
+        if (DEBUG_BOT) console.log(`[Bot ${seat}] Upgrading pung to kong at index ${opt.meldIndex}`);
+        const upgradeResult = await upgradePungToKong(roomCode, seat, opt.meldIndex, opt.tileFromHand);
+        if (upgradeResult.success) {
+          return;
+        }
+      }
+
+      // If we just called pung/chow/kong, we cannot discard the same tile type
+      const calledTileType = (lastAction?.type === 'pung' || lastAction?.type === 'chow' || lastAction?.type === 'kong')
+        ? getTileType(lastAction.tile!)
         : undefined;
 
       // Select discard with difficulty-aware logic
@@ -786,6 +838,18 @@ export function useBotRunner({
     if (canFormWinningHand(testHand, goldType, meldCount)) {
       if (DEBUG_BOT) console.log(`[Bot ${seat}] Calling WIN!`);
       await submitCallResponse(roomCode, seat, 'win');
+      return;
+    }
+
+    // Check for kong (3 in hand + discard = 4)
+    // Kong is strictly better than pung, so check and call it first
+    if (canKong(tiles, discardTileId, goldType)) {
+      if (DEBUG_BOT) console.log(`[Bot ${seat}] Calling KONG!`);
+      const result = await submitCallResponse(roomCode, seat, 'kong');
+      if (!result.success) {
+        if (DEBUG_BOT) console.error(`[Bot ${seat}] Kong failed: ${result.error}, falling back to pass`);
+        await submitCallResponse(roomCode, seat, 'pass');
+      }
       return;
     }
 

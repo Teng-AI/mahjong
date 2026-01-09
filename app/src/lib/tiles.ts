@@ -1,4 +1,4 @@
-import { TileId, TileType, TileCategory, Suit, WindDirection, ParsedTile, ChowOption, ValidCalls } from '@/types';
+import { TileId, TileType, TileCategory, Suit, WindDirection, ParsedTile, ChowOption, ValidCalls, Meld } from '@/types';
 
 // ============================================
 // TILE GENERATION
@@ -738,6 +738,115 @@ export function canPung(
 }
 
 /**
+ * Check if a player can call Kong on a discarded tile
+ * Requires exactly 3 tiles of the same type in hand
+ * Gold tiles and bonus tiles (winds/dragons) CANNOT be used in calls
+ */
+export function canKong(
+  hand: TileId[],
+  discardTile: TileId,
+  goldTileType: TileType
+): boolean {
+  // Gold tiles cannot be called
+  if (isGoldTile(discardTile, goldTileType)) {
+    return false;
+  }
+
+  // Bonus tiles (winds/dragons) cannot be called - they're exposed at game start
+  if (isBonusTile(discardTile)) {
+    return false;
+  }
+
+  const discardType = getTileType(discardTile);
+  let matchCount = 0;
+
+  for (const tile of hand) {
+    // Don't count Gold tiles - they cannot be used in calls
+    if (isGoldTile(tile, goldTileType)) {
+      continue;
+    }
+    if (getTileType(tile) === discardType) {
+      matchCount++;
+    }
+  }
+
+  return matchCount >= 3;
+}
+
+/**
+ * Check if a player can declare a concealed Kong from their hand
+ * Returns array of tile types that have 4 copies in hand (excluding Gold and bonus tiles)
+ */
+export function canDeclareConcealedKong(
+  hand: TileId[],
+  goldTileType: TileType
+): TileType[] {
+  // Count tiles by type (excluding Gold and bonus tiles)
+  const tileCounts = new Map<TileType, TileId[]>();
+
+  for (const tile of hand) {
+    // Gold tiles cannot be used in kong
+    if (isGoldTile(tile, goldTileType)) {
+      continue;
+    }
+    // Bonus tiles (winds/dragons) cannot be used in kong - they're exposed at game start
+    if (isBonusTile(tile)) {
+      continue;
+    }
+    const type = getTileType(tile);
+    if (!tileCounts.has(type)) {
+      tileCounts.set(type, []);
+    }
+    tileCounts.get(type)!.push(tile);
+  }
+
+  // Return tile types that have 4 copies
+  const kongTypes: TileType[] = [];
+  for (const [type, tiles] of tileCounts) {
+    if (tiles.length >= 4) {
+      kongTypes.push(type);
+    }
+  }
+
+  return kongTypes;
+}
+
+/**
+ * Check if a player can upgrade an exposed Pung to Kong
+ * Returns ALL upgradeable pungs with the tile from hand to use
+ */
+export function canUpgradePungToKong(
+  hand: TileId[],
+  exposedMelds: Meld[],
+  goldTileType: TileType
+): { meldIndex: number; tileFromHand: TileId }[] {
+  const upgradeOptions: { meldIndex: number; tileFromHand: TileId }[] = [];
+
+  // Check each exposed pung
+  for (let i = 0; i < exposedMelds.length; i++) {
+    const meld = exposedMelds[i];
+    if (meld.type !== 'pung') continue;
+
+    // Get the tile type of this pung
+    const pungTileType = getTileType(meld.tiles[0]);
+
+    // Check if player has the 4th tile in hand
+    for (const tile of hand) {
+      // Skip Gold tiles
+      if (isGoldTile(tile, goldTileType)) {
+        continue;
+      }
+      if (getTileType(tile) === pungTileType) {
+        upgradeOptions.push({ meldIndex: i, tileFromHand: tile });
+        break; // Found the tile for this pung, move to next pung
+      }
+    }
+  }
+
+  return upgradeOptions;
+}
+
+/**
  * Check if a player can call Chow on a discarded tile
  * Returns all valid chow options (there may be multiple)
  *
@@ -878,6 +987,7 @@ export function getValidCalls(
 ): ValidCalls {
   return {
     canWin: canWinOnDiscard(hand, discardTile, goldTileType, exposedMeldCount),
+    canKong: canKong(hand, discardTile, goldTileType),
     canPung: canPung(hand, discardTile, goldTileType, exposedMeldCount),
     canChow: isNextInTurn && hasChowOption(hand, discardTile, goldTileType, exposedMeldCount),
   };
