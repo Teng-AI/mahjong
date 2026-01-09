@@ -125,11 +125,6 @@ Deferred from MVP — building single-hand mode first.
 - Helps players group tiles by strategy (e.g., keep potential melds together)
 - MVP uses auto-sort only
 
-### Wall Drawing from Opposite Ends
-- Normal draws from one end
-- Replacement draws (bonus tiles, Kongs) from opposite end
-- More traditional mahjong feel
-
 ### Gold Flip Dealer Bonus
 - If wind/season is flipped for Gold, dealer takes it as +1 bonus
 - Keep flipping until a suit tile is revealed
