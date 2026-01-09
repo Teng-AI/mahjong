@@ -14,16 +14,30 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Mahjong Vibes",
-  description: "Multiplayer Fujian Mahjong (Gold Rush Mahjong) game",
+  description: "Multiplayer Fujian Mahjong (Gold Rush Mahjong) game. Play with friends online!",
+  keywords: ["mahjong", "fujian mahjong", "gold rush mahjong", "multiplayer", "card game", "tile game"],
+  authors: [{ name: "Teng Zheng" }],
+  creator: "Teng Zheng",
+  metadataBase: new URL("https://mahjong-vibes.vercel.app"),
   openGraph: {
     title: "Mahjong Vibes",
-    description: "Multiplayer Fujian Mahjong (Gold Rush Mahjong) game",
+    description: "Multiplayer Fujian Mahjong (Gold Rush Mahjong) game. Play with friends online!",
     siteName: "Mahjong Vibes",
+    type: "website",
+    locale: "en_US",
   },
   twitter: {
     card: "summary",
     title: "Mahjong Vibes",
-    description: "Multiplayer Fujian Mahjong (Gold Rush Mahjong) game",
+    description: "Multiplayer Fujian Mahjong (Gold Rush Mahjong) game. Play with friends online!",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Mahjong Vibes",
+  },
+  formatDetection: {
+    telephone: false,
   },
 };
 
