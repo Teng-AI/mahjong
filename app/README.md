@@ -1,4 +1,4 @@
-# Fujian Mahjong - Multiplayer Game
+# Mahjong Vibes - Multiplayer Fujian Mahjong
 
 A real-time multiplayer Fujian Mahjong game built with Next.js and Firebase.
 
@@ -141,5 +141,6 @@ The bots use strategic decision-making:
 ## Future Features
 
 See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md) for planned features including:
-- Dealer streak bonus system
 - Kong (quad) declarations
+- Error boundaries and loading states
+- Mobile touch optimization

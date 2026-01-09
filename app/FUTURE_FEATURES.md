@@ -17,7 +17,6 @@
 ## Medium Priority
 <!-- Important but not urgent -->
 
-- [ ] Lint cleanup (46 issues: 13 errors, 33 warnings)
 - [ ] Error boundaries for graceful failure handling
 - [ ] Loading skeletons instead of "Loading..." text
 - [ ] Reconnection handling for dropped connections
@@ -65,3 +64,4 @@
 - [x] Pre-commit hooks (runs tests before commit)
 - [x] `/docs-sync` skill for pre-commit documentation
 - [x] `/session-wrap` skill for end-of-session documentation
+- [x] Lint cleanup (46→6 warnings, 0 errors)

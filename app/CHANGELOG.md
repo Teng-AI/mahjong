@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Console.log statements no longer appear in production
+- Lint issues reduced from 46 to 6 (removed unused code, fixed type errors)
 
 ## [1.0.0] - 2026-01-09
 
