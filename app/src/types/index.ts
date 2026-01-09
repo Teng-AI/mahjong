@@ -119,7 +119,10 @@ export interface ScoreBreakdown {
   dealerStreakBonus: number; // +1 per consecutive dealer win (0 for first win)
   subtotal: number;
   multiplier: number;
-  threeGoldsBonus?: number; // Only for Three Golds wins
+  // Special bonuses (added after multiplier)
+  threeGoldsBonus?: number; // Three Golds instant win (+20)
+  goldenPairBonus?: number; // Winning pair is 2 Gold tiles (+30)
+  noBonusBonus?: number; // No exposed bonus tiles (+10)
   total: number;
 }
 

@@ -545,6 +545,117 @@ function canFormPair(tileCounts: Map<TileType, number>, wildcards: number): bool
 }
 
 /**
+ * Check if a winning hand has a Golden Pair (pair made of 2 Gold tiles)
+ * This awards +30 bonus points.
+ *
+ * A Golden Pair exists when:
+ * 1. The hand has exactly 2 Gold tiles, AND
+ * 2. The remaining tiles can form 5 sets without needing any wildcards for the pair
+ *
+ * @param tiles - The winning hand tiles
+ * @param goldTileType - The Gold tile type
+ * @param exposedMeldCount - Number of exposed melds
+ */
+export function hasGoldenPair(
+  tiles: TileId[],
+  goldTileType: TileType,
+  exposedMeldCount: number = 0
+): boolean {
+  // Count Gold tiles in the hand
+  const goldTiles = tiles.filter(t => isGoldTile(t, goldTileType));
+
+  // Must have exactly 2 Gold tiles for a Golden Pair
+  if (goldTiles.length !== 2) {
+    return false;
+  }
+
+  // Check if the remaining tiles (without the 2 Golds) can form 5 sets
+  // If they can, then the 2 Golds must be serving as the pair
+  const regularTiles = tiles.filter(t => !isGoldTile(t, goldTileType));
+  const setsNeeded = 5 - exposedMeldCount;
+
+  // Count tiles by type
+  const tileCounts = new Map<TileType, number>();
+  for (const tile of regularTiles) {
+    const type = getTileType(tile);
+    tileCounts.set(type, (tileCounts.get(type) || 0) + 1);
+  }
+
+  // Try to form exactly the required sets with no wildcards and no pair needed
+  // (because the 2 Golds are the pair)
+  return tryFormSetsOnly(tileCounts, setsNeeded);
+}
+
+/**
+ * Try to form exactly N sets from tiles (no pair, no wildcards)
+ * Used for Golden Pair detection
+ */
+function tryFormSetsOnly(
+  tileCounts: Map<TileType, number>,
+  setsNeeded: number
+): boolean {
+  // Base case: formed all needed sets
+  if (setsNeeded === 0) {
+    // Check that no tiles remain
+    let remaining = 0;
+    for (const count of tileCounts.values()) {
+      remaining += count;
+    }
+    return remaining === 0;
+  }
+
+  // Find first non-zero tile type
+  let firstType: TileType | null = null;
+  let count = 0;
+  for (const [type, c] of tileCounts.entries()) {
+    if (c > 0) {
+      firstType = type;
+      count = c;
+      break;
+    }
+  }
+
+  if (firstType === null) {
+    return setsNeeded === 0;
+  }
+
+  // Try forming a Pung (triplet)
+  if (count >= 3) {
+    const newCounts = new Map(tileCounts);
+    newCounts.set(firstType, count - 3);
+    if (tryFormSetsOnly(newCounts, setsNeeded - 1)) {
+      return true;
+    }
+  }
+
+  // Try forming a Chow (sequence) - only for suit tiles
+  const parts = firstType.split('_');
+  if (parts.length === 2 && ['dots', 'bamboo', 'characters'].includes(parts[0])) {
+    const suit = parts[0];
+    const val = parseInt(parts[1]);
+
+    if (val <= 7) {
+      const type2 = `${suit}_${val + 1}`;
+      const type3 = `${suit}_${val + 2}`;
+      const count2 = tileCounts.get(type2) || 0;
+      const count3 = tileCounts.get(type3) || 0;
+
+      if (count >= 1 && count2 >= 1 && count3 >= 1) {
+        const newCounts = new Map(tileCounts);
+        newCounts.set(firstType, count - 1);
+        newCounts.set(type2, count2 - 1);
+        newCounts.set(type3, count3 - 1);
+        if (tryFormSetsOnly(newCounts, setsNeeded - 1)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
  * Get all possible winning tile types for a hand (for tenpai detection)
  * Returns empty array if hand cannot win with any tile
  */

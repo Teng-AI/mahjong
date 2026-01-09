@@ -815,6 +815,18 @@ export default function GamePage() {
                       <span>+{winner.score.threeGoldsBonus}</span>
                     </div>
                   )}
+                  {winner.score.goldenPairBonus && winner.score.goldenPairBonus > 0 && (
+                    <div className="flex justify-between text-yellow-400">
+                      <span>Golden Pair bonus:</span>
+                      <span>+{winner.score.goldenPairBonus}</span>
+                    </div>
+                  )}
+                  {winner.score.noBonusBonus && winner.score.noBonusBonus > 0 && (
+                    <div className="flex justify-between text-cyan-400">
+                      <span>No Bonus bonus:</span>
+                      <span>+{winner.score.noBonusBonus}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between border-t border-slate-600 pt-2 font-bold text-xl text-amber-400">
                     <span>Total:</span>
                     <span>{winner.score.total}</span>

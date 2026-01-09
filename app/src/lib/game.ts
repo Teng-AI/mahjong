@@ -29,6 +29,7 @@ import {
   canChow,
   canWinOnDiscard as canWinOnDiscardValidation,
   validateChowSelection,
+  hasGoldenPair,
 } from './tiles';
 
 // Seat labels for log messages
@@ -1318,7 +1319,12 @@ export async function declareSelfDrawWin(
   const bonusCount = bonusTiles.length;
   const subtotal = base + bonusCount + goldCount + dealerStreakBonus;
   const multiplier = 2; // Self-draw multiplier
-  const total = subtotal * multiplier;
+
+  // Special bonuses (added after multiplier)
+  const goldenPairBonus = hasGoldenPair(hand, gameState.goldTileType, exposedMeldCount) ? 30 : 0;
+  const noBonusBonus = bonusCount === 0 ? 10 : 0;
+
+  const total = (subtotal * multiplier) + goldenPairBonus + noBonusBonus;
 
   // Get the winning tile (the tile that was just drawn)
   const winningTile = gameState.lastAction?.type === 'draw' ? gameState.lastAction.tile : undefined;
@@ -1339,6 +1345,8 @@ export async function declareSelfDrawWin(
         dealerStreakBonus,
         subtotal,
         multiplier,
+        ...(goldenPairBonus > 0 ? { goldenPairBonus } : {}),
+        ...(noBonusBonus > 0 ? { noBonusBonus } : {}),
         total,
       },
     },
@@ -1442,7 +1450,12 @@ export async function declareDiscardWin(
   const bonusCount = bonusTiles.length;
   const subtotal = base + bonusCount + goldCount + dealerStreakBonus;
   const multiplier = 1; // Discard win (no self-draw multiplier)
-  const total = subtotal * multiplier;
+
+  // Special bonuses (added after multiplier)
+  const goldenPairBonus = hasGoldenPair(fullHand, gameState.goldTileType, exposedMeldCount) ? 30 : 0;
+  const noBonusBonus = bonusCount === 0 ? 10 : 0;
+
+  const total = (subtotal * multiplier) + goldenPairBonus + noBonusBonus;
 
   // Remove discarded tile from discard pile
   const discardPile = [...(gameState.discardPile || [])];
@@ -1469,6 +1482,8 @@ export async function declareDiscardWin(
         dealerStreakBonus,
         subtotal,
         multiplier,
+        ...(goldenPairBonus > 0 ? { goldenPairBonus } : {}),
+        ...(noBonusBonus > 0 ? { noBonusBonus } : {}),
         total,
       },
     },
