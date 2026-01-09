@@ -151,7 +151,7 @@ export default function RoomPage() {
       await navigator.clipboard.writeText(roomCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
+    } catch {
       // Fallback for browsers that don't support clipboard API
       const textArea = document.createElement('textarea');
       textArea.value = roomCode;
@@ -173,7 +173,6 @@ export default function RoomPage() {
     playerCount,
     isFull,
     setDealerSeat,
-    startGame,
     kickPlayer,
   } = useRoom({
     roomCode,
@@ -262,7 +261,7 @@ export default function RoomPage() {
     }
   };
 
-  const handleAddBotToSeat = async (seat: SeatIndex) => {
+  const handleAddBotToSeat = async (_seat: SeatIndex) => {
     if (addingBot) return;
     setAddingBot(true);
     try {

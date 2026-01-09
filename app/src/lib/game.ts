@@ -5,9 +5,7 @@ import {
   TileType,
   SeatIndex,
   GameState,
-  GamePhase,
   PrivateHand,
-  Room,
   CallAction,
   PendingCalls,
   ChowOption,
@@ -26,7 +24,6 @@ import {
   sortTilesForDisplay,
   canFormWinningHand,
   canPung,
-  canChow,
   canWinOnDiscard as canWinOnDiscardValidation,
   validateChowSelection,
   hasGoldenPair,
@@ -309,7 +306,7 @@ export async function exposeBonusTiles(
   }
 
   const gameState = gameSnapshot.val() as GameState;
-  let wall = [...(gameState.wall || [])];
+  const wall = [...(gameState.wall || [])];
   const exposedBonus: TileId[] = [...(gameState.bonusTiles?.[`seat${seat}` as keyof typeof gameState.bonusTiles] || [])];
 
   // Keep exposing bonus tiles until none remain
@@ -822,7 +819,7 @@ export async function drawTile(
     return { success: false };
   }
 
-  let wall = [...(gameState.wall || [])];
+  const wall = [...(gameState.wall || [])];
 
   // Check wall empty
   if (wall.length === 0) {
@@ -1338,7 +1335,7 @@ async function executeChowCall(
   const hand = (handSnapshot.val() as PrivateHand).concealedTiles;
 
   // Remove specified tiles from hand
-  let remainingHand = [...hand];
+  const remainingHand = [...hand];
   for (const tileToRemove of chowOption.tilesFromHand) {
     const idx = remainingHand.indexOf(tileToRemove);
     if (idx !== -1) {

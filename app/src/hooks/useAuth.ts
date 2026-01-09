@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { signInAnonymously, onAuthStateChanged, User } from 'firebase/auth';
+import { signInAnonymously, onAuthStateChanged, User, IdTokenResult } from 'firebase/auth';
 import { auth } from '@/firebase/config';
 
 // Test mode: allows simulating multiple users in same browser
@@ -28,7 +28,7 @@ function createTestUser(testId: string): User {
     tenantId: null,
     delete: async () => {},
     getIdToken: async () => '',
-    getIdTokenResult: async () => ({}) as any,
+    getIdTokenResult: async () => ({} as IdTokenResult),
     reload: async () => {},
     toJSON: () => ({}),
     displayName: null,
@@ -51,8 +51,11 @@ export function useAuth() {
       if (process.env.NODE_ENV === 'development') {
         console.log(`Test mode: Using test user ${testUserId}`);
       }
-      setUser(createTestUser(testUserId));
-      setLoading(false);
+      // Use microtask to avoid synchronous setState in effect
+      queueMicrotask(() => {
+        setUser(createTestUser(testUserId));
+        setLoading(false);
+      });
       return;
     }
 

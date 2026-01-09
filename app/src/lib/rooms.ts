@@ -1,4 +1,4 @@
-import { ref, set, get, update, serverTimestamp, onValue, off } from 'firebase/database';
+import { ref, set, get, update, onValue, off } from 'firebase/database';
 import { db } from '@/firebase/config';
 import { Room, RoomPlayer, SeatIndex, RoomStatus, BotDifficulty } from '@/types';
 
@@ -399,7 +399,7 @@ export function subscribeToRoom(
 ): () => void {
   const roomRef = ref(db, `rooms/${roomCode}`);
 
-  const listener = onValue(roomRef, (snapshot) => {
+  onValue(roomRef, (snapshot) => {
     if (snapshot.exists()) {
       callback(snapshot.val() as Room);
     } else {

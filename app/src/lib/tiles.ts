@@ -1,4 +1,4 @@
-import { TileId, TileType, TileCategory, Suit, WindDirection, ParsedTile, ChowOption, ValidCalls, Meld } from '@/types';
+import { TileId, TileType, TileCategory, Suit, WindDirection, ParsedTile, ChowOption, ValidCalls } from '@/types';
 
 // ============================================
 // TILE GENERATION
@@ -711,7 +711,7 @@ export function canPung(
   hand: TileId[],
   discardTile: TileId,
   goldTileType: TileType,
-  exposedMeldCount: number = 0
+  _exposedMeldCount: number = 0
 ): boolean {
   // Gold tiles cannot be called
   if (isGoldTile(discardTile, goldTileType)) {
@@ -751,7 +751,7 @@ export function canChow(
   hand: TileId[],
   discardTile: TileId,
   goldTileType: TileType,
-  exposedMeldCount: number = 0
+  _exposedMeldCount: number = 0
 ): ChowOption[] {
   const options: ChowOption[] = [];
 

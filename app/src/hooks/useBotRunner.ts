@@ -16,7 +16,6 @@ import {
   getTileType,
   canFormWinningHand,
   canPung,
-  isBonusTile,
 } from '@/lib/tiles';
 
 // ============================================
@@ -171,8 +170,8 @@ interface OpponentInfo {
 function getOpponentInfo(
   gameState: GameState,
   mySeat: SeatIndex,
-  discardPile: TileId[],
-  actionLog: string[]
+  _discardPile: TileId[],
+  _actionLog: string[]
 ): OpponentInfo[] {
   const opponents: OpponentInfo[] = [];
 
@@ -195,16 +194,6 @@ function getOpponentInfo(
   }
 
   return opponents;
-}
-
-// Check if a tile type is "safe" to discard (genbutsu - tiles the target already discarded)
-function isTileSafeFromPlayer(
-  tileType: TileType,
-  playerDiscards: TileId[],
-  discardPile: TileId[]
-): boolean {
-  // A tile is safe if the player already discarded the same type
-  return playerDiscards.some(d => getTileType(d) === tileType);
 }
 
 // Calculate danger score for a tile (higher = more dangerous to discard)
@@ -310,7 +299,7 @@ function calculateShanten(hand: TileId[], goldType: TileType, meldCount: number 
 
   // Count complete sequences (3 consecutive tiles of same suit)
   const usedInSequence = new Set<string>();
-  for (const [type, count] of analysis.typeCounts) {
+  for (const [type] of analysis.typeCounts) {
     if (usedInSequence.has(type)) continue;
     const parts = type.split('_');
     if (parts[0] === 'wind' || parts[0] === 'dragon') continue;
@@ -330,9 +319,9 @@ function calculateShanten(hand: TileId[], goldType: TileType, meldCount: number 
     }
   }
 
-  let usefulPartials = Math.min(analysis.partials.length, setsNeeded - completeSets);
-  let hasPair = analysis.pairs.length > 0;
-  let availableGolds = analysis.goldCount;
+  const usefulPartials = Math.min(analysis.partials.length, setsNeeded - completeSets);
+  const hasPair = analysis.pairs.length > 0;
+  const availableGolds = analysis.goldCount;
 
   let shanten = (setsNeeded - completeSets) * 3 + (hasPair ? 0 : 2);
   shanten -= usefulPartials * 2;
@@ -605,22 +594,6 @@ function shouldCallChow(
 
 // Debug logging - only enabled in development
 const DEBUG_BOT = process.env.NODE_ENV === 'development';
-
-
-// Get delay based on difficulty (adds variability for harder bots)
-function getBotDelay(difficulty: BotDifficulty, baseDelay: number): number {
-  if (difficulty === 'easy') {
-    // Easy: Fixed delay, predictable
-    return baseDelay;
-  } else if (difficulty === 'medium') {
-    // Medium: Slight variation (±250ms)
-    return baseDelay + Math.random() * 500 - 250;
-  } else {
-    // Hard: More variation (500-2000ms total), sometimes "thinks" longer
-    const thinkTime = Math.random() < 0.2 ? 1500 : 0; // 20% chance of longer think
-    return baseDelay + Math.random() * 500 + thinkTime;
-  }
-}
 
 interface UseBotRunnerOptions {
   roomCode: string;

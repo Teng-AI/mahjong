@@ -9,7 +9,7 @@ import { useBotRunner } from '@/hooks/useBotRunner';
 import { useSounds } from '@/hooks/useSounds';
 import { getTileType, getTileDisplayText, isBonusTile, isGoldTile, sortTilesForDisplay } from '@/lib/tiles';
 import { calculateSettlement, calculateNetPositions } from '@/lib/settle';
-import { SeatIndex, TileId, TileType, Meld, CallAction, PendingCall, PendingCalls, Settlement, BotDifficulty } from '@/types';
+import { SeatIndex, TileId, TileType, CallAction } from '@/types';
 
 // Debug logging - only enabled in development
 const DEBUG_GAME = process.env.NODE_ENV === 'development';
@@ -117,114 +117,7 @@ function Hand({ tiles, goldTileType, onTileClick, selectedTile, justDrawnTile, s
   );
 }
 
-// ============================================
-// BONUS TILES DISPLAY
-// ============================================
-
-interface BonusTilesProps {
-  tiles: TileId[];
-  label: string;
-}
-
-function BonusTilesDisplay({ tiles, label }: BonusTilesProps) {
-  if (tiles.length === 0) return null;
-
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-lg text-green-300">{label}:</span>
-      <div className="flex gap-0.5">
-        {tiles.map((tile, index) => (
-          <Tile key={`${tile}-${index}`} tileId={tile} size="md" />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ============================================
-// PLAYER INFO COMPONENT
-// ============================================
-
-interface PlayerInfoProps {
-  seat: SeatIndex;
-  name: string;
-  isDealer: boolean;
-  isCurrentTurn: boolean;
-  bonusTiles: TileId[];
-  exposedMelds: Meld[];
-  tileCount: number;
-  isSelf: boolean;
-  isBot?: boolean;
-  botDifficulty?: BotDifficulty;
-}
-
 const SEAT_LABELS = ['East', 'South', 'West', 'North'] as const;
-
-function PlayerInfo({
-  seat,
-  name,
-  isDealer,
-  isCurrentTurn,
-  bonusTiles,
-  exposedMelds,
-  tileCount,
-  isSelf,
-  isBot,
-  botDifficulty,
-}: PlayerInfoProps) {
-  // Get difficulty color
-  const difficultyColor = botDifficulty === 'easy' ? 'text-green-400' :
-                          botDifficulty === 'hard' ? 'text-red-400' : 'text-yellow-400';
-
-  return (
-    <div
-      className={`
-        p-3 rounded-lg
-        ${isCurrentTurn ? 'bg-yellow-500/20 ring-2 ring-yellow-500' : 'bg-green-800/30'}
-        ${isSelf ? 'ring-2 ring-blue-400' : ''}
-        ${isBot ? 'border border-cyan-500/50' : ''}
-      `}
-    >
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-lg text-green-400">{SEAT_LABELS[seat]}</span>
-          {isBot && <span className="text-cyan-400">🤖</span>}
-          <span className="font-semibold">{name}</span>
-          {isSelf && <span className="text-lg text-blue-300">(You)</span>}
-          {isBot && (
-            <span className={`text-sm ${difficultyColor}`}>
-              ({botDifficulty ? botDifficulty.charAt(0).toUpperCase() + botDifficulty.slice(1) : 'Bot'})
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {isDealer && (
-            <span className="px-2 py-0.5 bg-yellow-500 text-black rounded text-lg font-bold">
-              DEALER
-            </span>
-          )}
-          <span className="text-lg text-green-400">{tileCount} tiles</span>
-        </div>
-      </div>
-
-      {/* Exposed melds */}
-      {exposedMelds.length > 0 && (
-        <div className="flex gap-2 mb-2">
-          {exposedMelds.map((meld, idx) => (
-            <div key={idx} className="flex gap-0.5">
-              {meld.tiles.map((tile, tileIdx) => (
-                <Tile key={`${tile}-${tileIdx}`} tileId={tile} size="md" />
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Bonus tiles */}
-      <BonusTilesDisplay tiles={bonusTiles} label="Bonus" />
-    </div>
-  );
-}
 
 // ============================================
 // MAIN GAME PAGE
@@ -264,15 +157,12 @@ export default function GamePage() {
     handleDiscard,
     // Phase 6: Win detection
     canWinNow,
-    canWinOnLastDiscard,
     handleSelfDrawWin,
-    handleDiscardWin,
     // Phase 8: Calling system
     isCallingPhase,
     myPendingCall,
     myValidCalls,
     validChowTiles,
-    isNextInTurn,
     handleCallResponse,
   } = useGame({
     roomCode,
@@ -280,7 +170,7 @@ export default function GamePage() {
   });
 
   // Run AI bots for any bot players in the room
-  const { botSeats, isBotSeat } = useBotRunner({
+  useBotRunner({
     roomCode,
     room,
     gameState,
@@ -396,23 +286,6 @@ export default function GamePage() {
       if (result.success) {
         playSound('win');
       } else {
-        if (DEBUG_GAME) console.error('Win declaration failed:', result.error);
-      }
-    } catch (err) {
-      if (DEBUG_GAME) console.error('Win declaration failed:', err);
-    } finally {
-      setProcessingAction(false);
-    }
-  };
-
-  // Handle declaring a win on discard
-  const onDeclareDiscardWin = async () => {
-    if (processingAction) return;
-
-    setProcessingAction(true);
-    try {
-      const result = await handleDiscardWin();
-      if (!result.success) {
         if (DEBUG_GAME) console.error('Win declaration failed:', result.error);
       }
     } catch (err) {
@@ -1034,7 +907,7 @@ export default function GamePage() {
                     const player = room?.players?.[`seat${seat}` as keyof typeof room.players];
                     playerNames[`seat${seat}`] = player?.name || `Player ${seat + 1}`;
                   });
-                  const { settlements, balances } = calculateSettlement(
+                  const { settlements } = calculateSettlement(
                     sessionScores.rounds || [],
                     playerNames
                   );
@@ -1126,11 +999,11 @@ export default function GamePage() {
                 <p><strong className="text-white">Gold Tiles:</strong> Cannot be discarded - you must keep them. They can substitute for any suited tile (dots, bamboo, characters) in sets and pairs.</p>
                 <p><strong className="text-white">Three Golds:</strong> If you ever hold 3 Gold tiles, you instantly win with a bonus!</p>
                 <p><strong className="text-white">Chow Restriction:</strong> You can only call Chow on a discard from the player immediately before you (your right).</p>
-                <p><strong className="text-white">Pung Priority:</strong> Pung can be called on anyone's discard, and takes priority over Chow.</p>
+                <p><strong className="text-white">Pung Priority:</strong> Pung can be called on anyone&apos;s discard, and takes priority over Chow.</p>
                 <p><strong className="text-white">Win Priority:</strong> A winning call (WIN) takes priority over all other calls.</p>
                 <p><strong className="text-white">Scoring:</strong> Base points + bonus tiles + Gold tiles in hand. Self-draw wins get 2x multiplier.</p>
                 <p><strong className="text-white">Suits:</strong> Dots (red ●), Bamboo (blue |), Characters (green 萬). Each suit has tiles 1-9.</p>
-                <p><strong className="text-white">Honors:</strong> Winds (東南西北) and Dragons (中) are bonus tiles - expose them for points but they can't form Chows.</p>
+                <p><strong className="text-white">Honors:</strong> Winds (東南西北) and Dragons (中) are bonus tiles - expose them for points but they can&apos;t form Chows.</p>
               </div>
             </div>
           </div>

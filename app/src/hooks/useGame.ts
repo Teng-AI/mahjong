@@ -19,7 +19,6 @@ import {
 import {
   getValidCalls,
   getValidChowTiles,
-  canWinOnDiscard as canWinOnDiscardTiles,
 } from '@/lib/tiles';
 
 interface UseGameOptions {
@@ -63,13 +62,14 @@ export function useGame({ roomCode, mySeat }: UseGameOptions): UseGameReturn {
   // Subscribe to game state
   useEffect(() => {
     if (!roomCode) {
-      setLoading(false);
+      // Use microtask to avoid synchronous setState in effect
+      queueMicrotask(() => setLoading(false));
       return;
     }
 
     const gameRef = ref(db, `rooms/${roomCode}/game`);
 
-    const unsubscribe = onValue(gameRef, (snapshot) => {
+    onValue(gameRef, (snapshot) => {
       if (snapshot.exists()) {
         setGameState(snapshot.val() as GameState);
       } else {
@@ -89,7 +89,7 @@ export function useGame({ roomCode, mySeat }: UseGameOptions): UseGameReturn {
 
     const handRef = ref(db, `rooms/${roomCode}/privateHands/seat${mySeat}`);
 
-    const unsubscribe = onValue(handRef, (snapshot) => {
+    onValue(handRef, (snapshot) => {
       if (snapshot.exists()) {
         const hand = snapshot.val() as PrivateHand;
         setMyHand(hand.concealedTiles || []);
@@ -109,7 +109,7 @@ export function useGame({ roomCode, mySeat }: UseGameOptions): UseGameReturn {
 
     const sessionRef = ref(db, `rooms/${roomCode}/session`);
 
-    const unsubscribe = onValue(sessionRef, (snapshot) => {
+    onValue(sessionRef, (snapshot) => {
       if (snapshot.exists()) {
         setSessionScores(snapshot.val() as SessionScores);
       } else {

@@ -53,12 +53,16 @@ export function useRoom({
   // Subscribe to room changes
   useEffect(() => {
     if (!roomCode) {
-      setLoading(false);
+      // Use microtask to avoid synchronous setState in effect
+      queueMicrotask(() => setLoading(false));
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    // Set loading state before subscribing
+    queueMicrotask(() => {
+      setLoading(true);
+      setError(null);
+    });
 
     const unsubscribe = subscribeToRoom(roomCode, (roomData) => {
       if (roomData) {

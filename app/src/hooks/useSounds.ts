@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 // Sound types available in the game
 export type SoundType =
@@ -129,7 +129,12 @@ const soundDefinitions: Record<SoundType, (ctx: AudioContext) => void> = {
 
 export function useSounds(): UseSoundsReturn {
   const audioContextRef = useRef<AudioContext | null>(null);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  // Initialize from localStorage if available (client-side only)
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const stored = localStorage.getItem('mahjong-sound-enabled');
+    return stored === null ? true : stored === 'true';
+  });
 
   // Initialize AudioContext on first user interaction
   const getAudioContext = useCallback(() => {
@@ -141,14 +146,6 @@ export function useSounds(): UseSoundsReturn {
       audioContextRef.current.resume();
     }
     return audioContextRef.current;
-  }, []);
-
-  // Load sound preference from localStorage
-  useEffect(() => {
-    const stored = localStorage.getItem('mahjong-sound-enabled');
-    if (stored !== null) {
-      setSoundEnabled(stored === 'true');
-    }
   }, []);
 
   // Play a sound
