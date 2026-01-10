@@ -12,6 +12,7 @@ export type SoundType =
   | 'chow'
   | 'win'
   | 'yourTurn'
+  | 'callAlert'
   | 'gameStart'
   | 'pass';
 
@@ -103,17 +104,36 @@ const soundDefinitions: Record<SoundType, (ctx: AudioContext, volumeMultiplier: 
   },
 
   win: (ctx, vol) => {
-    // Win fanfare
+    // Dramatic win fanfare - triumphant ascending arpeggio with flourish
     playNoteSequence(ctx, [
-      { freq: 523, duration: 0.1, delay: 0 },       // C5
-      { freq: 659, duration: 0.1, delay: 0.08 },    // E5
-      { freq: 784, duration: 0.15, delay: 0.16 },   // G5
-    ], 'sine', 0.45 * vol);
+      { freq: 523, duration: 0.15, delay: 0 },       // C5
+      { freq: 659, duration: 0.15, delay: 0.12 },    // E5
+      { freq: 784, duration: 0.15, delay: 0.24 },    // G5
+      { freq: 1047, duration: 0.25, delay: 0.36 },   // C6 (octave up)
+      { freq: 784, duration: 0.1, delay: 0.55 },     // G5 (grace note)
+      { freq: 1047, duration: 0.4, delay: 0.62 },    // C6 (sustained finish)
+    ], 'sine', 0.5 * vol);
   },
 
   yourTurn: (ctx, vol) => {
-    // Notification chime
-    createOscillatorSound(ctx, 660, 0.12, 'sine', 0.35 * vol);
+    // Attention-grabbing double chime
+    playNoteSequence(ctx, [
+      { freq: 880, duration: 0.15, delay: 0 },       // A5 - first chime
+      { freq: 1100, duration: 0.12, delay: 0.12 },   // ~C#6 - rising
+      { freq: 880, duration: 0.15, delay: 0.35 },    // A5 - second chime
+      { freq: 1100, duration: 0.18, delay: 0.47 },   // ~C#6 - rising finish
+    ], 'sine', 0.45 * vol);
+  },
+
+  callAlert: (ctx, vol) => {
+    // Urgent triple-beep alert for calling opportunities
+    playNoteSequence(ctx, [
+      { freq: 1000, duration: 0.08, delay: 0 },      // First beep
+      { freq: 1000, duration: 0.08, delay: 0.12 },   // Second beep
+      { freq: 1200, duration: 0.12, delay: 0.24 },   // Third beep (higher)
+      { freq: 800, duration: 0.06, delay: 0.38 },    // Low accent
+      { freq: 1200, duration: 0.15, delay: 0.46 },   // Final high
+    ], 'square', 0.1 * vol);
   },
 
   gameStart: (ctx, vol) => {

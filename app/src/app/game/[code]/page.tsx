@@ -537,17 +537,16 @@ export default function GamePage() {
     prevTurnRef.current = gameState?.currentPlayerSeat ?? null;
   }, [gameState?.currentPlayerSeat, gameState?.phase, mySeat, playSound]);
 
-  // Calling phase: I have valid calls to make
+  // Calling phase: alert when I need to respond
   useEffect(() => {
-    const hasValidCalls = !!(myValidCalls && (myValidCalls.canWin || myValidCalls.canKong || myValidCalls.canPung || myValidCalls.canChow));
-    const justEnteredCalling = isCallingPhase && hasValidCalls && !prevCallingPhaseRef.current;
+    const justEnteredCalling = isCallingPhase && !prevCallingPhaseRef.current;
 
     if (justEnteredCalling && myPendingCall === null) {
-      playSound('yourTurn');
+      playSound('callAlert');
       setShowTurnFlash(true);
       setTimeout(() => setShowTurnFlash(false), 1500);
     }
-    prevCallingPhaseRef.current = isCallingPhase && hasValidCalls;
+    prevCallingPhaseRef.current = isCallingPhase;
   }, [isCallingPhase, myValidCalls, myPendingCall, playSound]);
 
   // Loading state
@@ -755,15 +754,32 @@ export default function GamePage() {
       : null;
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-white p-4">
-        <div className="max-w-6xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-6">
-            <div className="text-4xl mb-2">
-              {winner.isThreeGolds ? '🀄🀄🀄 THREE GOLDS!' : winner.isRobbingGold ? '💰 ROBBING THE GOLD!' : '🎉 Winner!'}
+      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-white p-4 relative overflow-hidden">
+        {/* Animated background glow */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-amber-500/20 rounded-full blur-[120px] animate-pulse" />
+          <div className="absolute top-1/3 left-1/3 w-[400px] h-[400px] bg-yellow-500/15 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '0.5s' }} />
+          <div className="absolute top-1/3 right-1/3 w-[400px] h-[400px] bg-orange-500/15 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
+        </div>
+
+        <div className="max-w-6xl mx-auto relative z-10">
+          {/* Dramatic Header */}
+          <div className="text-center mb-8">
+            {/* Large animated title */}
+            <div className="text-6xl sm:text-7xl mb-4 animate-bounce" style={{ animationDuration: '1s', animationIterationCount: '3' }}>
+              {winner.isThreeGolds ? '🀄🀄🀄' : winner.isRobbingGold ? '💰💰💰' : '🏆'}
             </div>
-            <div className="text-2xl font-bold text-amber-400">{winnerName}</div>
-            <div className="text-lg text-slate-300">
+            <div className={`text-3xl sm:text-5xl font-bold mb-3 ${
+              winner.isThreeGolds
+                ? 'text-yellow-300 animate-pulse'
+                : winner.isRobbingGold
+                  ? 'text-amber-300 animate-pulse'
+                  : 'text-amber-400'
+            }`}>
+              {winner.isThreeGolds ? 'THREE GOLDS!' : winner.isRobbingGold ? 'ROBBING THE GOLD!' : 'WINNER!'}
+            </div>
+            <div className="text-3xl sm:text-4xl font-bold text-white mb-2 drop-shadow-lg">{winnerName}</div>
+            <div className="text-xl text-slate-300">
               {winner.isThreeGolds
                 ? 'Instant win with 3 Gold tiles!'
                 : winner.isRobbingGold
@@ -773,14 +789,18 @@ export default function GamePage() {
                     : `Won on ${discarderName}'s discard`}
             </div>
             {winner.seat === gameState.dealerSeat && (
-              <div className="text-base text-orange-400 mt-1">
+              <div className="text-lg text-orange-400 mt-2 font-semibold">
                 {sessionScores?.dealerStreak && sessionScores.dealerStreak > 1
-                  ? `🔥 Dealer on a ${sessionScores.dealerStreak}-win streak!`
+                  ? `🔥 Dealer on a ${sessionScores.dealerStreak}-win streak! 🔥`
                   : sessionScores?.dealerStreak === 1
-                    ? '🔥 Dealer wins! Streak started'
-                    : '🔥 Dealer wins!'}
+                    ? '🔥 Dealer wins! Streak started 🔥'
+                    : '🔥 Dealer wins! 🔥'}
               </div>
             )}
+            {/* Score badge */}
+            <div className="mt-4 inline-block bg-gradient-to-r from-amber-500 to-yellow-500 text-black text-2xl sm:text-3xl font-bold px-6 py-2 rounded-full shadow-lg">
+              +{winner.score.total} points
+            </div>
           </div>
 
           {/* Main content - 2 column grid */}
