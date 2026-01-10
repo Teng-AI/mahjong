@@ -510,9 +510,13 @@ export default function GamePage() {
     }
   }, [pungUpgradeOptions, gameState?.currentPlayerSeat, mySeat, gameState?.phase]);
 
-  // Play sound when it becomes my turn
+  // Play sound and show indicator when it becomes my turn
   const prevTurnRef = useRef<SeatIndex | null>(null);
+  const prevCallingPhaseRef = useRef<boolean>(false);
+  const [showTurnFlash, setShowTurnFlash] = useState(false);
+
   useEffect(() => {
+    // Playing phase: my turn to draw/discard
     if (
       gameState?.phase === 'playing' &&
       gameState.currentPlayerSeat === mySeat &&
@@ -520,9 +524,24 @@ export default function GamePage() {
       prevTurnRef.current !== null // Don't play on initial load
     ) {
       playSound('yourTurn');
+      setShowTurnFlash(true);
+      setTimeout(() => setShowTurnFlash(false), 1500);
     }
     prevTurnRef.current = gameState?.currentPlayerSeat ?? null;
   }, [gameState?.currentPlayerSeat, gameState?.phase, mySeat, playSound]);
+
+  // Calling phase: I have valid calls to make
+  useEffect(() => {
+    const hasValidCalls = !!(myValidCalls && (myValidCalls.canWin || myValidCalls.canKong || myValidCalls.canPung || myValidCalls.canChow));
+    const justEnteredCalling = isCallingPhase && hasValidCalls && !prevCallingPhaseRef.current;
+
+    if (justEnteredCalling && myPendingCall === null) {
+      playSound('yourTurn');
+      setShowTurnFlash(true);
+      setTimeout(() => setShowTurnFlash(false), 1500);
+    }
+    prevCallingPhaseRef.current = isCallingPhase && hasValidCalls;
+  }, [isCallingPhase, myValidCalls, myPendingCall, playSound]);
 
   // Loading state
   if (authLoading || roomLoading || gameLoading) {
@@ -1098,7 +1117,14 @@ export default function GamePage() {
   const isBonusPhase = gameState.phase === 'bonus_exposure';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-white p-2 sm:p-3">
+    <div className={`min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-white p-2 sm:p-3 transition-all duration-300 ${showTurnFlash ? 'ring-4 ring-inset ring-emerald-400/70' : ''}`}>
+      {/* Turn notification banner */}
+      {showTurnFlash && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-500/90 text-white px-6 py-3 rounded-lg shadow-lg text-lg font-bold animate-bounce">
+          Your Turn!
+        </div>
+      )}
+
       {/* Toast message */}
       {toastMessage && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-500/90 text-white px-4 py-2 rounded-lg shadow-lg text-sm sm:text-base font-medium animate-pulse">
