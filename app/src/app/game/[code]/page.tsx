@@ -1286,6 +1286,8 @@ export default function GamePage() {
       {/* Calling phase: show who's left to respond */}
       {isCallingPhase && gameState.pendingCalls && (
         <div className="bg-slate-700/40 rounded-lg px-3 py-2 mb-2">
+          {/* Debug log */}
+          {DEBUG_GAME && console.log('[GamePage] Calling phase pendingCalls:', JSON.stringify(gameState.pendingCalls))}
           {/* Timer progress bar */}
           {callTimerRemaining !== null && (
             <div className="mb-2">
@@ -1656,13 +1658,18 @@ export default function GamePage() {
         </div>
       </div>
 
-      {/* ========== OTHER PLAYERS WITH MELDS ========== */}
+      {/* ========== TURN ORDER - All 4 Players ========== */}
       <div className="bg-slate-800/50 rounded-xl p-2 sm:p-4 border border-slate-600">
-        <div className="text-sm sm:text-lg text-slate-300 font-medium mb-2 sm:mb-3">Other Players</div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
-          {([0, 1, 2, 3] as SeatIndex[])
-            .filter((seat) => seat !== mySeat)
-            .map((seat) => {
+        <div className="text-sm sm:text-lg text-slate-300 font-medium mb-2 sm:mb-3">Turn Order</div>
+        <div className="flex gap-2 sm:gap-3 flex-wrap">
+          {/* Show all 4 players: you first, then others in counter-clockwise order */}
+          {(() => {
+            // Build fixed order: player first, then counter-clockwise from player's seat
+            const turnOrder: SeatIndex[] = [mySeat];
+            for (let i = 1; i < 4; i++) {
+              turnOrder.push(((mySeat + i) % 4) as SeatIndex);
+            }
+            return turnOrder.map((seat) => {
               const player = room.players[`seat${seat}` as keyof typeof room.players];
               if (!player) return null;
 
@@ -1670,61 +1677,81 @@ export default function GamePage() {
               const exposedMelds = gameState.exposedMelds?.[`seat${seat}` as keyof typeof gameState.exposedMelds] || [];
               const bonusTiles = gameState.bonusTiles?.[`seat${seat}` as keyof typeof gameState.bonusTiles] || [];
               const baseTileCount = isDealer ? 17 : 16;
-              // Calculate tiles removed from hand: 2 for most melds, 3 for concealed kong (4 removed, +1 replacement draw)
               const tilesRemovedFromHand = exposedMelds.reduce((sum, meld) => {
                 return sum + (meld.type === 'kong' && meld.isConcealed ? 3 : 2);
               }, 0);
               const tileCount = baseTileCount - tilesRemovedFromHand;
               const isCurrentTurn = gameState.currentPlayerSeat === seat;
+              const isMe = seat === mySeat;
 
+              // Compact card for "You" (first slot)
+              if (isMe) {
+                return (
+                  <div
+                    key={seat}
+                    className={`px-3 py-2 rounded-lg ${
+                      isCurrentTurn
+                        ? 'bg-emerald-500/30 border-2 border-emerald-400 shadow-lg shadow-emerald-500/20'
+                        : 'bg-blue-500/20 border border-blue-400/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`font-semibold text-sm sm:text-base ${isCurrentTurn ? 'text-emerald-200' : 'text-blue-200'}`}>
+                        You
+                      </span>
+                      <span className="text-slate-400 text-xs">({SEAT_LABELS[seat]})</span>
+                      {isDealer && <span className="bg-amber-500 text-black text-[10px] px-1 py-0.5 rounded font-bold">D</span>}
+                      {isCurrentTurn && <span className="text-emerald-400 text-xs font-medium animate-pulse">▶</span>}
+                    </div>
+                  </div>
+                );
+              }
+
+              // Full card for other players
               return (
                 <div
                   key={seat}
-                  className={`p-2 sm:p-3 rounded-lg ${isCurrentTurn ? 'bg-emerald-500/25 border-2 border-emerald-500/50' : 'bg-slate-700/40 border border-slate-600'}`}
+                  className={`p-2 sm:p-3 rounded-lg flex-1 min-w-[140px] ${
+                    isCurrentTurn
+                      ? 'bg-emerald-500/30 border-2 border-emerald-400 shadow-lg shadow-emerald-500/20'
+                      : 'bg-slate-700/40 border border-slate-600'
+                  }`}
                 >
                   {/* Player info row */}
-                  <div className="flex items-center justify-between mb-1 sm:mb-2">
-                    <div className="flex items-center gap-1 sm:gap-2">
-                      {player.isBot && <span className="text-cyan-400 text-sm sm:text-lg">🤖</span>}
-                      <span className={`font-semibold text-sm sm:text-lg ${isCurrentTurn ? 'text-emerald-200' : 'text-white'}`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                      {player.isBot && <span className="text-cyan-400 text-sm">🤖</span>}
+                      <span className={`font-semibold text-sm sm:text-base truncate ${isCurrentTurn ? 'text-emerald-200' : 'text-white'}`}>
                         {player.name}
                       </span>
-                      <span className="text-slate-400 text-xs sm:text-base">({SEAT_LABELS[seat]})</span>
-                      {player.isBot && player.botDifficulty && (
-                        <span className={`text-xs px-1.5 py-0.5 rounded ${
-                          player.botDifficulty === 'easy' ? 'bg-green-500/30 text-green-300' :
-                          player.botDifficulty === 'hard' ? 'bg-red-500/30 text-red-300' :
-                          'bg-yellow-500/30 text-yellow-300'
-                        }`}>
-                          {player.botDifficulty.charAt(0).toUpperCase() + player.botDifficulty.slice(1)}
-                        </span>
-                      )}
-                      {isDealer && <span className="bg-amber-500 text-black text-xs sm:text-lg px-1 sm:px-1.5 py-0.5 rounded font-bold">D</span>}
+                      <span className="text-slate-400 text-xs">({SEAT_LABELS[seat]})</span>
+                      {isDealer && <span className="bg-amber-500 text-black text-[10px] px-1 py-0.5 rounded font-bold">D</span>}
+                      {isCurrentTurn && <span className="text-emerald-400 text-xs font-medium animate-pulse ml-1">▶</span>}
                     </div>
-                    <span className="text-slate-300 font-medium text-xs sm:text-base">{tileCount} tiles</span>
+                    <span className="text-slate-400 text-xs">{tileCount}</span>
                   </div>
-                  {/* Melds and bonus tiles */}
+                  {/* Melds and bonus tiles - compact */}
                   {(exposedMelds.length > 0 || bonusTiles.length > 0) && (
-                    <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1 sm:mt-2">
+                    <div className="flex flex-wrap items-center gap-1 mt-1">
                       {exposedMelds.map((meld, meldIdx) => (
-                        <div key={meldIdx} className={`flex gap-0.5 rounded p-0.5 sm:p-1 ${meld.isConcealed ? 'bg-pink-800/50' : 'bg-slate-800/70'}`}>
+                        <div key={meldIdx} className={`flex gap-0.5 rounded p-0.5 ${meld.isConcealed ? 'bg-pink-800/50' : 'bg-slate-800/70'}`}>
                           {meld.tiles.map((tile, i) => (
                             <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="sm" />
                           ))}
-                          {meld.isConcealed && <span className="text-pink-300 text-[10px] ml-0.5 self-center">C</span>}
+                          {meld.isConcealed && <span className="text-pink-300 text-[8px] ml-0.5 self-center">C</span>}
                         </div>
                       ))}
                       {bonusTiles.length > 0 && (
-                        <div className="bg-amber-500/30 rounded px-2 sm:px-3 py-0.5 sm:py-1 flex items-center gap-1">
-                          <span className="text-amber-300 text-xs sm:text-lg">Bonus:</span>
-                          <span className="text-amber-400 text-lg sm:text-2xl font-bold">+{bonusTiles.length}</span>
+                        <div className="bg-amber-500/30 rounded px-1.5 py-0.5 flex items-center gap-0.5">
+                          <span className="text-amber-400 text-sm font-bold">+{bonusTiles.length}</span>
                         </div>
                       )}
                     </div>
                   )}
                 </div>
               );
-            })}
+            });
+          })()}
         </div>
       </div>
 

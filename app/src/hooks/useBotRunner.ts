@@ -777,20 +777,26 @@ export function useBotRunner({
 
   // Handle calling phase - bot's response
   const handleCallingPhase = useCallback(async (seat: SeatIndex, difficulty: BotDifficulty) => {
+    if (DEBUG_BOT) console.log(`[Bot ${seat}] handleCallingPhase called`);
+
     const pendingCalls = gameState!.pendingCalls;
     if (!pendingCalls) {
-      if (DEBUG_BOT) console.log(`[Bot ${seat}] No pending calls, skipping`);
+      if (DEBUG_BOT) console.log(`[Bot ${seat}] No pending calls object, skipping`);
       return;
     }
 
+    if (DEBUG_BOT) console.log(`[Bot ${seat}] Full pendingCalls:`, JSON.stringify(pendingCalls));
+
     const myCall = pendingCalls[`seat${seat}` as keyof typeof pendingCalls];
-    if (DEBUG_BOT) console.log(`[Bot ${seat}] My current call status: ${myCall}`);
+    if (DEBUG_BOT) console.log(`[Bot ${seat}] My call status: "${myCall}" (type: ${typeof myCall}, isNull: ${myCall === null}, isUndef: ${myCall === undefined})`);
 
     // Already responded or is discarder
     if (myCall !== null && myCall !== undefined) {
-      if (DEBUG_BOT) console.log(`[Bot ${seat}] Already responded with: ${myCall}, skipping`);
+      if (DEBUG_BOT) console.log(`[Bot ${seat}] Already responded with: "${myCall}", skipping`);
       return;
     }
+
+    if (DEBUG_BOT) console.log(`[Bot ${seat}] Proceeding to make call decision...`);
 
     const hand = await getPrivateHand(roomCode, seat);
     if (!hand) {
@@ -890,14 +896,25 @@ export function useBotRunner({
     // For calling: check if any bot still needs to respond
     if (gameState.phase === 'calling') {
       const pendingCalls = gameState.pendingCalls;
-      if (!pendingCalls) return;
+      if (DEBUG_BOT) {
+        console.log(`[BotRunner] Calling phase - pendingCalls:`, JSON.stringify(pendingCalls));
+        console.log(`[BotRunner] Bot seats:`, bots);
+      }
+      if (!pendingCalls) {
+        if (DEBUG_BOT) console.log(`[BotRunner] No pendingCalls object, returning`);
+        return;
+      }
 
       const botsNeedingResponse = bots.filter(seat => {
         const callStatus = pendingCalls[`seat${seat}` as keyof typeof pendingCalls];
+        if (DEBUG_BOT) console.log(`[BotRunner] Seat ${seat} callStatus: "${callStatus}" (type: ${typeof callStatus})`);
         return callStatus === null || callStatus === undefined;
       });
 
+      if (DEBUG_BOT) console.log(`[BotRunner] Bots needing response:`, botsNeedingResponse);
+
       if (botsNeedingResponse.length === 0) {
+        if (DEBUG_BOT) console.log(`[BotRunner] No bots need to respond, returning`);
         return;
       }
     }

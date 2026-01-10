@@ -1157,6 +1157,11 @@ export async function discardTile(
     seat3: seat === 3 ? 'discarder' : null,
   };
 
+  // Debug logging
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[discardTile] Seat ${seat} discarding, pendingCalls:`, JSON.stringify(pendingCalls));
+  }
+
   // Get current room settings for the timer
   const roomSnapshot = await get(ref(db, `rooms/${roomCode}/settings`));
   const settings = roomSnapshot.val();
@@ -1241,7 +1246,14 @@ export async function submitCallResponse(
   // Verify this player hasn't already responded
   // Firebase doesn't store null values, so undefined means no response yet
   const currentCall = gameState.pendingCalls?.[`seat${seat}` as keyof PendingCalls];
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[submitCallResponse] Seat ${seat} action="${action}", currentCall="${currentCall}" (type: ${typeof currentCall})`);
+    console.log(`[submitCallResponse] Full pendingCalls:`, JSON.stringify(gameState.pendingCalls));
+  }
   if (currentCall) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[submitCallResponse] Seat ${seat} already responded, rejecting`);
+    }
     return { success: false, error: 'Already responded' };
   }
 
@@ -1293,37 +1305,56 @@ export async function submitCallResponse(
   }
   // 'pass' always valid
 
-  // Use transaction to atomically update and check if all responded
-  // This ensures we see consistent state across multiple browser tabs
+  // Use transaction to atomically update the response
   const pendingCallsRef = ref(db, `rooms/${roomCode}/game/pendingCalls`);
 
-  let shouldResolve = false;
-
   await runTransaction(pendingCallsRef, (currentCalls) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[submitCallResponse TX] Seat ${seat} - currentCalls before:`, JSON.stringify(currentCalls));
+    }
+
     if (currentCalls === null || currentCalls === undefined) {
       // pendingCalls was already cleared - another player resolved
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[submitCallResponse TX] Seat ${seat} - pendingCalls is null/undefined, aborting`);
+      }
       return; // Abort transaction
     }
 
     // Update with our response
     currentCalls[`seat${seat}`] = action;
 
-    // Check if all have responded
-    const allResponded = ([0, 1, 2, 3] as SeatIndex[]).every(s => {
-      const call = currentCalls[`seat${s}`];
-      return !!call;
-    });
-
-    if (allResponded) {
-      shouldResolve = true;
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[submitCallResponse TX] Seat ${seat} - currentCalls after:`, JSON.stringify(currentCalls));
     }
 
     return currentCalls;
   });
 
-  if (shouldResolve) {
-    // Resolve the calling phase
-    await resolveCallingPhase(roomCode);
+  // After transaction commits, re-read to check if all have responded
+  // This avoids race conditions where multiple simultaneous transactions
+  // each see partial data in their callbacks
+  const freshSnapshot = await get(pendingCallsRef);
+  const finalCalls = freshSnapshot.val();
+
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[submitCallResponse] Seat ${seat} - final pendingCalls after TX:`, JSON.stringify(finalCalls));
+  }
+
+  if (finalCalls) {
+    const allResponded = ([0, 1, 2, 3] as SeatIndex[]).every(s => {
+      const call = finalCalls[`seat${s}`];
+      return !!call;
+    });
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[submitCallResponse] Seat ${seat} - allResponded: ${allResponded}`);
+    }
+
+    if (allResponded) {
+      // Resolve the calling phase
+      await resolveCallingPhase(roomCode);
+    }
   }
 
   return { success: true };
