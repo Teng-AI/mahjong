@@ -24,7 +24,8 @@
 
 - [ ] **Mobile layout rework** 🔴
   - Reorganize game UI for portrait mobile screens
-  - Move: Your Hand (top), Last Discard (prominent), Discard Pile (scrollable)
+  - ~~Reorder middle row: Last Discard → Discard Pile → Game Log~~ ✅ Done
+  - ~~Move calling status to bottom~~ ✅ Done
   - ~~Hide sound controls inside Settings modal~~ ✅ Done
   - Collapse other players into compact view
   - Consider bottom sheet for action buttons
