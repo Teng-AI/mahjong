@@ -11,6 +11,17 @@ interface SettingsModalProps {
   resetToDefaults: () => void;
 }
 
+// Check if device has touch capabilities (likely mobile)
+function useIsTouchDevice() {
+  const [isTouch, setIsTouch] = useState(false);
+
+  useEffect(() => {
+    setIsTouch('ontouchstart' in window || navigator.maxTouchPoints > 0);
+  }, []);
+
+  return isTouch;
+}
+
 const ACTION_LABELS: Record<keyof KeyboardShortcuts, string> = {
   draw: 'Draw',
   win: 'Win',
@@ -31,6 +42,7 @@ export function SettingsModal({
 }: SettingsModalProps) {
   const [recordingFor, setRecordingFor] = useState<keyof KeyboardShortcuts | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const isTouchDevice = useIsTouchDevice();
 
   // Handle key capture when recording
   const handleKeyCapture = useCallback((e: KeyboardEvent) => {
@@ -112,55 +124,65 @@ export function SettingsModal({
           </button>
         </div>
 
-        {/* Keyboard Shortcuts Section */}
-        <div className="mb-6">
-          <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wide mb-3">
-            Keyboard Shortcuts
-          </h3>
+        {/* Keyboard Shortcuts Section - Hidden on touch devices */}
+        {!isTouchDevice && (
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wide mb-3">
+              Keyboard Shortcuts
+            </h3>
 
-          {error && (
-            <div className="bg-red-500/20 border border-red-500/50 text-red-300 text-sm px-3 py-2 rounded mb-3">
-              {error}
-            </div>
-          )}
-
-          <div className="space-y-2">
-            {ACTION_ORDER.map((action) => (
-              <div key={action} className="flex items-center justify-between">
-                <span className="text-slate-300">{ACTION_LABELS[action]}</span>
-                <button
-                  onClick={() => {
-                    setRecordingFor(action);
-                    setError(null);
-                  }}
-                  className={`w-16 h-9 rounded font-mono text-center transition-colors ${
-                    recordingFor === action
-                      ? 'bg-emerald-500 text-white animate-pulse'
-                      : 'bg-slate-700 text-white hover:bg-slate-600'
-                  }`}
-                >
-                  {recordingFor === action ? '...' : shortcuts[action]}
-                </button>
+            {error && (
+              <div className="bg-red-500/20 border border-red-500/50 text-red-300 text-sm px-3 py-2 rounded mb-3">
+                {error}
               </div>
-            ))}
+            )}
+
+            <div className="space-y-2">
+              {ACTION_ORDER.map((action) => (
+                <div key={action} className="flex items-center justify-between">
+                  <span className="text-slate-300">{ACTION_LABELS[action]}</span>
+                  <button
+                    onClick={() => {
+                      setRecordingFor(action);
+                      setError(null);
+                    }}
+                    className={`w-16 h-9 rounded font-mono text-center transition-colors ${
+                      recordingFor === action
+                        ? 'bg-emerald-500 text-white animate-pulse'
+                        : 'bg-slate-700 text-white hover:bg-slate-600'
+                    }`}
+                  >
+                    {recordingFor === action ? '...' : shortcuts[action]}
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-xs text-slate-500 mt-3">
+              Click a key to change it. Press Escape to cancel.
+            </p>
+
+            {/* Reset Button */}
+            <button
+              onClick={() => {
+                resetToDefaults();
+                setError(null);
+              }}
+              className="w-full py-2 mt-4 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors"
+              disabled={!!recordingFor}
+            >
+              Reset to Defaults
+            </button>
           </div>
+        )}
 
-          <p className="text-xs text-slate-500 mt-3">
-            Click a key to change it. Press Escape to cancel.
-          </p>
-        </div>
-
-        {/* Reset Button */}
-        <button
-          onClick={() => {
-            resetToDefaults();
-            setError(null);
-          }}
-          className="w-full py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors"
-          disabled={!!recordingFor}
-        >
-          Reset to Defaults
-        </button>
+        {/* Touch device notice */}
+        {isTouchDevice && (
+          <div className="text-center text-slate-400 py-4">
+            <p className="text-sm">Keyboard shortcuts are not available on touch devices.</p>
+            <p className="text-xs mt-2 text-slate-500">Use the on-screen buttons to play.</p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -30,13 +30,14 @@ interface TileProps {
   isChowSelected?: boolean; // Selected for chow
   disabled?: boolean;
   size?: 'sm' | 'md' | 'lg';
+  faceDown?: boolean; // Show tile back (for concealed kongs from other players)
 }
 
-function Tile({ tileId, goldTileType, onClick, selected, isJustDrawn, isChowValid, isChowSelected, disabled, size = 'md' }: TileProps) {
+function Tile({ tileId, goldTileType, onClick, selected, isJustDrawn, isChowValid, isChowSelected, disabled, size = 'md', faceDown = false }: TileProps) {
   const tileType = getTileType(tileId);
-  const displayText = getTileDisplayText(tileType);
-  const isGold = goldTileType && tileType === goldTileType;
-  const isBonus = isBonusTile(tileId);
+  const displayText = faceDown ? '🀫' : getTileDisplayText(tileType);
+  const isGold = !faceDown && goldTileType && tileType === goldTileType;
+  const isBonus = !faceDown && isBonusTile(tileId);
 
   // Get suit-specific text color
   const getSuitTextColor = () => {
@@ -63,11 +64,13 @@ function Tile({ tileId, goldTileType, onClick, selected, isJustDrawn, isChowVali
         rounded-md border-2 font-bold
         flex items-center justify-center
         transition-all
-        ${isGold
-          ? 'bg-yellow-100 border-yellow-400'
-          : 'bg-white border-gray-300'
+        ${faceDown
+          ? 'bg-blue-900 border-blue-700 text-blue-300'
+          : isGold
+            ? 'bg-yellow-100 border-yellow-400'
+            : 'bg-white border-gray-300'
         }
-        ${getSuitTextColor()}
+        ${!faceDown && getSuitTextColor()}
         ${selected ? 'ring-2 ring-blue-500 -translate-y-2' : ''}
         ${isJustDrawn ? 'ring-2 ring-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]' : ''}
         ${isChowValid ? 'ring-2 ring-cyan-400' : ''}
@@ -1906,11 +1909,10 @@ export default function GamePage() {
                 {(exposedMelds.length > 0 || bonusTiles.length > 0) && (
                   <div className="flex flex-wrap items-center gap-0.5 sm:gap-1 mt-1">
                     {exposedMelds.map((meld, meldIdx) => (
-                      <div key={meldIdx} className={`flex gap-0.5 rounded p-0.5 ${meld.isConcealed ? 'bg-pink-800/50' : 'bg-slate-800/70'}`}>
+                      <div key={meldIdx} className={`flex gap-0.5 rounded p-0.5 ${meld.isConcealed ? 'bg-blue-900/50' : 'bg-slate-800/70'}`}>
                         {meld.tiles.map((tile, i) => (
-                          <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="sm" />
+                          <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="sm" faceDown={meld.isConcealed} />
                         ))}
-                        {meld.isConcealed && <span className="text-pink-300 text-[8px] ml-0.5 self-center">C</span>}
                       </div>
                     ))}
                     {bonusTiles.length > 0 && (
