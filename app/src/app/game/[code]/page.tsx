@@ -1448,40 +1448,6 @@ export default function GamePage() {
         </div>
       </div>
 
-      {/* Calling phase: show who's left to respond */}
-      {isCallingPhase && gameState.pendingCalls && (
-        <div className="bg-slate-700/40 rounded-lg px-3 py-2 mb-2 flex items-center justify-center gap-2 sm:gap-3 text-sm flex-wrap">
-          {([0, 1, 2, 3] as SeatIndex[]).map((seat) => {
-            const call = gameState.pendingCalls?.[`seat${seat}` as keyof typeof gameState.pendingCalls];
-            const playerName = room.players[`seat${seat}` as keyof typeof room.players]?.name || SEAT_LABELS[seat];
-            const isDiscarder = call === 'discarder';
-            // Firebase doesn't store null, so undefined means waiting
-            const isWaiting = !call;
-            const hasResponded = !!call && call !== 'discarder';
-
-            return (
-              <div
-                key={seat}
-                className={`px-2 py-1 rounded ${
-                  isDiscarder
-                    ? 'bg-slate-600/50 text-slate-400'
-                    : hasResponded
-                    ? 'bg-emerald-500/30 text-emerald-300'
-                    : isWaiting
-                    ? 'bg-orange-500/30 text-orange-300 animate-pulse'
-                    : 'bg-slate-600/50 text-slate-400'
-                }`}
-              >
-                {playerName}
-                {isDiscarder && <span className="ml-1 text-xs opacity-60">—</span>}
-                {hasResponded && <span className="ml-1">✓</span>}
-                {isWaiting && <span className="ml-1">...</span>}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
       {/* ========== YOUR HAND SECTION ========== */}
       <div className="bg-slate-700/60 rounded-xl p-2 sm:p-3 mb-2 sm:mb-3 border border-slate-600">
         {/* Header row: Name + Melds + Bonus */}
@@ -1734,24 +1700,9 @@ export default function GamePage() {
       </div>
       {/* End of Primary Hand Section */}
 
-      {/* ========== MIDDLE ROW: GAME LOG + LAST DISCARD + DISCARD PILE ========== */}
-      <div className="grid grid-cols-1 md:grid-cols-[2fr_auto_3fr] gap-2 sm:gap-3 mb-2 sm:mb-3">
-        {/* Game Log */}
-        <div className="bg-slate-800/50 rounded-xl p-2 sm:p-4 border border-slate-600">
-          <div className="text-sm sm:text-lg text-slate-300 font-medium mb-2 sm:mb-3">Game Log</div>
-          <div ref={logRef} className="max-h-28 sm:max-h-40 overflow-y-auto space-y-0.5 sm:space-y-1">
-            {(gameState.actionLog || []).map((entry, index, arr) => (
-              <div
-                key={index}
-                className={`text-xs sm:text-lg py-0.5 ${index === arr.length - 1 ? 'text-white font-medium' : 'text-slate-300'}`}
-              >
-                {transformLogEntry(entry, room)}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Last Discard - Center column */}
+      {/* ========== MIDDLE ROW: LAST DISCARD + DISCARD PILE + GAME LOG ========== */}
+      <div className="grid grid-cols-1 md:grid-cols-[auto_3fr_2fr] gap-2 sm:gap-3 mb-2 sm:mb-3">
+        {/* Last Discard - First column */}
         <div className={`rounded-xl p-2 sm:p-4 border flex flex-col items-center justify-center ${
           gameState.lastAction?.type === 'discard' && gameState.lastAction.tile
             ? 'bg-red-500/20 border-red-500/40'
@@ -1768,7 +1719,7 @@ export default function GamePage() {
           )}
         </div>
 
-        {/* Discard Pile */}
+        {/* Discard Pile - Middle column */}
         <div className="bg-slate-800/50 rounded-xl p-2 sm:p-4 border border-slate-600">
           <div className="text-sm sm:text-lg text-slate-300 font-medium mb-2 sm:mb-3 flex items-center justify-between">
             <span>Discard Pile</span>
@@ -1801,6 +1752,21 @@ export default function GamePage() {
           ) : (
             <div className="text-slate-400 text-sm sm:text-lg">No discards yet</div>
           )}
+        </div>
+
+        {/* Game Log - Last column */}
+        <div className="bg-slate-800/50 rounded-xl p-2 sm:p-4 border border-slate-600">
+          <div className="text-sm sm:text-lg text-slate-300 font-medium mb-2 sm:mb-3">Game Log</div>
+          <div ref={logRef} className="max-h-28 sm:max-h-40 overflow-y-auto space-y-0.5 sm:space-y-1">
+            {(gameState.actionLog || []).map((entry, index, arr) => (
+              <div
+                key={index}
+                className={`text-xs sm:text-lg py-0.5 ${index === arr.length - 1 ? 'text-white font-medium' : 'text-slate-300'}`}
+              >
+                {transformLogEntry(entry, room)}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -1906,6 +1872,40 @@ export default function GamePage() {
           })}
         </div>
       </div>
+
+      {/* Calling phase: show who's left to respond */}
+      {isCallingPhase && gameState.pendingCalls && (
+        <div className="bg-slate-700/40 rounded-lg px-3 py-2 mt-2 flex items-center justify-center gap-2 sm:gap-3 text-sm flex-wrap">
+          {([0, 1, 2, 3] as SeatIndex[]).map((seat) => {
+            const call = gameState.pendingCalls?.[`seat${seat}` as keyof typeof gameState.pendingCalls];
+            const playerName = room.players[`seat${seat}` as keyof typeof room.players]?.name || SEAT_LABELS[seat];
+            const isDiscarder = call === 'discarder';
+            // Firebase doesn't store null, so undefined means waiting
+            const isWaiting = !call;
+            const hasResponded = !!call && call !== 'discarder';
+
+            return (
+              <div
+                key={seat}
+                className={`px-2 py-1 rounded ${
+                  isDiscarder
+                    ? 'bg-slate-600/50 text-slate-400'
+                    : hasResponded
+                    ? 'bg-emerald-500/30 text-emerald-300'
+                    : isWaiting
+                    ? 'bg-orange-500/30 text-orange-300 animate-pulse'
+                    : 'bg-slate-600/50 text-slate-400'
+                }`}
+              >
+                {playerName}
+                {isDiscarder && <span className="ml-1 text-xs opacity-60">—</span>}
+                {hasResponded && <span className="ml-1">✓</span>}
+                {isWaiting && <span className="ml-1">...</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Rules Modal */}
       {showRules && (
