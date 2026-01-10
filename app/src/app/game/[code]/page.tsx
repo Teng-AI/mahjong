@@ -1238,8 +1238,9 @@ export default function GamePage() {
             const call = gameState.pendingCalls?.[`seat${seat}` as keyof typeof gameState.pendingCalls];
             const playerName = room.players[`seat${seat}` as keyof typeof room.players]?.name || SEAT_LABELS[seat];
             const isDiscarder = call === 'discarder';
-            const hasResponded = call !== null && call !== 'discarder';
-            const isWaiting = call === null;
+            // Firebase doesn't store null, so undefined means waiting
+            const isWaiting = !call;
+            const hasResponded = !!call && call !== 'discarder';
 
             if (isDiscarder) return null; // Don't show the discarder
 
