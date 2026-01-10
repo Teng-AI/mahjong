@@ -340,17 +340,26 @@ export default function GamePage() {
     setSelectedChowTiles([]);
   };
 
-  // Keyboard shortcut handler for calling phase
+  // Keyboard shortcut handler for game actions
   useEffect(() => {
     const handleKeyboardShortcut = (e: KeyboardEvent) => {
       // Ignore if typing in input field or settings modal is open
       if (e.target instanceof HTMLInputElement || showSettings) return;
-      // Only active during calling phase when player hasn't responded
-      if (!isCallingPhase || myPendingCall !== null || chowSelectionMode) return;
       // Don't fire if already processing an action
       if (processingAction) return;
 
       const key = e.key.toUpperCase();
+
+      // Draw shortcut - during playing phase when it's my turn and I need to draw
+      const isCurrentPlayersTurn = gameState?.currentPlayerSeat === mySeat;
+      if (key === shortcuts.draw && gameState?.phase === 'playing' && isCurrentPlayersTurn && shouldDraw) {
+        e.preventDefault();
+        onDraw();
+        return;
+      }
+
+      // Calling phase shortcuts
+      if (!isCallingPhase || myPendingCall !== null || chowSelectionMode) return;
 
       if (key === shortcuts.win && myValidCalls?.canWin) {
         e.preventDefault();
@@ -372,9 +381,9 @@ export default function GamePage() {
 
     window.addEventListener('keydown', handleKeyboardShortcut);
     return () => window.removeEventListener('keydown', handleKeyboardShortcut);
-    // onCallResponse and onChowClick are intentionally excluded - they're not memoized and would cause unnecessary re-registrations
+    // onCallResponse, onChowClick, onDraw are intentionally excluded - they're not memoized and would cause unnecessary re-registrations
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCallingPhase, myPendingCall, chowSelectionMode, processingAction, shortcuts, myValidCalls, showSettings]);
+  }, [isCallingPhase, myPendingCall, chowSelectionMode, processingAction, shortcuts, myValidCalls, showSettings, gameState?.phase, gameState?.currentPlayerSeat, mySeat, shouldDraw]);
 
   // Phase 8: Cancel chow selection
   const onCancelChow = () => {
@@ -1441,7 +1450,7 @@ export default function GamePage() {
                   disabled={processingAction}
                   className="px-6 sm:px-8 py-2 sm:py-3 bg-blue-500 hover:bg-blue-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
                 >
-                  {processingAction ? 'Drawing...' : 'Draw Tile'}
+                  {processingAction ? 'Drawing...' : <>Draw Tile <span className="text-xs opacity-60 ml-1">({shortcuts.draw})</span></>}
                 </button>
               ) : (
                 <button

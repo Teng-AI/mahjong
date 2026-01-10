@@ -8,6 +8,7 @@ export interface KeyboardShortcuts {
   pung: string;
   kong: string;
   win: string;
+  draw: string;
 }
 
 const DEFAULT_SHORTCUTS: KeyboardShortcuts = {
@@ -16,6 +17,7 @@ const DEFAULT_SHORTCUTS: KeyboardShortcuts = {
   pung: 'U',
   chow: 'C',
   pass: 'P',
+  draw: 'D',
 };
 
 const STORAGE_KEY = 'mahjong-keyboard-shortcuts';
@@ -35,17 +37,13 @@ export function useKeyboardShortcuts(): UseKeyboardShortcutsReturn {
 
     try {
       const parsed = JSON.parse(stored);
-      // Validate that all keys exist
-      if (
-        typeof parsed.pass === 'string' &&
-        typeof parsed.chow === 'string' &&
-        typeof parsed.pung === 'string' &&
-        typeof parsed.kong === 'string' &&
-        typeof parsed.win === 'string'
-      ) {
-        return parsed;
-      }
-      return DEFAULT_SHORTCUTS;
+      // Merge with defaults to handle new keys added in updates
+      return {
+        ...DEFAULT_SHORTCUTS,
+        ...Object.fromEntries(
+          Object.entries(parsed).filter(([, v]) => typeof v === 'string')
+        ),
+      };
     } catch {
       return DEFAULT_SHORTCUTS;
     }

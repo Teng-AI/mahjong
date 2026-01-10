@@ -12,6 +12,7 @@ interface SettingsModalProps {
 }
 
 const ACTION_LABELS: Record<keyof KeyboardShortcuts, string> = {
+  draw: 'Draw',
   win: 'Win',
   kong: 'Kong',
   pung: 'Pung',
@@ -19,7 +20,7 @@ const ACTION_LABELS: Record<keyof KeyboardShortcuts, string> = {
   pass: 'Pass',
 };
 
-const ACTION_ORDER: (keyof KeyboardShortcuts)[] = ['win', 'kong', 'pung', 'chow', 'pass'];
+const ACTION_ORDER: (keyof KeyboardShortcuts)[] = ['draw', 'win', 'kong', 'pung', 'chow', 'pass'];
 
 export function SettingsModal({
   isOpen,
