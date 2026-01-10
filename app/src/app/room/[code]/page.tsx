@@ -145,6 +145,7 @@ export default function RoomPage() {
   const [addingBot, setAddingBot] = useState(false);
   const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>('medium');
   const [copied, setCopied] = useState(false);
+  const [timerInput, setTimerInput] = useState<string>('30');
 
   const copyRoomLink = useCallback(async () => {
     const roomUrl = window.location.href;
@@ -174,11 +175,17 @@ export default function RoomPage() {
     playerCount,
     isFull,
     setDealerSeat,
+    setCallTimer,
     kickPlayer,
   } = useRoom({
     roomCode,
     userId: user?.uid || null,
   });
+
+  // Sync timerInput when room settings change
+  useEffect(() => {
+    setTimerInput(String(room?.settings?.callTimer ?? 30));
+  }, [room?.settings?.callTimer]);
 
   // Get stored player name from sessionStorage (from join page)
   // Only auto-join if name came from sessionStorage (user already submitted join form)
@@ -537,6 +544,51 @@ export default function RoomPage() {
               <span>🤖</span>
               {addingBot ? 'Adding Bots...' : `Fill Empty Seats with ${botDifficulty.charAt(0).toUpperCase() + botDifficulty.slice(1)} Bots`}
             </button>
+          </div>
+        )}
+
+        {/* Game Settings (host only) */}
+        {isHost && (
+          <div className="max-w-md mx-auto mb-4">
+            <div className="bg-green-800/30 rounded-lg p-4">
+              <h3 className="font-semibold mb-3 text-green-200">Game Settings</h3>
+              <div className="space-y-2">
+                <label className="text-green-300 text-sm">Call Timer</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={15}
+                    max={120}
+                    value={room?.settings?.callTimer ?? 30}
+                    onChange={(e) => setCallTimer(parseInt(e.target.value))}
+                    className="flex-1 h-2 bg-green-900/50 rounded-lg appearance-none cursor-pointer accent-green-500"
+                  />
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min={15}
+                      max={120}
+                      value={timerInput}
+                      onChange={(e) => setTimerInput(e.target.value)}
+                      onBlur={() => {
+                        const val = parseInt(timerInput) || 30;
+                        const clamped = Math.min(120, Math.max(15, val));
+                        setTimerInput(String(clamped));
+                        setCallTimer(clamped);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          (e.target as HTMLInputElement).blur();
+                        }
+                      }}
+                      className="w-14 bg-green-900/50 text-white text-center px-2 py-1 rounded border border-green-600 focus:outline-none focus:border-green-400"
+                    />
+                    <span className="text-green-400 text-sm">sec</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-green-400 mt-2">Time limit for players to respond when a tile is discarded (15-120 sec)</p>
+            </div>
           </div>
         )}
 

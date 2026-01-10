@@ -9,6 +9,10 @@ interface SettingsModalProps {
   shortcuts: KeyboardShortcuts;
   setShortcut: (action: keyof KeyboardShortcuts, key: string) => void;
   resetToDefaults: () => void;
+  // Host timer settings
+  isHost?: boolean;
+  callTimer?: number;
+  onCallTimerChange?: (seconds: number) => void;
 }
 
 const ACTION_LABELS: Record<keyof KeyboardShortcuts, string> = {
@@ -28,9 +32,18 @@ export function SettingsModal({
   shortcuts,
   setShortcut,
   resetToDefaults,
+  isHost,
+  callTimer,
+  onCallTimerChange,
 }: SettingsModalProps) {
   const [recordingFor, setRecordingFor] = useState<keyof KeyboardShortcuts | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [timerInput, setTimerInput] = useState<string>(String(callTimer ?? 30));
+
+  // Sync timerInput when callTimer prop changes
+  useEffect(() => {
+    setTimerInput(String(callTimer ?? 30));
+  }, [callTimer]);
 
   // Handle key capture when recording
   const handleKeyCapture = useCallback((e: KeyboardEvent) => {
@@ -149,6 +162,50 @@ export function SettingsModal({
             Click a key to change it. Press Escape to cancel.
           </p>
         </div>
+
+        {/* Host Timer Settings */}
+        {isHost && onCallTimerChange && (
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wide mb-3">
+              Call Timer (Host Only)
+            </h3>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min={15}
+                max={120}
+                value={callTimer ?? 30}
+                onChange={(e) => onCallTimerChange(parseInt(e.target.value))}
+                className="flex-1 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+              />
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min={15}
+                  max={120}
+                  value={timerInput}
+                  onChange={(e) => setTimerInput(e.target.value)}
+                  onBlur={() => {
+                    const val = parseInt(timerInput) || 30;
+                    const clamped = Math.min(120, Math.max(15, val));
+                    setTimerInput(String(clamped));
+                    onCallTimerChange(clamped);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      (e.target as HTMLInputElement).blur();
+                    }
+                  }}
+                  className="w-14 bg-slate-700 text-white text-center px-2 py-1 rounded border border-slate-600 focus:outline-none focus:border-emerald-500"
+                />
+                <span className="text-slate-400 text-sm">sec</span>
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">
+              Players auto-pass when timer expires. (15-120 sec)
+            </p>
+          </div>
+        )}
 
         {/* Reset Button */}
         <button

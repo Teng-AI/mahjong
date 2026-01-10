@@ -1,0 +1,12 @@
+# Compiled output
+lib/
+
+# Dependencies
+node_modules/
+
+# IDE
+.idea/
+*.iml
+
+# Logs
+*.log

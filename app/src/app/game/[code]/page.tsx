@@ -161,6 +161,8 @@ export default function GamePage() {
     room,
     loading: roomLoading,
     mySeat: actualSeat,
+    isHost,
+    setCallTimer,
   } = useRoom({
     roomCode,
     userId: user?.uid || null,
@@ -225,6 +227,45 @@ export default function GamePage() {
 
   // Settlement modal
   const [showSettleModal, setShowSettleModal] = useState(false);
+
+  // Calling phase countdown timer
+  const [callTimerRemaining, setCallTimerRemaining] = useState<number | null>(null);
+  const autoPassedRef = useRef(false);
+
+  // Update countdown during calling phase and auto-pass when expired
+  useEffect(() => {
+    if (!isCallingPhase || !gameState?.callingPhaseStartTime) {
+      setCallTimerRemaining(null);
+      autoPassedRef.current = false; // Reset when not in calling phase
+      return;
+    }
+
+    // Use activeCallTimer from game state (set at hand start) so mid-hand changes don't affect current hand
+    // Fall back to room settings for games started before activeCallTimer was added
+    const callTimer = gameState.activeCallTimer ?? room?.settings?.callTimer ?? 30;
+
+    const updateCountdown = () => {
+      const elapsed = Math.floor((Date.now() - gameState.callingPhaseStartTime!) / 1000);
+      const remaining = Math.max(0, callTimer - elapsed);
+      setCallTimerRemaining(remaining);
+
+      // Auto-pass when timer expires and player hasn't responded
+      if (remaining === 0 && myPendingCall === null && !autoPassedRef.current && !processingAction) {
+        autoPassedRef.current = true;
+        handleCallResponse('pass').catch(() => {
+          // Reset so it can retry if needed
+          autoPassedRef.current = false;
+        });
+      }
+    };
+
+    // Update immediately
+    updateCountdown();
+
+    // Update every second
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [isCallingPhase, gameState?.callingPhaseStartTime, gameState?.activeCallTimer, room?.settings?.callTimer, myPendingCall, processingAction, handleCallResponse]);
 
   // Toast message for errors
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -1223,19 +1264,44 @@ export default function GamePage() {
           </button>
         </div>
         {/* Phase indicator - right side */}
-        <div className={`px-2 sm:px-3 py-1 rounded-md text-sm sm:text-lg font-medium ${
+        <div className={`px-2 sm:px-3 py-1 rounded-md text-sm sm:text-lg font-medium flex items-center gap-2 ${
           isCallingPhase ? 'bg-orange-500/40 text-orange-200' :
           isMyTurn ? 'bg-emerald-500/40 text-emerald-200' : 'bg-slate-600/60 text-slate-300'
         }`}>
           {isCallingPhase ? (chowSelectionMode ? 'Select Chow tiles' : 'Calling...') :
            isMyTurn ? (shouldDraw ? '▶ Draw a tile' : '▶ Discard a tile') :
            `${getPlayerName(room, gameState.currentPlayerSeat)}'s turn`}
+          {isCallingPhase && callTimerRemaining !== null && (
+            <span className={`font-mono text-lg sm:text-xl font-bold px-3 py-1 rounded-lg min-w-[3rem] text-center ${
+              callTimerRemaining <= 5 ? 'bg-red-600 text-white animate-pulse shadow-lg shadow-red-500/50' :
+              callTimerRemaining <= 10 ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' :
+              'bg-emerald-600 text-white'
+            }`}>
+              {callTimerRemaining}
+            </span>
+          )}
         </div>
       </div>
 
       {/* Calling phase: show who's left to respond */}
       {isCallingPhase && gameState.pendingCalls && (
-        <div className="bg-slate-700/40 rounded-lg px-3 py-2 mb-2 flex items-center justify-center gap-2 sm:gap-3 text-sm flex-wrap">
+        <div className="bg-slate-700/40 rounded-lg px-3 py-2 mb-2">
+          {/* Timer progress bar */}
+          {callTimerRemaining !== null && (
+            <div className="mb-2">
+              <div className="h-2 bg-slate-600 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-1000 ease-linear ${
+                    callTimerRemaining <= 5 ? 'bg-red-500' :
+                    callTimerRemaining <= 10 ? 'bg-orange-500' :
+                    'bg-emerald-500'
+                  }`}
+                  style={{ width: `${(callTimerRemaining / (gameState.activeCallTimer ?? room?.settings?.callTimer ?? 30)) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+          <div className="flex items-center justify-center gap-2 sm:gap-3 text-sm flex-wrap">
           {([0, 1, 2, 3] as SeatIndex[]).map((seat) => {
             const call = gameState.pendingCalls?.[`seat${seat}` as keyof typeof gameState.pendingCalls];
             const playerName = room.players[`seat${seat}` as keyof typeof room.players]?.name || SEAT_LABELS[seat];
@@ -1264,6 +1330,7 @@ export default function GamePage() {
               </div>
             );
           })}
+          </div>
         </div>
       )}
 
@@ -1668,6 +1735,9 @@ export default function GamePage() {
         shortcuts={shortcuts}
         setShortcut={setShortcut}
         resetToDefaults={resetToDefaults}
+        isHost={isHost}
+        callTimer={room?.settings?.callTimer}
+        onCallTimerChange={setCallTimer}
       />
     </div>
   );

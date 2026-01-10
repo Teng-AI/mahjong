@@ -156,6 +156,11 @@ export async function getDealerStreak(roomCode: string): Promise<number> {
  * - Stores private hands separately
  */
 export async function initializeGame(roomCode: string, dealerSeat: SeatIndex): Promise<void> {
+  // Get room settings to capture callTimer for this hand
+  const roomSnapshot = await get(ref(db, `rooms/${roomCode}/settings`));
+  const settings = roomSnapshot.val();
+  const activeCallTimer = settings?.callTimer ?? 30;
+
   // Generate and shuffle tiles
   const allTiles = generateAllTiles();
   let shuffledTiles = shuffle(allTiles);
@@ -372,6 +377,7 @@ export async function initializeGame(roomCode: string, dealerSeat: SeatIndex): P
       seat3: bonusTiles[3],
     },
     pendingCalls: null,
+    activeCallTimer,
     winner: null,
     actionLog,
   };
@@ -1151,11 +1157,18 @@ export async function discardTile(
     seat3: seat === 3 ? 'discarder' : null,
   };
 
+  // Get current room settings for the timer
+  const roomSnapshot = await get(ref(db, `rooms/${roomCode}/settings`));
+  const settings = roomSnapshot.val();
+  const activeCallTimer = settings?.callTimer ?? 30;
+
   // Update game state - enter calling phase
   await update(ref(db, `rooms/${roomCode}/game`), {
     discardPile,
     phase: 'calling',
     pendingCalls,
+    callingPhaseStartTime: Date.now(), // For timer-based auto-pass
+    activeCallTimer, // Capture timer setting for this calling phase
     lastAction: {
       type: 'discard',
       playerSeat: seat,
@@ -1401,6 +1414,7 @@ async function advanceToNextPlayer(roomCode: string, discarderSeat: SeatIndex): 
     currentPlayerSeat: nextSeat,
     pendingCalls: null,
     pendingChowOption: null,
+    callingPhaseStartTime: null,
   });
 
   await addToLog(roomCode, 'All players passed');
@@ -1419,6 +1433,7 @@ async function executeWinCall(
   await update(ref(db, `rooms/${roomCode}/game`), {
     pendingCalls: null,
     pendingChowOption: null,
+    callingPhaseStartTime: null,
   });
 
   // Use existing win logic
@@ -1481,6 +1496,7 @@ async function executePungCall(
     discardPile,
     pendingCalls: null,
     pendingChowOption: null,
+    callingPhaseStartTime: null,
     [`exposedMelds/seat${callerSeat}`]: [...existingMelds, meld],
     lastAction: {
       type: 'pung',
@@ -1579,6 +1595,7 @@ async function executeKongCall(
     discardPile,
     pendingCalls: null,
     pendingChowOption: null,
+    callingPhaseStartTime: null,
     [`exposedMelds/seat${callerSeat}`]: [...existingMelds, meld],
     ...(bonusTilesExposed.length > 0 ? {
       [`bonusTiles/seat${callerSeat}`]: [...existingBonusTiles, ...bonusTilesExposed],
@@ -1660,6 +1677,7 @@ async function executeChowCall(
     discardPile,
     pendingCalls: null,
     pendingChowOption: null,
+    callingPhaseStartTime: null,
     [`exposedMelds/seat${callerSeat}`]: [...existingMelds, meld],
     lastAction: {
       type: 'chow',

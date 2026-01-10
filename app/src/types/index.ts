@@ -177,6 +177,7 @@ export interface GameState {
   pendingCalls: PendingCalls | null;
   pendingChowOption?: ChowOption; // Temporarily stores chosen chow option during calling
   callingPhaseStartTime?: number; // Timestamp when calling phase started (for timer)
+  activeCallTimer: number; // Call timer for this hand (copied from room settings at hand start)
   winner: WinnerInfo | null;
   actionLog: string[];
 }
