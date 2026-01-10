@@ -13,19 +13,10 @@
 
 ## High Priority (Bugs)
 
-- [ ] **Concealed Kong visible to other players** 🟢
-  - Concealed Kongs should show face-down tiles to opponents
-  - Only the declaring player sees the actual tiles
-  - Fix: Update meld rendering to check `isConcealed` flag
-
 - [ ] **Mobile tile UX broken** 🟡
   - Tiles overflow or don't fit on small screens
   - Hand becomes unplayable on narrow devices
   - Fix: Responsive tile sizing, horizontal scroll, or tile stacking
-
-- [ ] **Keyboard shortcuts break on mobile** 🟢
-  - Settings modal for shortcuts causes issues on touch devices
-  - Fix: Hide shortcut customization on mobile, or use touch-friendly input
 
 ---
 
@@ -201,6 +192,8 @@
 
 ## Completed
 
+- [x] **Bug fix**: Concealed Kong now shows face-down tiles to other players
+- [x] **Bug fix**: Keyboard shortcuts hidden on mobile/touch devices
 - [x] All One Suit bonus scoring (+60 points)
 - [x] Winner celebration effects (fireworks, fanfare, sparkles)
 - [x] Player turn order UI (all 4 players shown, green highlight)
