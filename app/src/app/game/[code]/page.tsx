@@ -11,7 +11,7 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { getTileType, getTileDisplayText, isBonusTile, isGoldTile, sortTilesForDisplay } from '@/lib/tiles';
 import { calculateSettlement, calculateNetPositions } from '@/lib/settle';
 import { SettingsModal } from '@/components/SettingsModal';
-import { SeatIndex, TileId, TileType, CallAction } from '@/types';
+import { SeatIndex, TileId, TileType, CallAction, Room } from '@/types';
 
 // Debug logging - only enabled in development
 const DEBUG_GAME = process.env.NODE_ENV === 'development';
@@ -120,6 +120,28 @@ function Hand({ tiles, goldTileType, onTileClick, selectedTile, justDrawnTile, s
 }
 
 const SEAT_LABELS = ['East', 'South', 'West', 'North'] as const;
+
+// Helper to get player name by seat, with fallback to direction
+function getPlayerName(room: Room | null, seat: SeatIndex): string {
+  return room?.players?.[`seat${seat}` as keyof Room['players']]?.name || SEAT_LABELS[seat];
+}
+
+// Helper to transform action log entry, replacing direction names with player names
+function transformLogEntry(entry: string, room: Room | null): string {
+  if (!room) return entry;
+
+  let transformed = entry;
+  // Replace direction names with player names
+  SEAT_LABELS.forEach((direction, index) => {
+    const playerName = getPlayerName(room, index as SeatIndex);
+    // Use word boundary to avoid partial replacements
+    const regex = new RegExp(`\\b${direction}\\b`, 'g');
+    transformed = transformed.replace(regex, playerName);
+  });
+
+  // Also replace "Dealer" with the actual dealer's name if applicable
+  return transformed;
+}
 
 // ============================================
 // MAIN GAME PAGE
@@ -626,7 +648,7 @@ export default function GamePage() {
                 <div className="max-h-40 overflow-y-auto space-y-0.5">
                   {(gameState.actionLog || []).map((entry, index) => (
                     <div key={index} className="text-xs py-0.5 text-slate-400">
-                      {entry}
+                      {transformLogEntry(entry, room)}
                     </div>
                   ))}
                 </div>
@@ -980,7 +1002,7 @@ export default function GamePage() {
                 <div className="max-h-40 overflow-y-auto space-y-0.5">
                   {(gameState.actionLog || []).map((entry, index) => (
                     <div key={index} className="text-sm py-0.5 text-slate-300">
-                      {entry}
+                      {transformLogEntry(entry, room)}
                     </div>
                   ))}
                 </div>
@@ -1207,7 +1229,7 @@ export default function GamePage() {
         }`}>
           {isCallingPhase ? (chowSelectionMode ? 'Select Chow tiles' : 'Calling...') :
            isMyTurn ? (shouldDraw ? '▶ Draw a tile' : '▶ Discard a tile') :
-           `${SEAT_LABELS[gameState.currentPlayerSeat]}'s turn`}
+           `${getPlayerName(room, gameState.currentPlayerSeat)}'s turn`}
         </div>
       </div>
 
@@ -1508,7 +1530,7 @@ export default function GamePage() {
                 key={index}
                 className={`text-xs sm:text-lg py-0.5 ${index === arr.length - 1 ? 'text-white font-medium' : 'text-slate-300'}`}
               >
-                {entry}
+                {transformLogEntry(entry, room)}
               </div>
             ))}
           </div>
@@ -1524,7 +1546,7 @@ export default function GamePage() {
             <>
               <span className="text-red-300 text-xs sm:text-lg font-medium mb-1 sm:mb-2">Last Discard</span>
               <Tile tileId={gameState.lastAction.tile} goldTileType={gameState.goldTileType} size="md" />
-              <span className="text-white text-xs sm:text-lg mt-1 sm:mt-2">by <span className="font-semibold">{SEAT_LABELS[gameState.lastAction.playerSeat]}</span></span>
+              <span className="text-white text-xs sm:text-lg mt-1 sm:mt-2">by <span className="font-semibold">{getPlayerName(room, gameState.lastAction.playerSeat)}</span></span>
             </>
           ) : (
             <span className="text-slate-400 text-sm sm:text-lg">No discard yet</span>
