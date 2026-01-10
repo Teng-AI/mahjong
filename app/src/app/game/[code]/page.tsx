@@ -1230,6 +1230,38 @@ export default function GamePage() {
         </div>
       </div>
 
+      {/* Calling phase: show who's left to respond */}
+      {isCallingPhase && gameState.pendingCalls && (
+        <div className="bg-slate-700/40 rounded-lg px-3 py-2 mb-2 flex items-center justify-center gap-3 text-sm">
+          <span className="text-slate-400">Waiting:</span>
+          {([0, 1, 2, 3] as SeatIndex[]).map((seat) => {
+            const call = gameState.pendingCalls?.[`seat${seat}` as keyof typeof gameState.pendingCalls];
+            const playerName = room.players[`seat${seat}` as keyof typeof room.players]?.name || SEAT_LABELS[seat];
+            const isDiscarder = call === 'discarder';
+            const hasResponded = call !== null && call !== 'discarder';
+            const isWaiting = call === null;
+
+            if (isDiscarder) return null; // Don't show the discarder
+
+            return (
+              <div
+                key={seat}
+                className={`px-2 py-1 rounded ${
+                  hasResponded
+                    ? 'bg-emerald-500/30 text-emerald-300'
+                    : isWaiting
+                    ? 'bg-orange-500/30 text-orange-300 animate-pulse'
+                    : 'bg-slate-600/50 text-slate-400'
+                }`}
+              >
+                {playerName}
+                {hasResponded && <span className="ml-1">✓</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* ========== YOUR HAND SECTION ========== */}
       <div className="bg-slate-700/60 rounded-xl p-2 sm:p-3 mb-2 sm:mb-3 border border-slate-600">
         {/* Header row: Name + Melds + Bonus */}
