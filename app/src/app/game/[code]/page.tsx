@@ -1232,8 +1232,7 @@ export default function GamePage() {
 
       {/* Calling phase: show who's left to respond */}
       {isCallingPhase && gameState.pendingCalls && (
-        <div className="bg-slate-700/40 rounded-lg px-3 py-2 mb-2 flex items-center justify-center gap-3 text-sm">
-          <span className="text-slate-400">Waiting:</span>
+        <div className="bg-slate-700/40 rounded-lg px-3 py-2 mb-2 flex items-center justify-center gap-2 sm:gap-3 text-sm flex-wrap">
           {([0, 1, 2, 3] as SeatIndex[]).map((seat) => {
             const call = gameState.pendingCalls?.[`seat${seat}` as keyof typeof gameState.pendingCalls];
             const playerName = room.players[`seat${seat}` as keyof typeof room.players]?.name || SEAT_LABELS[seat];
@@ -1242,13 +1241,13 @@ export default function GamePage() {
             const isWaiting = !call;
             const hasResponded = !!call && call !== 'discarder';
 
-            if (isDiscarder) return null; // Don't show the discarder
-
             return (
               <div
                 key={seat}
                 className={`px-2 py-1 rounded ${
-                  hasResponded
+                  isDiscarder
+                    ? 'bg-red-500/30 text-red-300'
+                    : hasResponded
                     ? 'bg-emerald-500/30 text-emerald-300'
                     : isWaiting
                     ? 'bg-orange-500/30 text-orange-300 animate-pulse'
@@ -1256,7 +1255,9 @@ export default function GamePage() {
                 }`}
               >
                 {playerName}
+                {isDiscarder && <span className="ml-1 text-xs">(discarded)</span>}
                 {hasResponded && <span className="ml-1">✓</span>}
+                {isWaiting && <span className="ml-1">...</span>}
               </div>
             );
           })}
