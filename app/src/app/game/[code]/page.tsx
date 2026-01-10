@@ -153,7 +153,6 @@ export default function GamePage() {
     sessionScores,
     loading: gameLoading,
     startGame,
-    processBonusExposure,
     shouldDraw,
     handleDraw,
     handleDiscard,
@@ -192,7 +191,6 @@ export default function GamePage() {
   const { shortcuts, setShortcut, resetToDefaults } = useKeyboardShortcuts();
   const [showSettings, setShowSettings] = useState(false);
 
-  const [processingBonus, setProcessingBonus] = useState(false);
   const [selectedTile, setSelectedTile] = useState<TileId | null>(null);
   const [processingAction, setProcessingAction] = useState(false);
 
@@ -222,20 +220,6 @@ export default function GamePage() {
       logRef.current.scrollTop = logRef.current.scrollHeight;
     }
   }, [gameState?.actionLog?.length]);
-
-  // Handle bonus exposure when it's my turn
-  const handleBonusExposure = async () => {
-    if (processingBonus) return;
-
-    setProcessingBonus(true);
-    try {
-      await processBonusExposure();
-    } catch (err) {
-      if (DEBUG_GAME) console.error('Bonus exposure failed:', err);
-    } finally {
-      setProcessingBonus(false);
-    }
-  };
 
   // Handle drawing a tile
   const onDraw = async () => {
@@ -1114,7 +1098,6 @@ export default function GamePage() {
   }
 
   const isMyTurn = gameState.currentPlayerSeat === mySeat;
-  const isBonusPhase = gameState.phase === 'bonus_exposure';
 
   return (
     <div className={`min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-white p-2 sm:p-3 transition-all duration-300 ${showTurnFlash ? 'ring-4 ring-inset ring-emerald-400/70' : ''}`}>
@@ -1156,7 +1139,7 @@ export default function GamePage() {
 
               <h4 className="text-amber-400 font-bold text-lg mb-3">Detailed Rules</h4>
               <div className="text-base text-slate-300 space-y-2">
-                <p><strong className="text-white">Turn Order:</strong> Play goes counter-clockwise (East → North → West → South)</p>
+                <p><strong className="text-white">Turn Order:</strong> Play goes counter-clockwise (East → South → West → North)</p>
                 <p><strong className="text-white">Starting Tiles:</strong> Dealer receives 17 tiles, others receive 16. Dealer discards first without drawing.</p>
                 <p><strong className="text-white">Gold Tiles:</strong> Cannot be discarded - you must keep them. They can substitute for any suited tile (dots, bamboo, characters) in sets and pairs.</p>
                 <p><strong className="text-white">Three Golds:</strong> If you ever hold 3 Gold tiles, you instantly win with a bonus!</p>
@@ -1219,12 +1202,10 @@ export default function GamePage() {
         </div>
         {/* Phase indicator - right side */}
         <div className={`px-2 sm:px-3 py-1 rounded-md text-sm sm:text-lg font-medium ${
-          isBonusPhase ? 'bg-blue-500/40 text-blue-200' :
           isCallingPhase ? 'bg-orange-500/40 text-orange-200' :
           isMyTurn ? 'bg-emerald-500/40 text-emerald-200' : 'bg-slate-600/60 text-slate-300'
         }`}>
-          {isBonusPhase ? (isMyTurn ? '▶ Expose Bonus' : `${SEAT_LABELS[gameState.currentPlayerSeat]} exposing...`) :
-           isCallingPhase ? (chowSelectionMode ? 'Select Chow tiles' : 'Calling...') :
+          {isCallingPhase ? (chowSelectionMode ? 'Select Chow tiles' : 'Calling...') :
            isMyTurn ? (shouldDraw ? '▶ Draw a tile' : '▶ Discard a tile') :
            `${SEAT_LABELS[gameState.currentPlayerSeat]}'s turn`}
         </div>
@@ -1363,17 +1344,6 @@ export default function GamePage() {
 
         {/* Action Buttons - inside the hand section */}
         <div className="mt-2 sm:mt-4 flex flex-wrap justify-center gap-2 sm:gap-3">
-          {/* Bonus exposure button */}
-          {isBonusPhase && isMyTurn && (
-            <button
-              onClick={handleBonusExposure}
-              disabled={processingBonus}
-              className="px-4 sm:px-6 py-2 sm:py-3 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-500 text-black font-bold rounded-lg text-sm sm:text-base"
-            >
-              {processingBonus ? 'Processing...' : 'Expose Bonus Tiles'}
-            </button>
-          )}
-
           {/* Call buttons during calling phase */}
           {isCallingPhase && myPendingCall === null && !chowSelectionMode && (
             <>

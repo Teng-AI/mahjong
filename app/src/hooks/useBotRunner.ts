@@ -5,8 +5,6 @@ import { GameState, SeatIndex, TileId, TileType, Room, BotDifficulty, Meld } fro
 import {
   drawTile,
   discardTile,
-  exposeBonusTiles,
-  advanceBonusExposure,
   submitCallResponse,
   declareSelfDrawWin,
   getPrivateHand,
@@ -640,26 +638,6 @@ export function useBotRunner({
     return seats;
   }, [isBotSeat]);
 
-  // Handle bonus exposure phase
-  const handleBonusPhase = useCallback(async (seat: SeatIndex) => {
-    if (DEBUG_BOT) console.log(`[Bot ${seat}] Handling bonus exposure`);
-
-    try {
-      const result = await exposeBonusTiles(roomCode, seat);
-      if (DEBUG_BOT) console.log(`[Bot ${seat}] exposeBonusTiles result:`, result);
-
-      if (result.success) {
-        if (DEBUG_BOT) console.log(`[Bot ${seat}] Advancing bonus exposure`);
-        await advanceBonusExposure(roomCode, seat, gameState!.dealerSeat);
-        if (DEBUG_BOT) console.log(`[Bot ${seat}] Bonus exposure advanced`);
-      } else {
-        if (DEBUG_BOT) console.error(`[Bot ${seat}] exposeBonusTiles failed`);
-      }
-    } catch (err) {
-      if (DEBUG_BOT) console.error(`[Bot ${seat}] Bonus phase error:`, err);
-    }
-  }, [roomCode, gameState]);
-
   // Handle playing phase - bot's turn
   const handlePlayingPhase = useCallback(async (seat: SeatIndex, difficulty: BotDifficulty) => {
     const hand = await getPrivateHand(roomCode, seat);
@@ -904,8 +882,8 @@ export function useBotRunner({
     // Track if this effect instance is still valid (not cleaned up)
     let cancelled = false;
 
-    // For playing/bonus_exposure: only proceed if current player is a bot
-    if ((gameState.phase === 'playing' || gameState.phase === 'bonus_exposure') && !isCurrentPlayerBot) {
+    // For playing phase: only proceed if current player is a bot
+    if (gameState.phase === 'playing' && !isCurrentPlayerBot) {
       return;
     }
 
@@ -930,12 +908,6 @@ export function useBotRunner({
       if (cancelled) return;
 
       try {
-        // Handle bonus exposure phase
-        if (gameState.phase === 'bonus_exposure' && isCurrentPlayerBot) {
-          await handleBonusPhase(currentSeat);
-          return;
-        }
-
         // Handle playing phase
         if (gameState.phase === 'playing' && isCurrentPlayerBot) {
           const difficulty = getBotDifficulty(currentSeat);
@@ -975,7 +947,6 @@ export function useBotRunner({
     isBotSeat,
     getBotDifficulty,
     botDelay,
-    handleBonusPhase,
     handlePlayingPhase,
     handleCallingPhase,
   ]);

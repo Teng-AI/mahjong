@@ -74,6 +74,18 @@ These trigger immediately without needing a complete hand:
 - Counts as **self-draw** (×2 multiplier applies)
 - Worth **+20 points** special bonus
 
+#### Robbing the Gold (抢金)
+When the Gold tile is revealed at game start, players may claim it to win:
+
+1. **Dealer priority**: If dealer already has a winning hand (without needing the Gold), they win
+2. **Tenpai players**: Non-dealers in turn order who are waiting on the Gold tile type can claim it
+3. **Dealer swap**: Dealer can swap any non-Gold tile from their hand with the revealed Gold to win
+
+**Scoring**:
+- Counts as **self-draw** (×2 multiplier applies)
+- Worth **+20 points** special bonus
+- The revealed Gold tile becomes part of the winner's hand
+
 ---
 
 ## Gameplay
@@ -155,8 +167,11 @@ Total = Non-Special Points + Special Hand Bonuses
 | Per Gold tile in hand | +1 (physical Golds, regardless of how used) |
 | Per Concealed Kong | +2 |
 | Per Exposed Kong | +1 |
+| Dealer streak bonus | +N (where N = consecutive dealer wins) |
 
 **Self-draw (自摸)**: Multiply non-special points by **2**
+
+**Dealer Streak (连庄)**: When the dealer wins consecutive hands, they earn a streak bonus equal to their win count. For example, if the dealer wins 3 hands in a row, their 3rd win gets +3 bonus points (added before the self-draw multiplier).
 
 ### Special Hand Bonuses
 
@@ -166,6 +181,7 @@ Added after the self-draw multiplier (not multiplied):
 |------|--------|-----------|
 | **No Bonus/Kong (平胡)** | +10 | No exposed bonus tiles AND no kongs |
 | **Three Golds (三金)** | +20 | Instant win with all 3 Golds |
+| **Robbing the Gold (抢金)** | +20 | Win by claiming the revealed Gold tile |
 | **Golden Pair (金对)** | +30 | Pair is 2 Gold tiles |
 
 **Notes**:
@@ -227,6 +243,7 @@ Total:       42 points (each loser pays 42)
 ### Win Requirements
 - Standard: 5 sets + 1 pair
 - Three Golds: 3 Gold tiles (instant)
+- Robbing the Gold: Claim revealed Gold at game start (instant)
 
 ### Key Rules
 - Hand size: 16 tiles (17 after draw)
@@ -234,6 +251,7 @@ Total:       42 points (each loser pays 42)
 - Bonus/Kong replacements: Draw from wall
 - You can delay winning to go for a bigger hand
 - Payment: All 3 losers pay winner
+- Dealer streak: Consecutive dealer wins add bonus points
 
 ---
 
@@ -257,14 +275,15 @@ Gold:    Determined at game start (3 copies in play)
 
 ### Win Checks (in order)
 1. **Three Golds**: Player has 3 Gold tiles → instant win
-2. **Standard win**: 5 sets + 1 pair with 17 tiles
+2. **Robbing the Gold**: At game start, player can claim revealed Gold to complete hand
+3. **Standard win**: 5 sets + 1 pair with 17 tiles
 
 ### Scoring Algorithm
 ```
-non_special = 1 + bonus_tiles + golds_in_hand + (concealed_kongs × 2) + (exposed_kongs × 1)
+non_special = 1 + bonus_tiles + golds_in_hand + (concealed_kongs × 2) + (exposed_kongs × 1) + dealer_streak_bonus
 
-# Self-draw and Three Golds count as self-draw
-if self_draw or three_golds:
+# Self-draw, Three Golds, and Robbing the Gold count as self-draw
+if self_draw or three_golds or robbing_gold:
     non_special = non_special × 2
 
 special = 0
@@ -274,6 +293,8 @@ if golden_pair:
     special += 30
 if three_golds:
     special += 20  # also gets +3 from golds_in_hand
+if robbing_gold:
+    special += 20
 
 total = non_special + special
 payment = total × 3  # from all losers

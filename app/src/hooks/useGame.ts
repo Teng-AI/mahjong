@@ -4,8 +4,6 @@ import { db } from '@/firebase/config';
 import { GameState, PrivateHand, SeatIndex, TileId, TileType, CallAction, PendingCall, ValidCalls, SessionScores } from '@/types';
 import {
   initializeGame,
-  exposeBonusTiles,
-  advanceBonusExposure,
   needsToDraw,
   drawTile,
   discardTile,
@@ -37,7 +35,6 @@ interface UseGameReturn {
   loading: boolean;
   error: string | null;
   startGame: (dealerSeat: SeatIndex) => Promise<void>;
-  processBonusExposure: () => Promise<void>;
   // Phase 5: Turn loop
   shouldDraw: boolean;
   handleDraw: () => Promise<{ success: boolean; wallEmpty?: boolean; threeGoldsWin?: boolean }>;
@@ -142,29 +139,6 @@ export function useGame({ roomCode, mySeat }: UseGameOptions): UseGameReturn {
     },
     [roomCode]
   );
-
-  // Process bonus tile exposure for current player
-  const processBonusExposure = useCallback(async () => {
-    if (mySeat === null || !gameState) return;
-
-    try {
-      setError(null);
-
-      // Expose all bonus tiles from my hand
-      const result = await exposeBonusTiles(roomCode, mySeat);
-
-      if (result.wallEmpty) {
-        // Game ends in draw
-        return;
-      }
-
-      // Advance to next player or reveal Gold
-      await advanceBonusExposure(roomCode, mySeat, gameState.dealerSeat);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to process bonus tiles');
-      throw err;
-    }
-  }, [roomCode, mySeat, gameState]);
 
   // Phase 5: Check if current player needs to draw
   const shouldDraw = gameState && mySeat !== null && gameState.currentPlayerSeat === mySeat
@@ -433,7 +407,6 @@ export function useGame({ roomCode, mySeat }: UseGameOptions): UseGameReturn {
     loading,
     error,
     startGame,
-    processBonusExposure,
     // Phase 5
     shouldDraw,
     handleDraw,

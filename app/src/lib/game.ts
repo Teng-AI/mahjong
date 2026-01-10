@@ -289,18 +289,74 @@ export async function initializeGame(roomCode: string, dealerSeat: SeatIndex): P
   }
 
   // Remaining tiles form the wall
-  const wall = (TEST_WINNING_HAND || TEST_KONG_MODE)
+  let wall = (TEST_WINNING_HAND || TEST_KONG_MODE)
     ? shuffledTiles // Already set up correctly in test modes
     : shuffledTiles.slice(tileIndex);
 
-  // Create initial game state (Gold not yet revealed)
+  // Auto-expose bonus tiles for all players, starting from dealer
+  const bonusTiles: TileId[][] = [[], [], [], []];
+  const actionLog: string[] = ['Game started'];
+
+  // Process each player starting from dealer
+  for (let i = 0; i < 4; i++) {
+    const seat = ((dealerSeat + i) % 4) as SeatIndex;
+    let playerHand = hands[seat];
+    let bonusTilesInHand = playerHand.filter(isBonusTile);
+
+    while (bonusTilesInHand.length > 0 && wall.length > 0) {
+      // Move all bonus tiles to exposed
+      for (const bonusTile of bonusTilesInHand) {
+        bonusTiles[seat].push(bonusTile);
+        playerHand = playerHand.filter(t => t !== bonusTile);
+
+        // Draw replacement from wall
+        if (wall.length > 0) {
+          const replacement = wall.shift()!;
+          playerHand.push(replacement);
+        }
+      }
+
+      // Check for more bonus tiles in the replacements
+      bonusTilesInHand = playerHand.filter(isBonusTile);
+    }
+
+    hands[seat] = playerHand;
+
+    // Log bonus exposure
+    if (bonusTiles[seat].length > 0) {
+      const bonusNames = bonusTiles[seat].map(t => getTileDisplayText(getTileType(t))).join(', ');
+      actionLog.push(`${SEAT_NAMES[seat]} exposed bonus: ${bonusNames}`);
+    } else {
+      actionLog.push(`${SEAT_NAMES[seat]} had no bonus tiles`);
+    }
+  }
+
+  // Reveal Gold tile (handle bonus tiles going to dealer)
+  let exposedGold = wall.shift()!;
+  while (isBonusTile(exposedGold) && wall.length > 0) {
+    // Bonus tile goes to dealer
+    bonusTiles[dealerSeat].push(exposedGold);
+    const bonusName = getTileDisplayText(getTileType(exposedGold));
+    actionLog.push(`Dealer received bonus from Gold reveal: ${bonusName}`);
+    exposedGold = wall.shift()!;
+  }
+
+  const goldTileType = getTileType(exposedGold);
+  actionLog.push(`Gold tile revealed: ${getTileDisplayText(goldTileType)}`);
+
+  // Sort all hands now that Gold is known
+  for (let seat = 0; seat < 4; seat++) {
+    hands[seat] = sortTilesForDisplay(hands[seat], goldTileType);
+  }
+
+  // Create initial game state (Gold revealed, ready to play)
   const gameState: GameState = {
-    phase: 'bonus_exposure',
-    goldTileType: '', // Will be set after bonus exposure
-    exposedGold: '', // Will be set after bonus exposure
+    phase: 'playing', // Skip bonus_exposure phase
+    goldTileType,
+    exposedGold,
     wall,
     discardPile: [],
-    currentPlayerSeat: dealerSeat, // Dealer starts bonus exposure
+    currentPlayerSeat: dealerSeat,
     dealerSeat,
     lastAction: null,
     exposedMelds: {
@@ -310,14 +366,14 @@ export async function initializeGame(roomCode: string, dealerSeat: SeatIndex): P
       seat3: [],
     },
     bonusTiles: {
-      seat0: [],
-      seat1: [],
-      seat2: [],
-      seat3: [],
+      seat0: bonusTiles[0],
+      seat1: bonusTiles[1],
+      seat2: bonusTiles[2],
+      seat3: bonusTiles[3],
     },
     pendingCalls: null,
     winner: null,
-    actionLog: ['Game started'],
+    actionLog,
   };
 
   // Write game state to Firebase
@@ -331,6 +387,22 @@ export async function initializeGame(roomCode: string, dealerSeat: SeatIndex): P
   );
 
   await Promise.all(privateHandPromises);
+
+  // Check all players for Three Golds instant win
+  for (let seat = 0; seat < 4; seat++) {
+    const goldCount = countGoldTiles(hands[seat], goldTileType);
+    if (goldCount === 3) {
+      // Three Golds! Instant win - handle it after init completes
+      await handleThreeGoldsWin(roomCode, seat as SeatIndex, hands[seat], goldTileType);
+      return;
+    }
+  }
+
+  // Check for Robbing the Gold (抢金) after Gold tile is revealed
+  const robbingGoldResult = await checkRobbingGold(roomCode, goldTileType, exposedGold, dealerSeat);
+  if (robbingGoldResult !== null) {
+    return; // Game ended with Robbing Gold win
+  }
 
   // Update room status
   await update(ref(db, `rooms/${roomCode}`), {
@@ -788,6 +860,7 @@ async function handleRobbingGoldWin(
 
   // Check for special bonuses
   const goldenPairBonus = hasGoldenPair(hand, goldTileType, 0) ? 30 : 0;
+  // No Bonus/Kong: +10 for no bonus tiles AND no kongs (no kongs possible at game start)
   const noBonusBonus = bonusCount === 0 ? 10 : 0;
 
   const total = (subtotal * multiplier) + robbingGoldBonus + goldenPairBonus + noBonusBonus;
@@ -1714,7 +1787,9 @@ export async function declareSelfDrawWin(
 
   // Special bonuses (added after multiplier)
   const goldenPairBonus = hasGoldenPair(hand, gameState.goldTileType, exposedMeldCount) ? 30 : 0;
-  const noBonusBonus = bonusCount === 0 ? 10 : 0;
+  // No Bonus/Kong: +10 for no bonus tiles AND no kongs
+  const hasNoKongs = kongBonuses.concealed === 0 && kongBonuses.exposed === 0;
+  const noBonusBonus = (bonusCount === 0 && hasNoKongs) ? 10 : 0;
 
   const total = (subtotal * multiplier) + goldenPairBonus + noBonusBonus;
 
@@ -1853,7 +1928,9 @@ export async function declareDiscardWin(
 
   // Special bonuses (added after multiplier)
   const goldenPairBonus = hasGoldenPair(fullHand, gameState.goldTileType, exposedMeldCount) ? 30 : 0;
-  const noBonusBonus = bonusCount === 0 ? 10 : 0;
+  // No Bonus/Kong: +10 for no bonus tiles AND no kongs
+  const hasNoKongs = kongBonuses.concealed === 0 && kongBonuses.exposed === 0;
+  const noBonusBonus = (bonusCount === 0 && hasNoKongs) ? 10 : 0;
 
   const total = (subtotal * multiplier) + goldenPairBonus + noBonusBonus;
 
