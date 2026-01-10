@@ -9,9 +9,16 @@ All notable changes to the Fujian Mahjong project.
 ### Added
 - **Player Turn Order UI**: All 4 players now shown in Players section with current player first, followed by others in turn order. Green highlight indicates whose turn it is.
 - **Clickable Rules Modal**: Rules button (?) now opens a modal on click instead of hover tooltip - works on both mobile and desktop.
+- **All One Suit Bonus (+60)**: New scoring bonus when all tiles in winning hand are the same suit (Gold tiles count as matching any suit).
+- **Winner Celebration Effects**:
+  - Animated fireworks for winners (rockets shoot up from bottom and explode with colorful particles)
+  - Celebratory victory fanfare music on loop for winner
+  - Sparkle overlay effects
+  - Sad falling emojis for losers
 
 ### Changed
 - **Sound Volume**: Increased max sound volume by ~2.5x for better audibility at full volume.
+- **Winner Screen**: Redesigned and enlarged for desktop with better balanced columns.
 
 ---
 

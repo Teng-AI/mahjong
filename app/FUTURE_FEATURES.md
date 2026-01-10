@@ -40,6 +40,12 @@
 ## Completed
 <!-- Move items here when done -->
 
+- [x] All One Suit bonus scoring (+60 points)
+- [x] Winner celebration effects
+  - Animated fireworks shooting from bottom
+  - Looping victory fanfare for winner
+  - Sparkle overlay effects
+  - Sad emojis for losers
 - [x] Player turn order UI
   - All 4 players shown in Players section
   - Current player ("You") first, others in turn order
