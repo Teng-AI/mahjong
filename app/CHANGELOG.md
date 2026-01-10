@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Reorganized game layout: calling status moved to bottom, middle row reordered (Last Discard → Discard Pile → Game Log)
+
+### Fixed
+- Win sound loop now respects sound enabled setting on mobile
+
 ### Added
 - Kong (Quad) support with three declaration types:
   - Concealed Kong: 4 identical tiles in hand

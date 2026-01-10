@@ -182,6 +182,8 @@
 
 ## Completed
 
+- [x] Game layout reorganization (calling status to bottom, middle row reordered)
+- [x] **Bug fix**: Win sound loop now respects sound enabled setting
 - [x] Renamed "UPGRADE" button to "KONG" for pung upgrades
 - [x] Bot names now include number (Bot-E1, Bot-M2, Bot-H3)
 - [x] Sound controls moved to Settings modal (cleaner header)
