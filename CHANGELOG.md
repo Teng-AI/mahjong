@@ -11,45 +11,6 @@ All notable changes to the Fujian Mahjong project.
 
 ---
 
-## 2026-01-09
-
-### Calling Phase Timer & Auto-Pass
-
-#### Added
-- **Calling Phase Timer**
-  - Adjustable timer (15-120 seconds) via slider + text input
-  - Host can set timer in room lobby and in-game settings
-  - Timer captured per calling phase (changes take effect on next discard)
-  - Prominent countdown display with progress bar during calling phase
-  - Visual urgency: green (safe), orange (≤10s), red pulsing (≤5s)
-- **Client-side Auto-Pass**: Automatically pass when timer expires
-- **Server-side Auto-Pass**: Firebase Cloud Function handles disconnected players
-  - Triggers when calling phase starts
-  - Waits for timer duration
-  - Auto-passes any players who haven't responded
-- **Keyboard Shortcuts Settings**: Configurable shortcuts in settings modal
-- **Player Names in UI**: Turn indicator and game log now show actual player names instead of direction (East/South/West/North)
-- **Share Full URL**: Share button copies full room URL instead of just room code
-
-#### Changed
-- Settings modal now includes timer adjustment for host
-- Timer setting uses localStorage persistence
-
-#### Files Created
-- `functions/` - Firebase Cloud Functions for server-side auto-pass
-- `firebase.json` - Firebase configuration
-
-#### Files Modified
-- `app/src/app/game/[code]/page.tsx` - Timer UI, auto-pass logic, player names
-- `app/src/app/room/[code]/page.tsx` - Timer setting in lobby
-- `app/src/components/SettingsModal.tsx` - Timer settings for host
-- `app/src/hooks/useRoom.ts` - setCallTimer function
-- `app/src/lib/game.ts` - activeCallTimer captured per calling phase
-- `app/src/lib/rooms.ts` - setCallTimer, default callTimer
-- `app/src/types/index.ts` - activeCallTimer, callTimer types
-
----
-
 ## 2026-01-08
 
 ### Dealer Streak System & Winner Screen Redesign

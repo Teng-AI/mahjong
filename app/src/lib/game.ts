@@ -156,11 +156,6 @@ export async function getDealerStreak(roomCode: string): Promise<number> {
  * - Stores private hands separately
  */
 export async function initializeGame(roomCode: string, dealerSeat: SeatIndex): Promise<void> {
-  // Get room settings to capture callTimer for this hand
-  const roomSnapshot = await get(ref(db, `rooms/${roomCode}/settings`));
-  const settings = roomSnapshot.val();
-  const activeCallTimer = settings?.callTimer ?? 30;
-
   // Generate and shuffle tiles
   const allTiles = generateAllTiles();
   let shuffledTiles = shuffle(allTiles);
@@ -377,7 +372,6 @@ export async function initializeGame(roomCode: string, dealerSeat: SeatIndex): P
       seat3: bonusTiles[3],
     },
     pendingCalls: null,
-    activeCallTimer,
     winner: null,
     actionLog,
   };
@@ -1157,23 +1151,11 @@ export async function discardTile(
     seat3: seat === 3 ? 'discarder' : null,
   };
 
-  // Debug logging
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`[discardTile] Seat ${seat} discarding, pendingCalls:`, JSON.stringify(pendingCalls));
-  }
-
-  // Get current room settings for the timer
-  const roomSnapshot = await get(ref(db, `rooms/${roomCode}/settings`));
-  const settings = roomSnapshot.val();
-  const activeCallTimer = settings?.callTimer ?? 30;
-
   // Update game state - enter calling phase
   await update(ref(db, `rooms/${roomCode}/game`), {
     discardPile,
     phase: 'calling',
     pendingCalls,
-    callingPhaseStartTime: Date.now(), // For timer-based auto-pass
-    activeCallTimer, // Capture timer setting for this calling phase
     lastAction: {
       type: 'discard',
       playerSeat: seat,
@@ -1246,14 +1228,7 @@ export async function submitCallResponse(
   // Verify this player hasn't already responded
   // Firebase doesn't store null values, so undefined means no response yet
   const currentCall = gameState.pendingCalls?.[`seat${seat}` as keyof PendingCalls];
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`[submitCallResponse] Seat ${seat} action="${action}", currentCall="${currentCall}" (type: ${typeof currentCall})`);
-    console.log(`[submitCallResponse] Full pendingCalls:`, JSON.stringify(gameState.pendingCalls));
-  }
   if (currentCall) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[submitCallResponse] Seat ${seat} already responded, rejecting`);
-    }
     return { success: false, error: 'Already responded' };
   }
 
@@ -1305,56 +1280,37 @@ export async function submitCallResponse(
   }
   // 'pass' always valid
 
-  // Use transaction to atomically update the response
+  // Use transaction to atomically update and check if all responded
+  // This ensures we see consistent state across multiple browser tabs
   const pendingCallsRef = ref(db, `rooms/${roomCode}/game/pendingCalls`);
 
-  await runTransaction(pendingCallsRef, (currentCalls) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[submitCallResponse TX] Seat ${seat} - currentCalls before:`, JSON.stringify(currentCalls));
-    }
+  let shouldResolve = false;
 
+  await runTransaction(pendingCallsRef, (currentCalls) => {
     if (currentCalls === null || currentCalls === undefined) {
       // pendingCalls was already cleared - another player resolved
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[submitCallResponse TX] Seat ${seat} - pendingCalls is null/undefined, aborting`);
-      }
       return; // Abort transaction
     }
 
     // Update with our response
     currentCalls[`seat${seat}`] = action;
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[submitCallResponse TX] Seat ${seat} - currentCalls after:`, JSON.stringify(currentCalls));
+    // Check if all have responded
+    const allResponded = ([0, 1, 2, 3] as SeatIndex[]).every(s => {
+      const call = currentCalls[`seat${s}`];
+      return !!call;
+    });
+
+    if (allResponded) {
+      shouldResolve = true;
     }
 
     return currentCalls;
   });
 
-  // After transaction commits, re-read to check if all have responded
-  // This avoids race conditions where multiple simultaneous transactions
-  // each see partial data in their callbacks
-  const freshSnapshot = await get(pendingCallsRef);
-  const finalCalls = freshSnapshot.val();
-
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`[submitCallResponse] Seat ${seat} - final pendingCalls after TX:`, JSON.stringify(finalCalls));
-  }
-
-  if (finalCalls) {
-    const allResponded = ([0, 1, 2, 3] as SeatIndex[]).every(s => {
-      const call = finalCalls[`seat${s}`];
-      return !!call;
-    });
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[submitCallResponse] Seat ${seat} - allResponded: ${allResponded}`);
-    }
-
-    if (allResponded) {
-      // Resolve the calling phase
-      await resolveCallingPhase(roomCode);
-    }
+  if (shouldResolve) {
+    // Resolve the calling phase
+    await resolveCallingPhase(roomCode);
   }
 
   return { success: true };
@@ -1445,7 +1401,6 @@ async function advanceToNextPlayer(roomCode: string, discarderSeat: SeatIndex): 
     currentPlayerSeat: nextSeat,
     pendingCalls: null,
     pendingChowOption: null,
-    callingPhaseStartTime: null,
   });
 
   await addToLog(roomCode, 'All players passed');
@@ -1464,7 +1419,6 @@ async function executeWinCall(
   await update(ref(db, `rooms/${roomCode}/game`), {
     pendingCalls: null,
     pendingChowOption: null,
-    callingPhaseStartTime: null,
   });
 
   // Use existing win logic
@@ -1527,7 +1481,6 @@ async function executePungCall(
     discardPile,
     pendingCalls: null,
     pendingChowOption: null,
-    callingPhaseStartTime: null,
     [`exposedMelds/seat${callerSeat}`]: [...existingMelds, meld],
     lastAction: {
       type: 'pung',
@@ -1626,7 +1579,6 @@ async function executeKongCall(
     discardPile,
     pendingCalls: null,
     pendingChowOption: null,
-    callingPhaseStartTime: null,
     [`exposedMelds/seat${callerSeat}`]: [...existingMelds, meld],
     ...(bonusTilesExposed.length > 0 ? {
       [`bonusTiles/seat${callerSeat}`]: [...existingBonusTiles, ...bonusTilesExposed],
@@ -1708,7 +1660,6 @@ async function executeChowCall(
     discardPile,
     pendingCalls: null,
     pendingChowOption: null,
-    callingPhaseStartTime: null,
     [`exposedMelds/seat${callerSeat}`]: [...existingMelds, meld],
     lastAction: {
       type: 'chow',

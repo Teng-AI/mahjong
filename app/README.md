@@ -10,7 +10,6 @@ A real-time multiplayer Fujian Mahjong game built with Next.js and Firebase.
 - **Bot Players**: Fill empty seats with AI bots from the room lobby
 - **Full Game Loop**: Deal, draw, discard, call (Pung/Chow), win
 - **Calling System**: Pung (triplet), Chow (sequence), and Kong (quad) with priority resolution
-- **Call Timer**: Adjustable timer (15-120s) with auto-pass for disconnected players
 - **Kong Support**: Concealed Kong, Kong from discard, and Pung upgrade with replacement draws
 - **Win Detection**: Validates winning hands (5 sets + 1 pair) with Gold tile wildcards
 - **Gold Tiles**: Random suit tile becomes wildcard each round
@@ -107,7 +106,7 @@ app/
 ## Tech Stack
 
 - **Frontend**: Next.js 14, React 18, TypeScript, Tailwind CSS
-- **Backend**: Firebase Realtime Database, Firebase Cloud Functions
+- **Backend**: Firebase Realtime Database
 - **Auth**: Firebase Anonymous Authentication
 - **State**: React hooks with Firebase real-time sync
 
@@ -145,3 +144,4 @@ The bots use strategic decision-making:
 See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md) for planned features including:
 - Error boundaries and loading states
 - Mobile touch optimization
+- Keyboard shortcuts

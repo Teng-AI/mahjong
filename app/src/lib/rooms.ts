@@ -65,7 +65,6 @@ export async function createRoom(hostId: string, hostName: string): Promise<stri
     },
     settings: {
       dealerSeat: 0,
-      callTimer: 30, // Default 30 seconds for calling phase
     },
   };
 
@@ -286,20 +285,6 @@ export async function setDealer(
 ): Promise<void> {
   await update(ref(db, `rooms/${roomCode}/settings`), {
     dealerSeat,
-  });
-}
-
-/**
- * Set call timer (host only)
- */
-export async function setCallTimer(
-  roomCode: string,
-  seconds: number
-): Promise<void> {
-  // Clamp to valid range (15-120 seconds)
-  const clampedSeconds = Math.min(120, Math.max(15, seconds));
-  await update(ref(db, `rooms/${roomCode}/settings`), {
-    callTimer: clampedSeconds,
   });
 }
 
