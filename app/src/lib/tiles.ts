@@ -1100,3 +1100,56 @@ export function getTileDisplayText(tileType: TileType): string {
 
   return `${value}${suitSymbols[suit!]}`;
 }
+
+// ============================================
+// SPECIAL HAND DETECTION
+// ============================================
+
+/**
+ * Check if a winning hand is "All One Suit" (flush)
+ * All tiles must be the same suit (dots, bamboo, or characters)
+ * Gold tiles count as the same suit (they're wildcards)
+ *
+ * @param hand - The concealed tiles in hand
+ * @param exposedMelds - Any exposed melds
+ * @param goldTileType - The gold tile type
+ * @returns true if all tiles are the same suit
+ */
+export function isAllOneSuit(
+  hand: TileId[],
+  exposedMelds: Meld[],
+  goldTileType: TileType
+): boolean {
+  // Collect all tiles (hand + exposed melds)
+  const allTiles: TileId[] = [...hand];
+  for (const meld of exposedMelds) {
+    allTiles.push(...meld.tiles);
+  }
+
+  // Find the suit of the first non-gold tile
+  let foundSuit: Suit | null = null;
+
+  for (const tile of allTiles) {
+    // Skip gold tiles - they count as any suit
+    if (isGoldTile(tile, goldTileType)) {
+      continue;
+    }
+
+    const parsed = parseTile(tile);
+
+    // If it's not a suit tile, can't be all one suit
+    if (parsed.category !== 'suit' || !parsed.suit) {
+      return false;
+    }
+
+    if (foundSuit === null) {
+      foundSuit = parsed.suit;
+    } else if (parsed.suit !== foundSuit) {
+      // Different suit found
+      return false;
+    }
+  }
+
+  // If we found at least one suit and all non-gold tiles match, it's all one suit
+  return foundSuit !== null;
+}

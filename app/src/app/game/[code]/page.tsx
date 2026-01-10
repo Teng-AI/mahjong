@@ -762,24 +762,109 @@ export default function GamePage() {
           <div className="absolute top-1/3 right-1/3 w-[400px] h-[400px] bg-orange-500/15 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
         </div>
 
-        <div className="max-w-6xl mx-auto relative z-10">
-          {/* Dramatic Header */}
-          <div className="text-center mb-8">
-            {/* Large animated title */}
-            <div className="text-6xl sm:text-7xl mb-4 animate-bounce" style={{ animationDuration: '1s', animationIterationCount: '3' }}>
-              {winner.isThreeGolds ? '🀄🀄🀄' : winner.isRobbingGold ? '💰💰💰' : '🏆'}
+        {/* Confetti for winner / Sad faces for losers */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+          {winner.seat === mySeat ? (
+            // Confetti for winners - falling from top
+            <>
+              {Array.from({ length: 30 }).map((_, i) => {
+                const confettiEmojis = ['🎉', '🎊', '✨', '⭐', '🌟', '💫', '🏆', '👑'];
+                const emoji = confettiEmojis[i % confettiEmojis.length];
+                // Use stable pseudo-random values based on index
+                const left = ((i * 37) % 100);
+                const delay = (i * 0.15) % 3;
+                const duration = 3 + (i % 4);
+                const size = 1.5 + (i % 3) * 0.5;
+                return (
+                  <div
+                    key={i}
+                    className="absolute text-2xl opacity-80"
+                    style={{
+                      left: `${left}%`,
+                      top: '-50px',
+                      fontSize: `${size}rem`,
+                      animation: `confetti-fall ${duration}s linear ${delay}s infinite`,
+                    }}
+                  >
+                    {emoji}
+                  </div>
+                );
+              })}
+            </>
+          ) : (
+            // Sad faces for losers - falling slowly
+            <>
+              {Array.from({ length: 15 }).map((_, i) => {
+                const sadEmojis = ['😢', '😭', '😿', '💔', '😞', '😔'];
+                const emoji = sadEmojis[i % sadEmojis.length];
+                // Use stable pseudo-random values based on index
+                const left = ((i * 47) % 100);
+                const delay = (i * 0.4) % 4;
+                const duration = 5 + (i % 5);
+                const size = 3 + (i % 3) * 1.5;
+                return (
+                  <div
+                    key={i}
+                    className="absolute text-2xl opacity-50"
+                    style={{
+                      left: `${left}%`,
+                      top: '-50px',
+                      fontSize: `${size}rem`,
+                      animation: `sad-fall ${duration}s linear ${delay}s infinite`,
+                    }}
+                  >
+                    {emoji}
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </div>
+
+        {/* CSS for animations */}
+        <style jsx>{`
+          @keyframes confetti-fall {
+            0% {
+              transform: translateY(0) rotate(0deg);
+              opacity: 1;
+            }
+            100% {
+              transform: translateY(110vh) rotate(720deg);
+              opacity: 0.3;
+            }
+          }
+          @keyframes sad-fall {
+            0% {
+              transform: translateY(0) rotate(0deg);
+              opacity: 0.5;
+            }
+            100% {
+              transform: translateY(110vh) rotate(30deg);
+              opacity: 0.1;
+            }
+          }
+        `}</style>
+
+        <div className="max-w-7xl mx-auto relative z-10 h-full flex flex-col">
+          {/* Header */}
+          <div className="text-center mb-3 lg:mb-4">
+            {/* Animated title row */}
+            <div className="flex items-center justify-center gap-3 mb-2">
+              <div className="text-4xl sm:text-5xl animate-bounce" style={{ animationDuration: '1s', animationIterationCount: '3' }}>
+                {winner.isThreeGolds ? '🀄🀄🀄' : winner.isRobbingGold ? '💰💰💰' : '🏆'}
+              </div>
+              <div className={`text-2xl sm:text-4xl font-bold ${
+                winner.isThreeGolds
+                  ? 'text-yellow-300 animate-pulse'
+                  : winner.isRobbingGold
+                    ? 'text-amber-300 animate-pulse'
+                    : 'text-amber-400'
+              }`}>
+                {winner.isThreeGolds ? 'THREE GOLDS!' : winner.isRobbingGold ? 'ROBBING THE GOLD!' : 'WINNER!'}
+              </div>
             </div>
-            <div className={`text-3xl sm:text-5xl font-bold mb-3 ${
-              winner.isThreeGolds
-                ? 'text-yellow-300 animate-pulse'
-                : winner.isRobbingGold
-                  ? 'text-amber-300 animate-pulse'
-                  : 'text-amber-400'
-            }`}>
-              {winner.isThreeGolds ? 'THREE GOLDS!' : winner.isRobbingGold ? 'ROBBING THE GOLD!' : 'WINNER!'}
-            </div>
-            <div className="text-3xl sm:text-4xl font-bold text-white mb-2 drop-shadow-lg">{winnerName}</div>
-            <div className="text-xl text-slate-300">
+            <div className="text-2xl sm:text-3xl font-bold text-white drop-shadow-lg">{winnerName}</div>
+            <div className="text-base text-slate-300">
               {winner.isThreeGolds
                 ? 'Instant win with 3 Gold tiles!'
                 : winner.isRobbingGold
@@ -787,39 +872,35 @@ export default function GamePage() {
                   : winner.isSelfDraw
                     ? 'Won by self-draw'
                     : `Won on ${discarderName}'s discard`}
+              {winner.seat === gameState.dealerSeat && (
+                <span className="text-orange-400 ml-2">
+                  {sessionScores?.dealerStreak && sessionScores.dealerStreak > 1
+                    ? `🔥 ${sessionScores.dealerStreak}-win streak!`
+                    : ' 🔥 Dealer wins!'}
+                </span>
+              )}
             </div>
-            {winner.seat === gameState.dealerSeat && (
-              <div className="text-lg text-orange-400 mt-2 font-semibold">
-                {sessionScores?.dealerStreak && sessionScores.dealerStreak > 1
-                  ? `🔥 Dealer on a ${sessionScores.dealerStreak}-win streak! 🔥`
-                  : sessionScores?.dealerStreak === 1
-                    ? '🔥 Dealer wins! Streak started 🔥'
-                    : '🔥 Dealer wins! 🔥'}
-              </div>
-            )}
             {/* Score badge */}
-            <div className="mt-4 inline-block bg-gradient-to-r from-amber-500 to-yellow-500 text-black text-2xl sm:text-3xl font-bold px-6 py-2 rounded-full shadow-lg">
+            <div className="mt-2 inline-block bg-gradient-to-r from-amber-500 to-yellow-500 text-black text-xl sm:text-2xl font-bold px-5 py-1.5 rounded-full shadow-lg">
               +{winner.score.total} points
             </div>
           </div>
 
           {/* Main content - 2 column grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4 mb-3 flex-1">
             {/* Left column - Hands */}
-            <div className="space-y-4">
+            <div className="flex flex-col gap-3">
               {/* Winning Hand */}
               {winner.hand && (
-                <div className="bg-slate-700/50 rounded-xl p-4 border border-slate-600">
-                  <h3 className="text-lg font-semibold text-amber-400 mb-3">Winning Hand</h3>
-
-                  {/* All tiles in one row */}
-                  <div className="flex flex-wrap gap-1 mb-3">
+                <div className="bg-slate-700/50 rounded-lg p-3 lg:p-4 border border-slate-600 lg:flex-1 flex flex-col">
+                  <h3 className="text-base lg:text-lg font-semibold text-amber-400 mb-2">Winning Hand</h3>
+                  <div className="flex flex-wrap gap-1 lg:gap-1.5 mb-2">
                     {(() => {
                       const sortedHand = sortTilesForDisplay(winner.hand, gameState.goldTileType);
                       return sortedHand.map((tileId: string, index: number) => {
                         const isWinningTile = tileId === winner.winningTile;
                         return (
-                          <div key={`hand-${index}`} className={`relative ${isWinningTile ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-slate-700 rounded-md' : ''}`}>
+                          <div key={`hand-${index}`} className={`relative ${isWinningTile ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-700 rounded-md' : ''}`}>
                             <Tile
                               tileId={tileId}
                               goldTileType={gameState.goldTileType}
@@ -830,13 +911,11 @@ export default function GamePage() {
                       });
                     })()}
                   </div>
-
-                  {/* Exposed melds */}
                   {gameState.exposedMelds?.[`seat${winner.seat}` as keyof typeof gameState.exposedMelds]?.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-slate-400 text-sm">Called:</span>
+                    <div className="flex flex-wrap items-center gap-1 lg:gap-1.5">
+                      <span className="text-slate-400 text-xs lg:text-sm">Called:</span>
                       {gameState.exposedMelds[`seat${winner.seat}` as keyof typeof gameState.exposedMelds].map((meld, meldIndex) => (
-                        <div key={`meld-${meldIndex}`} className={`flex gap-0.5 rounded p-1 ${meld.isConcealed ? 'bg-pink-800/50' : 'bg-slate-800/70'}`}>
+                        <div key={`meld-${meldIndex}`} className={`flex gap-0.5 rounded p-0.5 ${meld.isConcealed ? 'bg-pink-800/50' : 'bg-slate-800/70'}`}>
                           {meld.tiles.map((tileId: string, tileIndex: number) => (
                             <Tile
                               key={`meld-${meldIndex}-${tileIndex}`}
@@ -855,9 +934,9 @@ export default function GamePage() {
 
               {/* Your Hand (if not winner) */}
               {mySeat !== null && mySeat !== winner.seat && myHand.length > 0 && (
-                <div className="bg-slate-700/50 rounded-xl p-4 border border-slate-600">
-                  <h3 className="text-lg font-semibold text-blue-400 mb-3">Your Hand</h3>
-                  <div className="flex flex-wrap gap-1 mb-3">
+                <div className="bg-slate-700/50 rounded-lg p-3 lg:p-4 border border-slate-600 lg:flex-1 flex flex-col">
+                  <h3 className="text-base lg:text-lg font-semibold text-blue-400 mb-2">Your Hand</h3>
+                  <div className="flex flex-wrap gap-1 lg:gap-1.5 mb-2">
                     {sortTilesForDisplay(myHand, gameState.goldTileType).map((tileId: string, index: number) => (
                       <Tile
                         key={`my-hand-${index}`}
@@ -868,10 +947,10 @@ export default function GamePage() {
                     ))}
                   </div>
                   {gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds]?.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-slate-400 text-sm">Called:</span>
+                    <div className="flex flex-wrap items-center gap-1 lg:gap-1.5">
+                      <span className="text-slate-400 text-xs lg:text-sm">Called:</span>
                       {gameState.exposedMelds[`seat${mySeat}` as keyof typeof gameState.exposedMelds].map((meld, meldIndex) => (
-                        <div key={`my-meld-${meldIndex}`} className={`flex gap-0.5 rounded p-1 ${meld.isConcealed ? 'bg-pink-800/50' : 'bg-slate-800/70'}`}>
+                        <div key={`my-meld-${meldIndex}`} className={`flex gap-0.5 rounded p-0.5 ${meld.isConcealed ? 'bg-pink-800/50' : 'bg-slate-800/70'}`}>
                           {meld.tiles.map((tileId: string, tileIndex: number) => (
                             <Tile
                               key={`my-meld-${meldIndex}-${tileIndex}`}
@@ -890,11 +969,11 @@ export default function GamePage() {
             </div>
 
             {/* Right column - Scores */}
-            <div className="space-y-4">
+            <div className="flex flex-col gap-3">
               {/* Score Breakdown */}
-              <div className="bg-slate-700/50 rounded-xl p-4 border border-slate-600">
-                <h3 className="text-lg font-semibold text-amber-400 mb-3">Score Breakdown</h3>
-                <div className="text-lg space-y-1">
+              <div className="bg-slate-700/50 rounded-lg p-3 lg:p-4 border border-slate-600 lg:flex-1">
+                <h3 className="text-base lg:text-lg font-semibold text-amber-400 mb-2">Score Breakdown</h3>
+                <div className="text-sm lg:text-base space-y-0.5 lg:space-y-1">
                   <div className="flex justify-between">
                     <span className="text-slate-300">Base:</span>
                     <span>{winner.score.base}</span>
@@ -959,7 +1038,13 @@ export default function GamePage() {
                       <span>+{winner.score.noBonusBonus}</span>
                     </div>
                   )}
-                  <div className="flex justify-between border-t border-slate-600 pt-2 font-bold text-xl text-amber-400">
+                  {winner.score.allOneSuitBonus && winner.score.allOneSuitBonus > 0 && (
+                    <div className="flex justify-between text-pink-400">
+                      <span>All One Suit bonus:</span>
+                      <span>+{winner.score.allOneSuitBonus}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t border-slate-600 pt-1 font-bold text-base text-amber-400">
                     <span>Total:</span>
                     <span>{winner.score.total}</span>
                   </div>
@@ -968,8 +1053,8 @@ export default function GamePage() {
 
               {/* Cumulative Scores */}
               {sessionScores && sessionScores.rounds && (
-                <div className="bg-slate-700/50 rounded-xl p-4 border border-slate-600">
-                  <h3 className="text-lg font-semibold text-blue-400 mb-3">
+                <div className="bg-slate-700/50 rounded-lg p-3 lg:p-4 border border-slate-600">
+                  <h3 className="text-base lg:text-lg font-semibold text-blue-400 mb-2">
                     Session Scores (Round {sessionScores.rounds?.length || 1})
                   </h3>
                   {(() => {
@@ -981,12 +1066,12 @@ export default function GamePage() {
                       }
                     }
                     return (
-                      <div className="text-base">
-                        <div className="flex justify-between text-slate-400 text-sm mb-2 border-b border-slate-600 pb-1">
+                      <div className="text-sm lg:text-base">
+                        <div className="flex justify-between text-slate-400 text-xs lg:text-sm mb-1 border-b border-slate-600 pb-1">
                           <span>Player</span>
-                          <div className="flex gap-6">
-                            <span className="w-12 text-right">Won</span>
-                            <span className="w-12 text-right">Net</span>
+                          <div className="flex gap-4 lg:gap-5">
+                            <span className="w-10 lg:w-12 text-right">Won</span>
+                            <span className="w-10 lg:w-12 text-right">Net</span>
                           </div>
                         </div>
                         {([0, 1, 2, 3] as SeatIndex[]).map((seat) => {
@@ -999,12 +1084,12 @@ export default function GamePage() {
                           return (
                             <div
                               key={seat}
-                              className={`flex justify-between py-1 ${isWinnerSeat ? 'text-amber-400 font-semibold' : 'text-slate-200'}`}
+                              className={`flex justify-between py-0.5 lg:py-1 ${isWinnerSeat ? 'text-amber-400 font-semibold' : 'text-slate-200'}`}
                             >
                               <span className="truncate">{isBot ? '🤖 ' : ''}{playerName}</span>
-                              <div className="flex gap-6">
-                                <span className="w-12 text-right">{won}</span>
-                                <span className={`w-12 text-right ${net < 0 ? 'text-red-400' : net > 0 ? 'text-green-400' : ''}`}>
+                              <div className="flex gap-4 lg:gap-5">
+                                <span className="w-10 lg:w-12 text-right">{won}</span>
+                                <span className={`w-10 lg:w-12 text-right ${net < 0 ? 'text-red-400' : net > 0 ? 'text-green-400' : ''}`}>
                                   {net > 0 ? '+' : ''}{net}
                                 </span>
                               </div>
@@ -1018,11 +1103,11 @@ export default function GamePage() {
               )}
 
               {/* Game Log */}
-              <div className="bg-slate-700/50 rounded-xl p-4 border border-slate-600">
-                <h3 className="text-lg font-semibold text-slate-300 mb-2">Game Log</h3>
-                <div className="max-h-40 overflow-y-auto space-y-0.5">
+              <div className="bg-slate-700/50 rounded-lg p-3 lg:p-4 border border-slate-600">
+                <h3 className="text-base lg:text-lg font-semibold text-slate-300 mb-2">Game Log</h3>
+                <div className="max-h-16 lg:max-h-20 overflow-y-auto space-y-0.5 lg:space-y-1">
                   {(gameState.actionLog || []).map((entry, index) => (
-                    <div key={index} className="text-sm py-0.5 text-slate-300">
+                    <div key={index} className="text-xs lg:text-sm py-0.5 text-slate-300">
                       {transformLogEntry(entry, room)}
                     </div>
                   ))}
@@ -1032,12 +1117,12 @@ export default function GamePage() {
           </div>
 
           {/* Action buttons - centered at bottom */}
-          <div className="flex flex-col items-center gap-3">
-            <div className="flex gap-3 justify-center flex-wrap">
+          <div className="flex flex-col items-center gap-2 lg:gap-3 mt-auto pt-3">
+            <div className="flex gap-2 lg:gap-3 justify-center flex-wrap">
               {sessionScores && (
                 <button
                   onClick={() => setShowSettleModal(true)}
-                  className="px-8 py-3 bg-blue-500 hover:bg-blue-400 text-white font-semibold rounded-lg text-lg"
+                  className="px-6 py-2 lg:px-8 lg:py-2.5 bg-blue-500 hover:bg-blue-400 text-white font-semibold rounded-lg lg:text-lg"
                 >
                   Settle
                 </button>
@@ -1053,7 +1138,7 @@ export default function GamePage() {
                       : ((gameState.dealerSeat + 1) % 4) as SeatIndex;
                     await startGame(nextDealer);
                   }}
-                  className="px-8 py-3 bg-amber-500 hover:bg-amber-400 text-black font-semibold rounded-lg text-lg"
+                  className="px-6 py-2 lg:px-8 lg:py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-semibold rounded-lg lg:text-lg"
                 >
                   {winner && winner.seat === gameState.dealerSeat
                     ? 'Another Round (Dealer Stays)'
@@ -1062,7 +1147,7 @@ export default function GamePage() {
               ) : (
                 <button
                   disabled
-                  className="px-8 py-3 bg-gray-600 text-gray-400 font-semibold rounded-lg cursor-not-allowed text-lg"
+                  className="px-6 py-2 lg:px-8 lg:py-2.5 bg-gray-600 text-gray-400 font-semibold rounded-lg cursor-not-allowed lg:text-lg"
                 >
                   {winner && winner.seat === gameState.dealerSeat
                     ? 'Another Round (Dealer Stays)'
@@ -1071,7 +1156,7 @@ export default function GamePage() {
               )}
             </div>
             {room?.hostId !== user?.uid && (
-              <p className="text-base text-slate-400">Waiting for host to start next round...</p>
+              <p className="text-sm lg:text-base text-slate-400">Waiting for host to start next round...</p>
             )}
           </div>
 

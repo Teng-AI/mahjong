@@ -28,6 +28,7 @@ import {
   canWinOnDiscard as canWinOnDiscardValidation,
   validateChowSelection,
   hasGoldenPair,
+  isAllOneSuit,
   getWinningTiles,
 } from './tiles';
 
@@ -1783,7 +1784,11 @@ export async function declareSelfDrawWin(
   const base = 1;
   const bonusCount = bonusTiles.length;
   const subtotal = base + bonusCount + goldCount + concealedKongBonus + exposedKongBonus + dealerStreakBonus;
-  const multiplier = 2; // Self-draw multiplier
+
+  // Check for All One Suit bonus (doesn't stack with self-draw multiplier)
+  const isFlush = isAllOneSuit(hand, exposedMelds, gameState.goldTileType);
+  const allOneSuitBonus = isFlush ? 60 : 0;
+  const multiplier = isFlush ? 1 : 2; // Self-draw multiplier (disabled if All One Suit)
 
   // Special bonuses (added after multiplier)
   const goldenPairBonus = hasGoldenPair(hand, gameState.goldTileType, exposedMeldCount) ? 30 : 0;
@@ -1791,7 +1796,7 @@ export async function declareSelfDrawWin(
   const hasNoKongs = kongBonuses.concealed === 0 && kongBonuses.exposed === 0;
   const noBonusBonus = (bonusCount === 0 && hasNoKongs) ? 10 : 0;
 
-  const total = (subtotal * multiplier) + goldenPairBonus + noBonusBonus;
+  const total = (subtotal * multiplier) + goldenPairBonus + noBonusBonus + allOneSuitBonus;
 
   // Get the winning tile (the tile that was just drawn)
   const winningTile = gameState.lastAction?.type === 'draw' ? gameState.lastAction.tile : undefined;
@@ -1817,6 +1822,7 @@ export async function declareSelfDrawWin(
         multiplier,
         ...(goldenPairBonus > 0 ? { goldenPairBonus } : {}),
         ...(noBonusBonus > 0 ? { noBonusBonus } : {}),
+        ...(allOneSuitBonus > 0 ? { allOneSuitBonus } : {}),
         total,
       },
     },
@@ -1827,7 +1833,8 @@ export async function declareSelfDrawWin(
   });
 
   // Log the win
-  await addToLog(roomCode, `${SEAT_NAMES[seat]} wins by self-draw! Score: ${total}`);
+  const flushText = allOneSuitBonus > 0 ? ' (All One Suit!)' : '';
+  await addToLog(roomCode, `${SEAT_NAMES[seat]} wins by self-draw${flushText}! Score: ${total}`);
 
   // Record round result for cumulative scoring
   const winnerName = await getPlayerName(roomCode, seat);
@@ -1931,8 +1938,11 @@ export async function declareDiscardWin(
   // No Bonus/Kong: +10 for no bonus tiles AND no kongs
   const hasNoKongs = kongBonuses.concealed === 0 && kongBonuses.exposed === 0;
   const noBonusBonus = (bonusCount === 0 && hasNoKongs) ? 10 : 0;
+  // All One Suit bonus
+  const isFlush = isAllOneSuit(fullHand, exposedMelds, gameState.goldTileType);
+  const allOneSuitBonus = isFlush ? 60 : 0;
 
-  const total = (subtotal * multiplier) + goldenPairBonus + noBonusBonus;
+  const total = (subtotal * multiplier) + goldenPairBonus + noBonusBonus + allOneSuitBonus;
 
   // Remove discarded tile from discard pile
   const discardPile = [...(gameState.discardPile || [])];
@@ -1964,6 +1974,7 @@ export async function declareDiscardWin(
         multiplier,
         ...(goldenPairBonus > 0 ? { goldenPairBonus } : {}),
         ...(noBonusBonus > 0 ? { noBonusBonus } : {}),
+        ...(allOneSuitBonus > 0 ? { allOneSuitBonus } : {}),
         total,
       },
     },
@@ -1975,7 +1986,8 @@ export async function declareDiscardWin(
 
   // Log the win
   const tileName = getTileDisplayText(getTileType(discardedTile));
-  await addToLog(roomCode, `${SEAT_NAMES[winnerSeat]} wins on ${SEAT_NAMES[discarderSeat]}'s discard (${tileName})! Score: ${total}`);
+  const flushText = allOneSuitBonus > 0 ? ' (All One Suit!)' : '';
+  await addToLog(roomCode, `${SEAT_NAMES[winnerSeat]} wins on ${SEAT_NAMES[discarderSeat]}'s discard (${tileName})${flushText}! Score: ${total}`);
 
   // Record round result for cumulative scoring
   const winnerName = await getPlayerName(roomCode, winnerSeat);

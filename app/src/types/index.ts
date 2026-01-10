@@ -129,11 +129,12 @@ export interface ScoreBreakdown {
   dealerStreakBonus: number; // +1 per consecutive dealer win (0 for first win)
   subtotal: number;
   multiplier: number;
-  // Special bonuses (added after multiplier)
+  // Special bonuses (added after multiplier, don't stack with self-draw)
   threeGoldsBonus?: number; // Three Golds instant win (+20)
   robbingGoldBonus?: number; // Robbing the Gold at game start (+20)
   goldenPairBonus?: number; // Winning pair is 2 Gold tiles (+30)
   noBonusBonus?: number; // No exposed bonus tiles (+10)
+  allOneSuitBonus?: number; // All tiles same suit (+60, gold counts as same suit)
   total: number;
 }
 
