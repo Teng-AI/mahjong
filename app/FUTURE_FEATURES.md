@@ -25,7 +25,7 @@
 - [ ] **Mobile layout rework** 🔴
   - Reorganize game UI for portrait mobile screens
   - Move: Your Hand (top), Last Discard (prominent), Discard Pile (scrollable)
-  - Hide sound controls inside Settings modal
+  - ~~Hide sound controls inside Settings modal~~ ✅ Done
   - Collapse other players into compact view
   - Consider bottom sheet for action buttons
 
@@ -51,20 +51,10 @@
   - e.g., "Pung" → "Triple", "Chow" → "Sequence"
   - Or add tooltips explaining each action
 
-- [ ] **Rename "UPGRADE" to "KONG"** 🟢
-  - Pung upgrade button currently says "UPGRADE"
-  - Should say "KONG" for consistency
-  - Single text change in game page
-
 - [ ] **Show last action in discard box** 🟢
   - Display what action just happened (e.g., "Player drew", "Player called Pung")
   - Integrate with existing Last Discard section
   - Use lastAction from gameState
-
-- [ ] **Rename default bot names** 🟢
-  - Current: Generic names
-  - New format: "Bot-Easy-1", "Bot-Medium-2", "Bot-Hard-3"
-  - Update `addBotPlayer()` in rooms.ts
 
 - [ ] **Bonus phase animation delays** 🟡
   - Add visual delays between: expose → replace → gold flip → auto-win check
@@ -192,6 +182,9 @@
 
 ## Completed
 
+- [x] Renamed "UPGRADE" button to "KONG" for pung upgrades
+- [x] Bot names now include number (Bot-E1, Bot-M2, Bot-H3)
+- [x] Sound controls moved to Settings modal (cleaner header)
 - [x] **Bug fix**: Concealed Kong now shows face-down tiles to other players
 - [x] **Bug fix**: Keyboard shortcuts hidden on mobile/touch devices
 - [x] All One Suit bonus scoring (+60 points)
