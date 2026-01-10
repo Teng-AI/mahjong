@@ -244,10 +244,16 @@ export default function GamePage() {
     }
   }, [gameState?.actionLog?.length]);
 
-  // Play win sound for the winner when game ends
+  // Play win sound on loop for the winner when game ends
   useEffect(() => {
     if (gameState?.phase === 'ended' && gameState?.winner && gameState.winner.seat === mySeat) {
+      // Play immediately
       playSound('win');
+      // Loop every 3 seconds (duration of the fanfare is ~2.5s)
+      const interval = setInterval(() => {
+        playSound('win');
+      }, 3000);
+      return () => clearInterval(interval);
     }
   }, [gameState?.phase, gameState?.winner, mySeat, playSound]);
 
