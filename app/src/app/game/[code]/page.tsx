@@ -1424,29 +1424,7 @@ export default function GamePage() {
             <span className="text-slate-400 text-sm sm:text-lg">Wall</span>
             <span className="font-mono text-white text-sm sm:text-base">{gameState.wall?.length ?? 0}</span>
           </div>
-          {/* Sound controls */}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={toggleSound}
-              className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-slate-600 hover:bg-slate-500 text-slate-300 hover:text-white text-sm sm:text-lg flex items-center justify-center"
-              title={soundEnabled ? 'Mute sounds' : 'Enable sounds'}
-            >
-              {soundEnabled ? '🔊' : '🔇'}
-            </button>
-            {soundEnabled && (
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.1"
-                value={volume}
-                onChange={(e) => setVolume(parseFloat(e.target.value))}
-                className="w-12 sm:w-16 h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                title={`Volume: ${Math.round(volume * 100)}%`}
-              />
-            )}
-          </div>
-          {/* Settings button */}
+          {/* Settings button (sound controls moved inside) */}
           <button
             onClick={() => setShowSettings(true)}
             className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-slate-600 hover:bg-slate-500 text-slate-300 hover:text-white flex items-center justify-center"
@@ -1706,14 +1684,14 @@ export default function GamePage() {
                   KONG ({getTileDisplayText(tileType)})
                 </button>
               ))}
-              {/* Pung upgrade button - show if player can upgrade a pung */}
+              {/* Pung upgrade button - show if player can upgrade a pung to kong */}
               {pungUpgradeOptions.length > 0 && !pungUpgradeMode && (
                 <button
                   onClick={onPungUpgradeClick}
                   disabled={processingAction}
                   className="px-4 sm:px-6 py-2 sm:py-3 bg-pink-600 hover:bg-pink-500 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
                 >
-                  UPGRADE
+                  KONG
                 </button>
               )}
               {/* Pung upgrade selection mode - cancel button (click tile to confirm) */}
@@ -1980,6 +1958,10 @@ export default function GamePage() {
         shortcuts={shortcuts}
         setShortcut={setShortcut}
         resetToDefaults={resetToDefaults}
+        soundEnabled={soundEnabled}
+        toggleSound={toggleSound}
+        volume={volume}
+        setVolume={setVolume}
       />
     </div>
   );

@@ -9,6 +9,11 @@ interface SettingsModalProps {
   shortcuts: KeyboardShortcuts;
   setShortcut: (action: keyof KeyboardShortcuts, key: string) => void;
   resetToDefaults: () => void;
+  // Sound controls
+  soundEnabled: boolean;
+  toggleSound: () => void;
+  volume: number;
+  setVolume: (volume: number) => void;
 }
 
 // Check if device has touch capabilities (likely mobile)
@@ -39,6 +44,10 @@ export function SettingsModal({
   shortcuts,
   setShortcut,
   resetToDefaults,
+  soundEnabled,
+  toggleSound,
+  volume,
+  setVolume,
 }: SettingsModalProps) {
   const [recordingFor, setRecordingFor] = useState<keyof KeyboardShortcuts | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -122,6 +131,49 @@ export function SettingsModal({
           >
             &times;
           </button>
+        </div>
+
+        {/* Sound Section */}
+        <div className="mb-6">
+          <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wide mb-3">
+            Sound
+          </h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-300">Sound Effects</span>
+              <button
+                onClick={toggleSound}
+                className={`w-12 h-7 rounded-full transition-colors ${
+                  soundEnabled ? 'bg-emerald-500' : 'bg-slate-600'
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                    soundEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+            {soundEnabled && (
+              <div className="flex items-center justify-between">
+                <span className="text-slate-300">Volume</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-500 text-sm">🔈</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={volume}
+                    onChange={(e) => setVolume(parseFloat(e.target.value))}
+                    className="w-24 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                  />
+                  <span className="text-slate-500 text-sm">🔊</span>
+                  <span className="text-slate-400 text-sm w-8">{Math.round(volume * 100)}%</span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Keyboard Shortcuts Section - Hidden on touch devices */}

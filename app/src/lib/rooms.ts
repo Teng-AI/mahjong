@@ -148,9 +148,9 @@ export async function joinRoom(
 // ============================================
 
 const BOT_NAMES: Record<BotDifficulty, string[]> = {
-  easy: ['Bot-Easy', 'Bot-Easy', 'Bot-Easy', 'Bot-Easy'],
-  medium: ['Bot-Medium', 'Bot-Medium', 'Bot-Medium', 'Bot-Medium'],
-  hard: ['Bot-Hard', 'Bot-Hard', 'Bot-Hard', 'Bot-Hard'],
+  easy: ['Bot-E1', 'Bot-E2', 'Bot-E3', 'Bot-E4'],
+  medium: ['Bot-M1', 'Bot-M2', 'Bot-M3', 'Bot-M4'],
+  hard: ['Bot-H1', 'Bot-H2', 'Bot-H3', 'Bot-H4'],
 };
 
 /**
