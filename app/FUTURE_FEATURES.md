@@ -15,14 +15,13 @@
 - [ ] Loading skeletons instead of "Loading..." text
 - [ ] Reconnection handling for dropped connections
 - [ ] Mobile touch optimization (larger tap targets)
-- [ ] Keyboard shortcuts for common actions (D=draw, spacebar=discard selected)
 - [ ] Preview image for link sharing (og:image)
 
 ## Low Priority
 <!-- Nice to have -->
 
 - [ ] Accessibility improvements (ARIA labels, screen reader support)
-- [ ] Sound settings (volume control, individual sound toggles)
+- [ ] Individual sound toggles (per-sound enable/disable)
 - [ ] Game history/replay feature
 - [ ] Tutorial/onboarding for new players
 - [ ] PWA support for "Add to Home Screen"
@@ -41,6 +40,17 @@
 ## Completed
 <!-- Move items here when done -->
 
+- [x] Player turn order UI
+  - All 4 players shown in Players section
+  - Current player ("You") first, others in turn order
+  - Green highlight on active turn
+  - Clickable rules button (modal instead of hover)
+- [x] Keyboard shortcuts (customizable in Settings)
+  - Draw, Win, Kong, Pung, Chow, Pass shortcuts
+  - Configurable via Settings modal
+- [x] Sound volume control
+  - Volume slider in game header
+  - Louder max volume for better audibility
 - [x] Kong (Quad) implementation
   - Concealed Kong, Kong from discard, Pung upgrade
   - Replacement draw after declaration

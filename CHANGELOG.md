@@ -6,8 +6,12 @@ All notable changes to the Fujian Mahjong project.
 
 ## [Unreleased]
 
-### Next Up
-- Kong (quad) declarations
+### Added
+- **Player Turn Order UI**: All 4 players now shown in Players section with current player first, followed by others in turn order. Green highlight indicates whose turn it is.
+- **Clickable Rules Modal**: Rules button (?) now opens a modal on click instead of hover tooltip - works on both mobile and desktop.
+
+### Changed
+- **Sound Volume**: Increased max sound volume by ~2.5x for better audibility at full volume.
 
 ---
 
