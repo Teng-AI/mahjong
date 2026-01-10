@@ -8,12 +8,6 @@
 ## High Priority
 <!-- Should be done soon -->
 
-- [ ] Kong (Quad) implementation
-  - Allow players to declare Kong (4 of the same tile)
-  - Concealed Kong vs Exposed Kong
-  - Draw replacement tile from back of wall
-  - Affects hand structure (still need 5 sets + 1 pair, but Kong counts as 1 set)
-
 ## Medium Priority
 <!-- Important but not urgent -->
 
@@ -47,6 +41,11 @@
 ## Completed
 <!-- Move items here when done -->
 
+- [x] Kong (Quad) implementation
+  - Concealed Kong, Kong from discard, Pung upgrade
+  - Replacement draw after declaration
+  - Scoring: +2 concealed, +1 exposed
+  - Available anytime during turn before discarding
 - [x] Winner screen redesign
 - [x] Sound effects
 - [x] Bot difficulty selection UI

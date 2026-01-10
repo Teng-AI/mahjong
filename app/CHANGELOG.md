@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Kong (Quad) support with three declaration types:
+  - Concealed Kong: 4 identical tiles in hand
+  - Kong from discard: 3 in hand + opponent's discard
+  - Pung upgrade: exposed pung + 4th tile from hand
+- Kong scoring bonuses (+2 concealed, +1 exposed)
+- Multiple pung upgrade selection when several options available
+- Kong available anytime during turn before discarding
 - Copy room code button in lobby
 - Auth state feedback on homepage (loading spinner, error message)
 - Basic test coverage (41 tests for core game logic)
