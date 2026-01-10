@@ -2,99 +2,225 @@
 
 > **Keeping this updated:** Review this file at the start and end of each work session. Mark items `[x]` when done, add new ideas as they come up, and move items between sections as priorities change.
 
+**Complexity**: 🟢 Easy (< 1 hour) | 🟡 Medium (1-4 hours) | 🔴 Hard (4+ hours)
+
+---
+
 ## In Progress
 <!-- Currently being worked on -->
 
-## High Priority (Bugs)
-<!-- Should be fixed soon -->
+---
 
-- [ ] **Bug**: Concealed Kong visible to other players (should be face-down)
-- [ ] **Bug**: Mobile tile UX - tiles don't fit properly on small screens
-- [ ] **Bug**: Keyboard shortcut changes break on mobile
+## High Priority (Bugs)
+
+- [ ] **Concealed Kong visible to other players** 🟢
+  - Concealed Kongs should show face-down tiles to opponents
+  - Only the declaring player sees the actual tiles
+  - Fix: Update meld rendering to check `isConcealed` flag
+
+- [ ] **Mobile tile UX broken** 🟡
+  - Tiles overflow or don't fit on small screens
+  - Hand becomes unplayable on narrow devices
+  - Fix: Responsive tile sizing, horizontal scroll, or tile stacking
+
+- [ ] **Keyboard shortcuts break on mobile** 🟢
+  - Settings modal for shortcuts causes issues on touch devices
+  - Fix: Hide shortcut customization on mobile, or use touch-friendly input
+
+---
 
 ## High Priority (Features)
-<!-- Should be done soon -->
 
-- [ ] Mobile layout rework (move hand/last discard/discard pile up; hide sound in settings)
-- [ ] Calling phase timer (10-120 sec, auto-pass, or no timer)
-- [ ] Dead wall / end-of-game draw pile (0-16 tiles)
+- [ ] **Mobile layout rework** 🔴
+  - Reorganize game UI for portrait mobile screens
+  - Move: Your Hand (top), Last Discard (prominent), Discard Pile (scrollable)
+  - Hide sound controls inside Settings modal
+  - Collapse other players into compact view
+  - Consider bottom sheet for action buttons
+
+- [ ] **Calling phase timer** 🔴
+  - Configurable timer: 10s, 30s, 60s, 120s, or no limit
+  - Auto-pass when timer expires
+  - Visual countdown indicator
+  - Room setting configured by host
+  - *Note: Previously attempted, reverted due to Firebase sync issues*
+
+- [ ] **Dead wall implementation** 🟡
+  - Reserve 0-16 tiles as dead wall (unplayable)
+  - Game ends when live wall exhausted (not total wall)
+  - Configurable in room settings
+  - Display dead wall count in UI
+
+---
 
 ## Medium Priority
-<!-- Important but not urgent -->
 
-- [ ] Rename calling actions (more intuitive labels)
-- [ ] Rename "UPGRADE" to "KONG" in UI
-- [ ] Show last action in the last discard box
-- [ ] Rename default bot names (e.g., "Bot-Hard-1")
-- [ ] Add delays during bonus exposure phase (expose → replace → gold flip → auto-win)
-- [ ] Error boundaries for graceful failure handling
-- [ ] Loading skeletons instead of "Loading..." text
-- [ ] Reconnection handling for dropped connections
-- [ ] Preview image for link sharing (og:image)
+- [ ] **Rename calling actions** 🟢
+  - Make button labels more intuitive for new players
+  - e.g., "Pung" → "Triple", "Chow" → "Sequence"
+  - Or add tooltips explaining each action
+
+- [ ] **Rename "UPGRADE" to "KONG"** 🟢
+  - Pung upgrade button currently says "UPGRADE"
+  - Should say "KONG" for consistency
+  - Single text change in game page
+
+- [ ] **Show last action in discard box** 🟢
+  - Display what action just happened (e.g., "Player drew", "Player called Pung")
+  - Integrate with existing Last Discard section
+  - Use lastAction from gameState
+
+- [ ] **Rename default bot names** 🟢
+  - Current: Generic names
+  - New format: "Bot-Easy-1", "Bot-Medium-2", "Bot-Hard-3"
+  - Update `addBotPlayer()` in rooms.ts
+
+- [ ] **Bonus phase animation delays** 🟡
+  - Add visual delays between: expose → replace → gold flip → auto-win check
+  - Currently happens too fast to follow
+  - Use setTimeout or animation callbacks
+  - Show each step clearly before proceeding
+
+- [ ] **Error boundaries** 🟡
+  - Wrap components in React error boundaries
+  - Show friendly error UI instead of white screen
+  - Log errors for debugging
+  - "Something went wrong" + retry button
+
+- [ ] **Loading skeletons** 🟡
+  - Replace "Loading..." text with skeleton placeholders
+  - Skeleton for: game board, player info, tile hand
+  - Better perceived performance
+
+- [ ] **Reconnection handling** 🔴
+  - Detect when Firebase connection drops
+  - Show "Reconnecting..." indicator
+  - Auto-rejoin room/game on reconnect
+  - Handle stale state after reconnect
+
+- [ ] **Preview image for sharing (og:image)** 🟡
+  - Create social preview image for link sharing
+  - Shows game branding when shared on social media
+  - Update meta tags in layout.tsx
+  - Design 1200x630 image
+
+---
 
 ## Low Priority
-<!-- Nice to have -->
 
-- [ ] Manual hand sorting (drag to reorder tiles)
-- [ ] Tile images instead of text/emoji
-- [ ] Server-side tile drawing (instead of client-side)
-- [ ] Accessibility improvements (ARIA labels, screen reader support)
-- [ ] Individual sound toggles (per-sound enable/disable)
-- [ ] Game history/replay feature
-- [ ] Tutorial/onboarding for new players
-- [ ] PWA support for "Add to Home Screen"
-- [ ] Analytics to understand user behavior
+- [ ] **Manual hand sorting** 🟡
+  - Drag-and-drop to reorder tiles in hand
+  - Persist order during game
+  - Use react-dnd or similar library
+  - Touch-friendly for mobile
+
+- [ ] **Tile images instead of text** 🔴
+  - Replace emoji/text tiles with actual mahjong tile images
+  - Need: 34 unique tile designs × multiple states (normal, gold, selected)
+  - SVG or PNG sprite sheet
+  - Significant visual overhaul
+
+- [ ] **Server-side tile drawing** 🔴
+  - Move tile draw logic from client to Firebase Cloud Functions
+  - Prevents client-side cheating/manipulation
+  - Requires Firebase Functions setup
+  - More complex state management
+
+- [ ] **Accessibility (a11y)** 🟡
+  - Add ARIA labels to interactive elements
+  - Screen reader support for game state
+  - Keyboard navigation (beyond shortcuts)
+  - Color contrast compliance
+
+- [ ] **Individual sound toggles** 🟢
+  - Per-sound enable/disable in settings
+  - e.g., disable "your turn" but keep "win" sound
+  - Checkbox list in Settings modal
+
+- [ ] **Game history/replay** 🔴
+  - Record all game actions
+  - Playback completed games turn-by-turn
+  - Store in Firebase or export as JSON
+  - Complex UI for replay controls
+
+- [ ] **Tutorial/onboarding** 🔴
+  - Interactive tutorial for new players
+  - Step-by-step guided first game
+  - Highlight UI elements, explain rules
+  - Significant content creation
+
+- [ ] **PWA support** 🟡
+  - Add manifest.json for "Add to Home Screen"
+  - Service worker for offline capability
+  - App icon and splash screen
+  - next-pwa package
+
+- [ ] **Analytics** 🟡
+  - Track user behavior (games played, win rates, etc.)
+  - Privacy-respecting (no PII)
+  - Vercel Analytics or custom solution
+
+---
 
 ## Backlog
-<!-- Ideas for the future -->
+<!-- Ideas for the distant future -->
 
-- [ ] Spectator mode
-- [ ] In-game chat
-- [ ] Custom room settings (time limits, house rules)
-- [ ] Leaderboards / player stats
-- [ ] Social sharing of wins
-- [ ] Multiple game variants (other Mahjong rules)
+- [ ] **Spectator mode** 🔴
+  - Watch ongoing games without playing
+  - Read-only view of game state
+  - Join mid-game as observer
+
+- [ ] **In-game chat** 🟡
+  - Text chat between players during game
+  - Chat bubbles or side panel
+  - Emoji reactions
+
+- [ ] **Custom room settings** 🔴
+  - Time limits per turn
+  - House rules (no chow, etc.)
+  - Starting points
+  - Number of rounds
+
+- [ ] **Leaderboards / player stats** 🔴
+  - Persistent player accounts (not anonymous)
+  - Track wins, scores, streaks
+  - Global leaderboard
+  - Requires auth overhaul
+
+- [ ] **Social sharing of wins** 🟡
+  - Share winning hand to social media
+  - Generate image of final hand + score
+  - Copy-paste or direct share
+
+- [ ] **Multiple game variants** 🔴
+  - Support other Mahjong rules (Hong Kong, Japanese, etc.)
+  - Major refactor of game logic
+  - Different tile sets, scoring, win conditions
+
+---
 
 ## Completed
-<!-- Move items here when done -->
 
 - [x] All One Suit bonus scoring (+60 points)
-- [x] Winner celebration effects
-  - Animated fireworks shooting from bottom
-  - Looping victory fanfare for winner
-  - Sparkle overlay effects
-  - Sad emojis for losers
-- [x] Player turn order UI
-  - All 4 players shown in Players section
-  - Current player ("You") first, others in turn order
-  - Green highlight on active turn
-  - Clickable rules button (modal instead of hover)
-- [x] Keyboard shortcuts (customizable in Settings)
-  - Draw, Win, Kong, Pung, Chow, Pass shortcuts
-  - Configurable via Settings modal
+- [x] Winner celebration effects (fireworks, fanfare, sparkles)
+- [x] Player turn order UI (all 4 players shown, green highlight)
+- [x] Clickable rules modal
+- [x] Keyboard shortcuts (customizable)
 - [x] Sound volume control
-  - Volume slider in game header
-  - Louder max volume for better audibility
-- [x] Kong (Quad) implementation
-  - Concealed Kong, Kong from discard, Pung upgrade
-  - Replacement draw after declaration
-  - Scoring: +2 concealed, +1 exposed
-  - Available anytime during turn before discarding
+- [x] Kong implementation (concealed, exposed, upgrade)
 - [x] Winner screen redesign
 - [x] Sound effects
-- [x] Bot difficulty selection UI
-- [x] Adjustable bot difficulty logic (easy/medium/hard)
+- [x] Bot difficulty (easy/medium/hard)
 - [x] Dealer streak tracking
 - [x] Vercel deployment
 - [x] Firebase security rules
 - [x] SEO metadata and Open Graph tags
-- [x] Branding consistency (Mahjong Vibes)
+- [x] Branding (Mahjong Vibes)
 - [x] Debug logging (dev-only)
-- [x] Auth state feedback on homepage
+- [x] Auth state feedback
 - [x] Copy room code button
-- [x] Basic test coverage (41 tests)
-- [x] CHANGELOG.md with Keep a Changelog format
-- [x] Pre-commit hooks (runs tests before commit)
-- [x] `/docs-sync` skill for pre-commit documentation
-- [x] `/session-wrap` skill for end-of-session documentation
-- [x] Lint cleanup (46→6 warnings, 0 errors)
+- [x] Test coverage (58 tests)
+- [x] CHANGELOG.md
+- [x] Pre-commit hooks
+- [x] `/docs-sync` and `/session-wrap` skills
+- [x] Lint cleanup
