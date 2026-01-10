@@ -190,6 +190,13 @@ export default function RoomPage() {
     }
   }, []);
 
+  // Redirect to game when game starts and player has a seat
+  useEffect(() => {
+    if (room?.status === 'playing' && mySeat !== null) {
+      router.push(`/game/${roomCode}`);
+    }
+  }, [room?.status, mySeat, router, roomCode]);
+
   // Auto-join only when shouldAutoJoin is true (name came from join page)
   useEffect(() => {
     if (

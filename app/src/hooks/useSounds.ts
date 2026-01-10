@@ -19,6 +19,8 @@ interface UseSoundsReturn {
   playSound: (type: SoundType) => void;
   soundEnabled: boolean;
   toggleSound: () => void;
+  volume: number;
+  setVolume: (volume: number) => void;
 }
 
 // Generate sounds using Web Audio API
@@ -62,68 +64,69 @@ function playNoteSequence(
 }
 
 // Sound definitions - subtle and non-intrusive
-const soundDefinitions: Record<SoundType, (ctx: AudioContext) => void> = {
-  tileClick: (ctx) => {
+// Each sound has a base volume that gets multiplied by the user's volume setting
+const soundDefinitions: Record<SoundType, (ctx: AudioContext, volumeMultiplier: number) => void> = {
+  tileClick: (ctx, vol) => {
     // Short soft click
-    createOscillatorSound(ctx, 600, 0.03, 'sine', 0.08);
+    createOscillatorSound(ctx, 600, 0.03, 'sine', 0.08 * vol);
   },
 
-  tileSelect: (ctx) => {
+  tileSelect: (ctx, vol) => {
     // Gentle selection tone
-    createOscillatorSound(ctx, 500, 0.06, 'sine', 0.1);
+    createOscillatorSound(ctx, 500, 0.06, 'sine', 0.1 * vol);
   },
 
-  discard: (ctx) => {
+  discard: (ctx, vol) => {
     // Soft thud
-    createOscillatorSound(ctx, 150, 0.08, 'sine', 0.12);
+    createOscillatorSound(ctx, 150, 0.08, 'sine', 0.12 * vol);
   },
 
-  draw: (ctx) => {
+  draw: (ctx, vol) => {
     // Gentle pickup sound
-    createOscillatorSound(ctx, 400, 0.06, 'sine', 0.08);
+    createOscillatorSound(ctx, 400, 0.06, 'sine', 0.08 * vol);
   },
 
-  pung: (ctx) => {
+  pung: (ctx, vol) => {
     // Subtle two-tone
     playNoteSequence(ctx, [
       { freq: 440, duration: 0.08, delay: 0 },
       { freq: 550, duration: 0.1, delay: 0.06 },
-    ], 'sine', 0.12);
+    ], 'sine', 0.12 * vol);
   },
 
-  chow: (ctx) => {
+  chow: (ctx, vol) => {
     // Soft ascending
     playNoteSequence(ctx, [
       { freq: 400, duration: 0.06, delay: 0 },
       { freq: 500, duration: 0.08, delay: 0.05 },
-    ], 'sine', 0.1);
+    ], 'sine', 0.1 * vol);
   },
 
-  win: (ctx) => {
+  win: (ctx, vol) => {
     // Pleasant but subtle win sound
     playNoteSequence(ctx, [
       { freq: 523, duration: 0.1, delay: 0 },       // C5
       { freq: 659, duration: 0.1, delay: 0.08 },    // E5
       { freq: 784, duration: 0.15, delay: 0.16 },   // G5
-    ], 'sine', 0.15);
+    ], 'sine', 0.15 * vol);
   },
 
-  yourTurn: (ctx) => {
+  yourTurn: (ctx, vol) => {
     // Gentle notification chime
-    createOscillatorSound(ctx, 660, 0.12, 'sine', 0.1);
+    createOscillatorSound(ctx, 660, 0.12, 'sine', 0.1 * vol);
   },
 
-  gameStart: (ctx) => {
+  gameStart: (ctx, vol) => {
     // Soft start tone
     playNoteSequence(ctx, [
       { freq: 400, duration: 0.1, delay: 0 },
       { freq: 500, duration: 0.15, delay: 0.08 },
-    ], 'sine', 0.1);
+    ], 'sine', 0.1 * vol);
   },
 
-  pass: (ctx) => {
+  pass: (ctx, vol) => {
     // Very subtle pass
-    createOscillatorSound(ctx, 250, 0.05, 'sine', 0.05);
+    createOscillatorSound(ctx, 250, 0.05, 'sine', 0.05 * vol);
   },
 };
 
@@ -135,6 +138,19 @@ export function useSounds(): UseSoundsReturn {
     const stored = localStorage.getItem('mahjong-sound-enabled');
     return stored === null ? true : stored === 'true';
   });
+
+  const [volume, setVolumeState] = useState(() => {
+    if (typeof window === 'undefined') return 1.0;
+    const stored = localStorage.getItem('mahjong-sound-volume');
+    return stored === null ? 1.0 : parseFloat(stored);
+  });
+
+  // Set volume and persist to localStorage
+  const setVolume = useCallback((newVolume: number) => {
+    const clampedVolume = Math.max(0, Math.min(1, newVolume));
+    setVolumeState(clampedVolume);
+    localStorage.setItem('mahjong-sound-volume', String(clampedVolume));
+  }, []);
 
   // Initialize AudioContext on first user interaction
   const getAudioContext = useCallback(() => {
@@ -156,12 +172,12 @@ export function useSounds(): UseSoundsReturn {
       const ctx = getAudioContext();
       const soundFn = soundDefinitions[type];
       if (soundFn) {
-        soundFn(ctx);
+        soundFn(ctx, volume);
       }
     } catch (err) {
       console.warn('Sound playback failed:', err);
     }
-  }, [soundEnabled, getAudioContext]);
+  }, [soundEnabled, getAudioContext, volume]);
 
   // Toggle sound on/off
   const toggleSound = useCallback(() => {
@@ -176,5 +192,7 @@ export function useSounds(): UseSoundsReturn {
     playSound,
     soundEnabled,
     toggleSound,
+    volume,
+    setVolume,
   };
 }

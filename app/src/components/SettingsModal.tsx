@@ -1,0 +1,166 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import { KeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+
+interface SettingsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  shortcuts: KeyboardShortcuts;
+  setShortcut: (action: keyof KeyboardShortcuts, key: string) => void;
+  resetToDefaults: () => void;
+}
+
+const ACTION_LABELS: Record<keyof KeyboardShortcuts, string> = {
+  win: 'Win',
+  kong: 'Kong',
+  pung: 'Pung',
+  chow: 'Chow',
+  pass: 'Pass',
+};
+
+const ACTION_ORDER: (keyof KeyboardShortcuts)[] = ['win', 'kong', 'pung', 'chow', 'pass'];
+
+export function SettingsModal({
+  isOpen,
+  onClose,
+  shortcuts,
+  setShortcut,
+  resetToDefaults,
+}: SettingsModalProps) {
+  const [recordingFor, setRecordingFor] = useState<keyof KeyboardShortcuts | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Handle key capture when recording
+  const handleKeyCapture = useCallback((e: KeyboardEvent) => {
+    if (!recordingFor) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const key = e.key.toUpperCase();
+
+    // Cancel on Escape
+    if (key === 'ESCAPE') {
+      setRecordingFor(null);
+      setError(null);
+      return;
+    }
+
+    // Ignore modifier keys alone
+    if (['SHIFT', 'CONTROL', 'ALT', 'META'].includes(key)) {
+      return;
+    }
+
+    // Check for duplicates
+    const isDuplicate = Object.entries(shortcuts)
+      .some(([action, k]) => action !== recordingFor && k === key);
+
+    if (isDuplicate) {
+      setError(`"${key}" is already used for another action`);
+      return;
+    }
+
+    setShortcut(recordingFor, key);
+    setRecordingFor(null);
+    setError(null);
+  }, [recordingFor, shortcuts, setShortcut]);
+
+  // Add/remove keyboard listener when recording
+  useEffect(() => {
+    if (!recordingFor) return;
+
+    window.addEventListener('keydown', handleKeyCapture);
+    return () => window.removeEventListener('keydown', handleKeyCapture);
+  }, [recordingFor, handleKeyCapture]);
+
+  // Close modal on Escape when not recording
+  useEffect(() => {
+    if (!isOpen || recordingFor) return;
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isOpen, recordingFor, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !recordingFor) {
+          onClose();
+        }
+      }}
+    >
+      <div className="bg-slate-800 rounded-lg p-6 max-w-sm w-full mx-4 border-2 border-slate-600">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold text-white">Settings</h2>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-white text-2xl leading-none"
+            disabled={!!recordingFor}
+          >
+            &times;
+          </button>
+        </div>
+
+        {/* Keyboard Shortcuts Section */}
+        <div className="mb-6">
+          <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wide mb-3">
+            Keyboard Shortcuts
+          </h3>
+
+          {error && (
+            <div className="bg-red-500/20 border border-red-500/50 text-red-300 text-sm px-3 py-2 rounded mb-3">
+              {error}
+            </div>
+          )}
+
+          <div className="space-y-2">
+            {ACTION_ORDER.map((action) => (
+              <div key={action} className="flex items-center justify-between">
+                <span className="text-slate-300">{ACTION_LABELS[action]}</span>
+                <button
+                  onClick={() => {
+                    setRecordingFor(action);
+                    setError(null);
+                  }}
+                  className={`w-16 h-9 rounded font-mono text-center transition-colors ${
+                    recordingFor === action
+                      ? 'bg-emerald-500 text-white animate-pulse'
+                      : 'bg-slate-700 text-white hover:bg-slate-600'
+                  }`}
+                >
+                  {recordingFor === action ? '...' : shortcuts[action]}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-xs text-slate-500 mt-3">
+            Click a key to change it. Press Escape to cancel.
+          </p>
+        </div>
+
+        {/* Reset Button */}
+        <button
+          onClick={() => {
+            resetToDefaults();
+            setError(null);
+          }}
+          className="w-full py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors"
+          disabled={!!recordingFor}
+        >
+          Reset to Defaults
+        </button>
+      </div>
+    </div>
+  );
+}

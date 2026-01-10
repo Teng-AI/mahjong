@@ -7,8 +7,10 @@ import { useRoom } from '@/hooks/useRoom';
 import { useGame } from '@/hooks/useGame';
 import { useBotRunner } from '@/hooks/useBotRunner';
 import { useSounds } from '@/hooks/useSounds';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { getTileType, getTileDisplayText, isBonusTile, isGoldTile, sortTilesForDisplay } from '@/lib/tiles';
 import { calculateSettlement, calculateNetPositions } from '@/lib/settle';
+import { SettingsModal } from '@/components/SettingsModal';
 import { SeatIndex, TileId, TileType, CallAction } from '@/types';
 
 // Debug logging - only enabled in development
@@ -184,7 +186,11 @@ export default function GamePage() {
   });
 
   // Sound effects
-  const { playSound, soundEnabled, toggleSound } = useSounds();
+  const { playSound, soundEnabled, toggleSound, volume, setVolume } = useSounds();
+
+  // Keyboard shortcuts
+  const { shortcuts, setShortcut, resetToDefaults } = useKeyboardShortcuts();
+  const [showSettings, setShowSettings] = useState(false);
 
   const [processingBonus, setProcessingBonus] = useState(false);
   const [selectedTile, setSelectedTile] = useState<TileId | null>(null);
@@ -333,6 +339,42 @@ export default function GamePage() {
     setChowSelectionMode(true);
     setSelectedChowTiles([]);
   };
+
+  // Keyboard shortcut handler for calling phase
+  useEffect(() => {
+    const handleKeyboardShortcut = (e: KeyboardEvent) => {
+      // Ignore if typing in input field or settings modal is open
+      if (e.target instanceof HTMLInputElement || showSettings) return;
+      // Only active during calling phase when player hasn't responded
+      if (!isCallingPhase || myPendingCall !== null || chowSelectionMode) return;
+      // Don't fire if already processing an action
+      if (processingAction) return;
+
+      const key = e.key.toUpperCase();
+
+      if (key === shortcuts.win && myValidCalls?.canWin) {
+        e.preventDefault();
+        onCallResponse('win');
+      } else if (key === shortcuts.kong && myValidCalls?.canKong) {
+        e.preventDefault();
+        onCallResponse('kong');
+      } else if (key === shortcuts.pung && myValidCalls?.canPung) {
+        e.preventDefault();
+        onCallResponse('pung');
+      } else if (key === shortcuts.chow && myValidCalls?.canChow) {
+        e.preventDefault();
+        onChowClick();
+      } else if (key === shortcuts.pass) {
+        e.preventDefault();
+        onCallResponse('pass');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyboardShortcut);
+    return () => window.removeEventListener('keydown', handleKeyboardShortcut);
+    // onCallResponse and onChowClick are intentionally excluded - they're not memoized and would cause unnecessary re-registrations
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCallingPhase, myPendingCall, chowSelectionMode, processingAction, shortcuts, myValidCalls, showSettings]);
 
   // Phase 8: Cancel chow selection
   const onCancelChow = () => {
@@ -1106,13 +1148,38 @@ export default function GamePage() {
             <span className="text-slate-400 text-sm sm:text-lg">Wall</span>
             <span className="font-mono text-white text-sm sm:text-base">{gameState.wall?.length ?? 0}</span>
           </div>
-          {/* Sound toggle */}
+          {/* Sound controls */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={toggleSound}
+              className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-slate-600 hover:bg-slate-500 text-slate-300 hover:text-white text-sm sm:text-lg flex items-center justify-center"
+              title={soundEnabled ? 'Mute sounds' : 'Enable sounds'}
+            >
+              {soundEnabled ? '🔊' : '🔇'}
+            </button>
+            {soundEnabled && (
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.1"
+                value={volume}
+                onChange={(e) => setVolume(parseFloat(e.target.value))}
+                className="w-12 sm:w-16 h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                title={`Volume: ${Math.round(volume * 100)}%`}
+              />
+            )}
+          </div>
+          {/* Settings button */}
           <button
-            onClick={toggleSound}
-            className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-slate-600 hover:bg-slate-500 text-slate-300 hover:text-white text-sm sm:text-lg flex items-center justify-center"
-            title={soundEnabled ? 'Mute sounds' : 'Enable sounds'}
+            onClick={() => setShowSettings(true)}
+            className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-slate-600 hover:bg-slate-500 text-slate-300 hover:text-white flex items-center justify-center"
+            title="Settings"
           >
-            {soundEnabled ? '🔊' : '🔇'}
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
           </button>
         </div>
         {/* Phase indicator - right side */}
@@ -1247,7 +1314,7 @@ export default function GamePage() {
                   disabled={processingAction}
                   className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-sm sm:text-base"
                 >
-                  WIN!
+                  WIN! <span className="text-xs opacity-60 ml-1">({shortcuts.win})</span>
                 </button>
               )}
               {myValidCalls?.canKong && (
@@ -1256,7 +1323,7 @@ export default function GamePage() {
                   disabled={processingAction}
                   className="px-4 sm:px-6 py-2 sm:py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
                 >
-                  KONG
+                  KONG <span className="text-xs opacity-60 ml-1">({shortcuts.kong})</span>
                 </button>
               )}
               {myValidCalls?.canPung && (
@@ -1265,7 +1332,7 @@ export default function GamePage() {
                   disabled={processingAction}
                   className="px-4 sm:px-6 py-2 sm:py-3 bg-purple-500 hover:bg-purple-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
                 >
-                  PUNG
+                  PUNG <span className="text-xs opacity-60 ml-1">({shortcuts.pung})</span>
                 </button>
               )}
               {myValidCalls?.canChow && (
@@ -1274,7 +1341,7 @@ export default function GamePage() {
                   disabled={processingAction}
                   className="px-4 sm:px-6 py-2 sm:py-3 bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
                 >
-                  CHOW
+                  CHOW <span className="text-xs opacity-60 ml-1">({shortcuts.chow})</span>
                 </button>
               )}
               <button
@@ -1282,7 +1349,7 @@ export default function GamePage() {
                 disabled={processingAction}
                 className="px-4 sm:px-6 py-2 sm:py-3 bg-slate-600 hover:bg-slate-500 disabled:bg-gray-700 text-white font-bold rounded-lg text-sm sm:text-base"
               >
-                PASS
+                PASS <span className="text-xs opacity-60 ml-1">({shortcuts.pass})</span>
               </button>
             </>
           )}
@@ -1532,6 +1599,15 @@ export default function GamePage() {
             })}
         </div>
       </div>
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        shortcuts={shortcuts}
+        setShortcut={setShortcut}
+        resetToDefaults={resetToDefaults}
+      />
     </div>
   );
 }
