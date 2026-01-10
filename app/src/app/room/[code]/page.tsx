@@ -146,15 +146,16 @@ export default function RoomPage() {
   const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>('medium');
   const [copied, setCopied] = useState(false);
 
-  const copyRoomCode = useCallback(async () => {
+  const copyRoomLink = useCallback(async () => {
+    const roomUrl = window.location.href;
     try {
-      await navigator.clipboard.writeText(roomCode);
+      await navigator.clipboard.writeText(roomUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
       // Fallback for browsers that don't support clipboard API
       const textArea = document.createElement('textarea');
-      textArea.value = roomCode;
+      textArea.value = roomUrl;
       document.body.appendChild(textArea);
       textArea.select();
       document.execCommand('copy');
@@ -162,7 +163,7 @@ export default function RoomPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
-  }, [roomCode]);
+  }, []);
 
   const {
     room,
@@ -376,11 +377,11 @@ export default function RoomPage() {
                   {roomCode}
                 </div>
                 <button
-                  onClick={copyRoomCode}
+                  onClick={copyRoomLink}
                   className="px-2 py-1 bg-green-700/50 hover:bg-green-600/50 border border-green-500/50 rounded text-sm transition-colors"
-                  title="Copy room code"
+                  title="Copy room link"
                 >
-                  {copied ? '✓ Copied!' : 'Copy'}
+                  {copied ? '✓ Copied!' : 'Share'}
                 </button>
               </div>
               <p className="text-green-200 mt-2">
@@ -448,11 +449,11 @@ export default function RoomPage() {
                 {roomCode}
               </div>
               <button
-                onClick={copyRoomCode}
+                onClick={copyRoomLink}
                 className="px-2 py-1 bg-green-700/50 hover:bg-green-600/50 border border-green-500/50 rounded text-sm transition-colors"
-                title="Copy room code"
+                title="Copy room link"
               >
-                {copied ? '✓ Copied!' : 'Copy'}
+                {copied ? '✓ Copied!' : 'Share'}
               </button>
             </div>
           </div>
@@ -495,7 +496,7 @@ export default function RoomPage() {
         <div className="max-w-2xl mx-auto mb-8 bg-green-800/30 rounded-lg p-4">
           <h3 className="font-semibold mb-2">How to Play</h3>
           <ul className="text-sm text-green-300 space-y-1">
-            <li>• Share the room code with friends to invite them</li>
+            <li>• Share the room link with friends to invite them</li>
             <li>• The host can select which player will be the dealer</li>
             <li>• Game starts when all 4 players have joined</li>
             <li>• Not enough players? Add AI bots to fill empty seats!</li>
