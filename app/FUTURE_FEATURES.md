@@ -5,21 +5,39 @@
 ## In Progress
 <!-- Currently being worked on -->
 
-## High Priority
+## High Priority (Bugs)
+<!-- Should be fixed soon -->
+
+- [ ] **Bug**: Concealed Kong visible to other players (should be face-down)
+- [ ] **Bug**: Mobile tile UX - tiles don't fit properly on small screens
+- [ ] **Bug**: Keyboard shortcut changes break on mobile
+
+## High Priority (Features)
 <!-- Should be done soon -->
+
+- [ ] Mobile layout rework (move hand/last discard/discard pile up; hide sound in settings)
+- [ ] Calling phase timer (10-120 sec, auto-pass, or no timer)
+- [ ] Dead wall / end-of-game draw pile (0-16 tiles)
 
 ## Medium Priority
 <!-- Important but not urgent -->
 
+- [ ] Rename calling actions (more intuitive labels)
+- [ ] Rename "UPGRADE" to "KONG" in UI
+- [ ] Show last action in the last discard box
+- [ ] Rename default bot names (e.g., "Bot-Hard-1")
+- [ ] Add delays during bonus exposure phase (expose → replace → gold flip → auto-win)
 - [ ] Error boundaries for graceful failure handling
 - [ ] Loading skeletons instead of "Loading..." text
 - [ ] Reconnection handling for dropped connections
-- [ ] Mobile touch optimization (larger tap targets)
 - [ ] Preview image for link sharing (og:image)
 
 ## Low Priority
 <!-- Nice to have -->
 
+- [ ] Manual hand sorting (drag to reorder tiles)
+- [ ] Tile images instead of text/emoji
+- [ ] Server-side tile drawing (instead of client-side)
 - [ ] Accessibility improvements (ARIA labels, screen reader support)
 - [ ] Individual sound toggles (per-sound enable/disable)
 - [ ] Game history/replay feature
