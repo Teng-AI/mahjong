@@ -212,6 +212,7 @@ export default function GamePage() {
   // Keyboard shortcuts
   const { shortcuts, setShortcut, resetToDefaults } = useKeyboardShortcuts();
   const [showSettings, setShowSettings] = useState(false);
+  const [showRules, setShowRules] = useState(false);
 
   const [selectedTile, setSelectedTile] = useState<TileId | null>(null);
   const [processingAction, setProcessingAction] = useState(false);
@@ -1140,40 +1141,13 @@ export default function GamePage() {
       {/* ========== COMBINED HEADER + PHASE BAR ========== */}
       <div className="flex flex-wrap items-center justify-between gap-1 sm:gap-2 mb-2 sm:mb-3 bg-slate-700/40 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2">
         <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
-          {/* Rules tooltip */}
-          <div className="relative group">
-            <button className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-slate-600 hover:bg-slate-500 text-slate-300 hover:text-white text-sm sm:text-lg font-bold flex items-center justify-center">
-              ?
-            </button>
-            <div className="absolute left-0 top-full mt-2 w-[280px] sm:w-[420px] max-h-[80vh] overflow-y-auto bg-slate-800 border border-slate-600 rounded-lg p-3 sm:p-4 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-              <h3 className="text-amber-400 font-bold text-lg mb-3">How to Play</h3>
-              <div className="text-base text-slate-300 space-y-2">
-                <p><strong className="text-white">Goal:</strong> Form a winning hand of 5 sets + 1 pair (17 tiles total)</p>
-                <p><strong className="text-white">Sets:</strong> Either 3 of a kind (Pung) or 3 in a row of the same suit (Chow)</p>
-                <p><strong className="text-white">Gold Tile:</strong> Acts as a wildcard - can substitute for any suited tile</p>
-                <p><strong className="text-white">Bonus Tiles:</strong> Winds and dragons are exposed at the start for extra points</p>
-                <p><strong className="text-white">On Your Turn:</strong> Draw a tile, then discard one (click to select, then click Discard)</p>
-                <p><strong className="text-white">Calling:</strong> When someone discards, you can call Pung (3 of a kind) or Chow (sequence) if you have matching tiles</p>
-                <p><strong className="text-white">Winning:</strong> Click WIN when your hand is complete!</p>
-              </div>
-
-              <hr className="border-slate-600 my-3" />
-
-              <h4 className="text-amber-400 font-bold text-lg mb-3">Detailed Rules</h4>
-              <div className="text-base text-slate-300 space-y-2">
-                <p><strong className="text-white">Turn Order:</strong> Play goes counter-clockwise (East → South → West → North)</p>
-                <p><strong className="text-white">Starting Tiles:</strong> Dealer receives 17 tiles, others receive 16. Dealer discards first without drawing.</p>
-                <p><strong className="text-white">Gold Tiles:</strong> Cannot be discarded - you must keep them. They can substitute for any suited tile (dots, bamboo, characters) in sets and pairs.</p>
-                <p><strong className="text-white">Three Golds:</strong> If you ever hold 3 Gold tiles, you instantly win with a bonus!</p>
-                <p><strong className="text-white">Chow Restriction:</strong> You can only call Chow on a discard from the player immediately before you (your right).</p>
-                <p><strong className="text-white">Pung Priority:</strong> Pung can be called on anyone&apos;s discard, and takes priority over Chow.</p>
-                <p><strong className="text-white">Win Priority:</strong> A winning call (WIN) takes priority over all other calls.</p>
-                <p><strong className="text-white">Scoring:</strong> Base points + bonus tiles + Gold tiles in hand. Self-draw wins get 2x multiplier.</p>
-                <p><strong className="text-white">Suits:</strong> Dots (red ●), Bamboo (blue |), Characters (green 萬). Each suit has tiles 1-9.</p>
-                <p><strong className="text-white">Honors:</strong> Winds (東南西北) and Dragons (中) are bonus tiles - expose them for points but they can&apos;t form Chows.</p>
-              </div>
-            </div>
-          </div>
+          {/* Rules button */}
+          <button
+            onClick={() => setShowRules(true)}
+            className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-slate-600 hover:bg-slate-500 text-slate-300 hover:text-white text-sm sm:text-lg font-bold flex items-center justify-center"
+          >
+            ?
+          </button>
           <div className="flex items-center gap-1 sm:gap-2">
             <span className="text-slate-400 text-sm sm:text-lg">Room</span>
             <span className="font-mono text-amber-400 font-bold text-sm sm:text-base">{roomCode}</span>
@@ -1589,77 +1563,154 @@ export default function GamePage() {
         </div>
       </div>
 
-      {/* ========== OTHER PLAYERS WITH MELDS ========== */}
+      {/* ========== ALL PLAYERS - TURN ORDER ========== */}
       <div className="bg-slate-800/50 rounded-xl p-2 sm:p-4 border border-slate-600">
-        <div className="text-sm sm:text-lg text-slate-300 font-medium mb-2 sm:mb-3">Other Players</div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
-          {([0, 1, 2, 3] as SeatIndex[])
-            .filter((seat) => seat !== mySeat)
-            .map((seat) => {
-              const player = room.players[`seat${seat}` as keyof typeof room.players];
-              if (!player) return null;
+        <div className="text-sm sm:text-lg text-slate-300 font-medium mb-2 sm:mb-3">Players</div>
+        <div className="grid grid-cols-[0.33fr_1fr_1fr_1fr] gap-1 sm:gap-2">
+          {/* Order: current player first, then next 3 in turn order */}
+          {[0, 1, 2, 3].map((offset) => {
+            const seat = ((mySeat + offset) % 4) as SeatIndex;
+            const player = room.players[`seat${seat}` as keyof typeof room.players];
+            if (!player) return null;
 
-              const isDealer = gameState.dealerSeat === seat;
-              const exposedMelds = gameState.exposedMelds?.[`seat${seat}` as keyof typeof gameState.exposedMelds] || [];
-              const bonusTiles = gameState.bonusTiles?.[`seat${seat}` as keyof typeof gameState.bonusTiles] || [];
-              const baseTileCount = isDealer ? 17 : 16;
-              // Calculate tiles removed from hand: 2 for most melds, 3 for concealed kong (4 removed, +1 replacement draw)
-              const tilesRemovedFromHand = exposedMelds.reduce((sum, meld) => {
-                return sum + (meld.type === 'kong' && meld.isConcealed ? 3 : 2);
-              }, 0);
-              const tileCount = baseTileCount - tilesRemovedFromHand;
-              const isCurrentTurn = gameState.currentPlayerSeat === seat;
+            const isMe = seat === mySeat;
+            const isDealer = gameState.dealerSeat === seat;
+            const exposedMelds = gameState.exposedMelds?.[`seat${seat}` as keyof typeof gameState.exposedMelds] || [];
+            const bonusTiles = gameState.bonusTiles?.[`seat${seat}` as keyof typeof gameState.bonusTiles] || [];
+            const baseTileCount = isDealer ? 17 : 16;
+            // Calculate tiles removed from hand: 2 for most melds, 3 for concealed kong (4 removed, +1 replacement draw)
+            const tilesRemovedFromHand = exposedMelds.reduce((sum, meld) => {
+              return sum + (meld.type === 'kong' && meld.isConcealed ? 3 : 2);
+            }, 0);
+            const tileCount = baseTileCount - tilesRemovedFromHand;
+            const isCurrentTurn = gameState.currentPlayerSeat === seat;
 
+            // Narrow cell for current player (first column)
+            if (isMe) {
               return (
                 <div
                   key={seat}
-                  className={`p-2 sm:p-3 rounded-lg ${isCurrentTurn ? 'bg-emerald-500/25 border-2 border-emerald-500/50' : 'bg-slate-700/40 border border-slate-600'}`}
+                  className={`p-1.5 sm:p-2 rounded-lg text-center ${
+                    isCurrentTurn
+                      ? 'bg-emerald-500/25 border-2 border-emerald-500/50'
+                      : 'bg-blue-500/15 border border-blue-500/30'
+                  }`}
                 >
-                  {/* Player info row */}
-                  <div className="flex items-center justify-between mb-1 sm:mb-2">
-                    <div className="flex items-center gap-1 sm:gap-2">
-                      {player.isBot && <span className="text-cyan-400 text-sm sm:text-lg">🤖</span>}
-                      <span className={`font-semibold text-sm sm:text-lg ${isCurrentTurn ? 'text-emerald-200' : 'text-white'}`}>
-                        {player.name}
-                      </span>
-                      <span className="text-slate-400 text-xs sm:text-base">({SEAT_LABELS[seat]})</span>
-                      {player.isBot && player.botDifficulty && (
-                        <span className={`text-xs px-1.5 py-0.5 rounded ${
-                          player.botDifficulty === 'easy' ? 'bg-green-500/30 text-green-300' :
-                          player.botDifficulty === 'hard' ? 'bg-red-500/30 text-red-300' :
-                          'bg-yellow-500/30 text-yellow-300'
-                        }`}>
-                          {player.botDifficulty.charAt(0).toUpperCase() + player.botDifficulty.slice(1)}
-                        </span>
-                      )}
-                      {isDealer && <span className="bg-amber-500 text-black text-xs sm:text-lg px-1 sm:px-1.5 py-0.5 rounded font-bold">D</span>}
-                    </div>
-                    <span className="text-slate-300 font-medium text-xs sm:text-base">{tileCount} tiles</span>
+                  <div className={`font-semibold text-xs sm:text-sm ${isCurrentTurn ? 'text-emerald-200' : 'text-blue-200'}`}>
+                    You
                   </div>
-                  {/* Melds and bonus tiles */}
-                  {(exposedMelds.length > 0 || bonusTiles.length > 0) && (
-                    <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1 sm:mt-2">
-                      {exposedMelds.map((meld, meldIdx) => (
-                        <div key={meldIdx} className={`flex gap-0.5 rounded p-0.5 sm:p-1 ${meld.isConcealed ? 'bg-pink-800/50' : 'bg-slate-800/70'}`}>
-                          {meld.tiles.map((tile, i) => (
-                            <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="sm" />
-                          ))}
-                          {meld.isConcealed && <span className="text-pink-300 text-[10px] ml-0.5 self-center">C</span>}
-                        </div>
-                      ))}
-                      {bonusTiles.length > 0 && (
-                        <div className="bg-amber-500/30 rounded px-2 sm:px-3 py-0.5 sm:py-1 flex items-center gap-1">
-                          <span className="text-amber-300 text-xs sm:text-lg">Bonus:</span>
-                          <span className="text-amber-400 text-lg sm:text-2xl font-bold">+{bonusTiles.length}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <div className="text-slate-400 text-[10px] sm:text-xs">
+                    {SEAT_LABELS[seat]}
+                  </div>
+                  {isDealer && <span className="bg-amber-500 text-black text-[10px] sm:text-xs px-1 py-0.5 rounded font-bold">D</span>}
                 </div>
               );
-            })}
+            }
+
+            return (
+              <div
+                key={seat}
+                className={`p-1.5 sm:p-2 rounded-lg ${
+                  isCurrentTurn
+                    ? 'bg-emerald-500/25 border-2 border-emerald-500/50'
+                    : 'bg-slate-700/40 border border-slate-600'
+                }`}
+              >
+                {/* Player info */}
+                <div className="flex flex-col mb-1">
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {player.isBot && <span className="text-cyan-400 text-xs sm:text-sm">🤖</span>}
+                    <span className={`font-semibold text-xs sm:text-sm truncate ${isCurrentTurn ? 'text-emerald-200' : 'text-white'}`}>
+                      {player.name}
+                    </span>
+                    {isDealer && <span className="bg-amber-500 text-black text-[10px] sm:text-xs px-1 py-0.5 rounded font-bold">D</span>}
+                  </div>
+                  <div className="flex items-center gap-1 text-slate-400 text-[10px] sm:text-xs">
+                    <span>{SEAT_LABELS[seat]}</span>
+                    <span>·</span>
+                    <span>{tileCount}</span>
+                    {player.isBot && player.botDifficulty && (
+                      <>
+                        <span>·</span>
+                        <span className={
+                          player.botDifficulty === 'easy' ? 'text-green-400' :
+                          player.botDifficulty === 'hard' ? 'text-red-400' :
+                          'text-yellow-400'
+                        }>
+                          {player.botDifficulty.charAt(0).toUpperCase()}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                {/* Melds and bonus tiles */}
+                {(exposedMelds.length > 0 || bonusTiles.length > 0) && (
+                  <div className="flex flex-wrap items-center gap-0.5 sm:gap-1 mt-1">
+                    {exposedMelds.map((meld, meldIdx) => (
+                      <div key={meldIdx} className={`flex gap-0.5 rounded p-0.5 ${meld.isConcealed ? 'bg-pink-800/50' : 'bg-slate-800/70'}`}>
+                        {meld.tiles.map((tile, i) => (
+                          <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="sm" />
+                        ))}
+                        {meld.isConcealed && <span className="text-pink-300 text-[8px] ml-0.5 self-center">C</span>}
+                      </div>
+                    ))}
+                    {bonusTiles.length > 0 && (
+                      <div className="bg-amber-500/30 rounded px-1 sm:px-2 py-0.5 flex items-center gap-0.5">
+                        <span className="text-amber-400 text-sm sm:text-lg font-bold">+{bonusTiles.length}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
+
+      {/* Rules Modal */}
+      {showRules && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowRules(false)}>
+          <div
+            className="bg-slate-800 rounded-lg p-4 sm:p-6 max-w-md w-full max-h-[85vh] overflow-y-auto border border-slate-600"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-amber-400 font-bold text-xl">How to Play</h3>
+              <button
+                onClick={() => setShowRules(false)}
+                className="text-slate-400 hover:text-white text-2xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="text-base text-slate-300 space-y-2">
+              <p><strong className="text-white">Goal:</strong> Form a winning hand of 5 sets + 1 pair (17 tiles total)</p>
+              <p><strong className="text-white">Sets:</strong> Either 3 of a kind (Pung) or 3 in a row of the same suit (Chow)</p>
+              <p><strong className="text-white">Gold Tile:</strong> Acts as a wildcard - can substitute for any suited tile</p>
+              <p><strong className="text-white">Bonus Tiles:</strong> Winds and dragons are exposed at the start for extra points</p>
+              <p><strong className="text-white">On Your Turn:</strong> Draw a tile, then discard one (click to select, then click Discard)</p>
+              <p><strong className="text-white">Calling:</strong> When someone discards, you can call Pung (3 of a kind) or Chow (sequence) if you have matching tiles</p>
+              <p><strong className="text-white">Winning:</strong> Click WIN when your hand is complete!</p>
+            </div>
+
+            <hr className="border-slate-600 my-4" />
+
+            <h4 className="text-amber-400 font-bold text-lg mb-3">Detailed Rules</h4>
+            <div className="text-base text-slate-300 space-y-2">
+              <p><strong className="text-white">Turn Order:</strong> Play goes counter-clockwise (East → South → West → North)</p>
+              <p><strong className="text-white">Starting Tiles:</strong> Dealer receives 17 tiles, others receive 16. Dealer discards first without drawing.</p>
+              <p><strong className="text-white">Gold Tiles:</strong> Cannot be discarded - you must keep them. They can substitute for any suited tile (dots, bamboo, characters) in sets and pairs.</p>
+              <p><strong className="text-white">Three Golds:</strong> If you ever hold 3 Gold tiles, you instantly win with a bonus!</p>
+              <p><strong className="text-white">Chow Restriction:</strong> You can only call Chow on a discard from the player immediately before you (your right).</p>
+              <p><strong className="text-white">Pung Priority:</strong> Pung can be called on anyone&apos;s discard, and takes priority over Chow.</p>
+              <p><strong className="text-white">Win Priority:</strong> A winning call (WIN) takes priority over all other calls.</p>
+              <p><strong className="text-white">Scoring:</strong> Base points + bonus tiles + Gold tiles in hand. Self-draw wins get 2x multiplier.</p>
+              <p><strong className="text-white">Suits:</strong> Dots (red ●), Bamboo (blue |), Characters (green 萬). Each suit has tiles 1-9.</p>
+              <p><strong className="text-white">Honors:</strong> Winds (東南西北) and Dragons (中) are bonus tiles - expose them for points but they can&apos;t form Chows.</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Settings Modal */}
       <SettingsModal

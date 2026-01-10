@@ -63,70 +63,70 @@ function playNoteSequence(
   });
 }
 
-// Sound definitions - subtle and non-intrusive
+// Sound definitions
 // Each sound has a base volume that gets multiplied by the user's volume setting
 const soundDefinitions: Record<SoundType, (ctx: AudioContext, volumeMultiplier: number) => void> = {
   tileClick: (ctx, vol) => {
-    // Short soft click
-    createOscillatorSound(ctx, 600, 0.03, 'sine', 0.08 * vol);
+    // Short click
+    createOscillatorSound(ctx, 600, 0.03, 'sine', 0.25 * vol);
   },
 
   tileSelect: (ctx, vol) => {
-    // Gentle selection tone
-    createOscillatorSound(ctx, 500, 0.06, 'sine', 0.1 * vol);
+    // Selection tone
+    createOscillatorSound(ctx, 500, 0.06, 'sine', 0.3 * vol);
   },
 
   discard: (ctx, vol) => {
-    // Soft thud
-    createOscillatorSound(ctx, 150, 0.08, 'sine', 0.12 * vol);
+    // Thud
+    createOscillatorSound(ctx, 150, 0.08, 'sine', 0.35 * vol);
   },
 
   draw: (ctx, vol) => {
-    // Gentle pickup sound
-    createOscillatorSound(ctx, 400, 0.06, 'sine', 0.08 * vol);
+    // Pickup sound
+    createOscillatorSound(ctx, 400, 0.06, 'sine', 0.25 * vol);
   },
 
   pung: (ctx, vol) => {
-    // Subtle two-tone
+    // Two-tone
     playNoteSequence(ctx, [
       { freq: 440, duration: 0.08, delay: 0 },
       { freq: 550, duration: 0.1, delay: 0.06 },
-    ], 'sine', 0.12 * vol);
+    ], 'sine', 0.35 * vol);
   },
 
   chow: (ctx, vol) => {
-    // Soft ascending
+    // Ascending
     playNoteSequence(ctx, [
       { freq: 400, duration: 0.06, delay: 0 },
       { freq: 500, duration: 0.08, delay: 0.05 },
-    ], 'sine', 0.1 * vol);
+    ], 'sine', 0.3 * vol);
   },
 
   win: (ctx, vol) => {
-    // Pleasant but subtle win sound
+    // Win fanfare
     playNoteSequence(ctx, [
       { freq: 523, duration: 0.1, delay: 0 },       // C5
       { freq: 659, duration: 0.1, delay: 0.08 },    // E5
       { freq: 784, duration: 0.15, delay: 0.16 },   // G5
-    ], 'sine', 0.15 * vol);
+    ], 'sine', 0.45 * vol);
   },
 
   yourTurn: (ctx, vol) => {
-    // Gentle notification chime
-    createOscillatorSound(ctx, 660, 0.12, 'sine', 0.1 * vol);
+    // Notification chime
+    createOscillatorSound(ctx, 660, 0.12, 'sine', 0.35 * vol);
   },
 
   gameStart: (ctx, vol) => {
-    // Soft start tone
+    // Start tone
     playNoteSequence(ctx, [
       { freq: 400, duration: 0.1, delay: 0 },
       { freq: 500, duration: 0.15, delay: 0.08 },
-    ], 'sine', 0.1 * vol);
+    ], 'sine', 0.3 * vol);
   },
 
   pass: (ctx, vol) => {
-    // Very subtle pass
-    createOscillatorSound(ctx, 250, 0.05, 'sine', 0.05 * vol);
+    // Subtle pass
+    createOscillatorSound(ctx, 250, 0.05, 'sine', 0.15 * vol);
   },
 };
 
