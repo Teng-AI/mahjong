@@ -244,6 +244,13 @@ export default function GamePage() {
     }
   }, [gameState?.actionLog?.length]);
 
+  // Play win sound for the winner when game ends
+  useEffect(() => {
+    if (gameState?.phase === 'ended' && gameState?.winner && gameState.winner.seat === mySeat) {
+      playSound('win');
+    }
+  }, [gameState?.phase, gameState?.winner, mySeat, playSound]);
+
   // Handle drawing a tile
   const onDraw = async () => {
     if (processingAction) return;
@@ -762,31 +769,110 @@ export default function GamePage() {
           <div className="absolute top-1/3 right-1/3 w-[400px] h-[400px] bg-orange-500/15 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
         </div>
 
-        {/* Confetti for winner / Sad faces for losers */}
+        {/* Fireworks for winner / Sad faces for losers */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
           {winner.seat === mySeat ? (
-            // Confetti for winners - falling from top
+            // Fireworks for winners - shooting up from bottom and exploding
             <>
-              {Array.from({ length: 30 }).map((_, i) => {
-                const confettiEmojis = ['🎉', '🎊', '✨', '⭐', '🌟', '💫', '🏆', '👑'];
-                const emoji = confettiEmojis[i % confettiEmojis.length];
-                // Use stable pseudo-random values based on index
-                const left = ((i * 37) % 100);
-                const delay = (i * 0.15) % 3;
-                const duration = 3 + (i % 4);
-                const size = 1.5 + (i % 3) * 0.5;
+              {/* Firework rockets that shoot up and explode */}
+              {Array.from({ length: 10 }).map((_, rocketIndex) => {
+                const launchPositions = [10, 25, 40, 55, 70, 85, 18, 48, 62, 78];
+                const explodeHeights = [15, 25, 20, 30, 22, 28, 35, 18, 32, 24];
+                const delays = [0, 0.5, 1.0, 0.3, 0.8, 1.3, 0.2, 0.7, 1.1, 0.4];
+                const colors = [
+                  ['#ff0', '#f80', '#f00', '#ff4'],
+                  ['#0ff', '#08f', '#00f', '#4ff'],
+                  ['#f0f', '#f08', '#80f', '#f4f'],
+                  ['#0f0', '#8f0', '#0f8', '#4f4'],
+                  ['#ff0', '#fff', '#ff8', '#ffa'],
+                  ['#f08', '#f0f', '#f4f', '#f8f'],
+                  ['#0ff', '#0f8', '#0f0', '#8ff'],
+                  ['#ff0', '#f80', '#fa0', '#fc0'],
+                  ['#f0f', '#80f', '#a0f', '#c0f'],
+                  ['#0f0', '#0f8', '#0fa', '#0fc'],
+                ];
+
+                return (
+                  <div key={`rocket-${rocketIndex}`}>
+                    {/* Rocket trail shooting up */}
+                    <div
+                      className="absolute w-1 rounded-full"
+                      style={{
+                        left: `${launchPositions[rocketIndex]}%`,
+                        bottom: '0',
+                        height: '80px',
+                        background: `linear-gradient(to top, ${colors[rocketIndex][0]}, transparent)`,
+                        animation: `rocket-launch 2.5s ease-out ${delays[rocketIndex]}s infinite`,
+                        ['--explode-height' as string]: `${explodeHeights[rocketIndex]}%`,
+                      }}
+                    />
+                    {/* Explosion burst */}
+                    <div
+                      className="absolute"
+                      style={{
+                        left: `${launchPositions[rocketIndex]}%`,
+                        top: `${explodeHeights[rocketIndex]}%`,
+                        animation: `explosion-appear 2.5s ease-out ${delays[rocketIndex]}s infinite`,
+                      }}
+                    >
+                      {/* Explosion particles - spreading wide */}
+                      {Array.from({ length: 20 }).map((_, particleIndex) => {
+                        const angle = (particleIndex * 18) * (Math.PI / 180);
+                        const distance = 100 + (particleIndex % 4) * 40;
+                        const colorSet = colors[rocketIndex];
+                        const color = colorSet[particleIndex % 4];
+                        const size = 4 + (particleIndex % 3) * 2;
+                        return (
+                          <div
+                            key={`particle-${particleIndex}`}
+                            className="absolute rounded-full"
+                            style={{
+                              width: `${size}px`,
+                              height: `${size}px`,
+                              marginLeft: `-${size/2}px`,
+                              marginTop: `-${size/2}px`,
+                              backgroundColor: color,
+                              boxShadow: `0 0 ${size*2}px ${color}, 0 0 ${size*4}px ${color}`,
+                              animation: `firework-explode 2.5s ease-out ${delays[rocketIndex]}s infinite`,
+                              ['--tx' as string]: `${Math.cos(angle) * distance}px`,
+                              ['--ty' as string]: `${Math.sin(angle) * distance + 30}px`,
+                            }}
+                          />
+                        );
+                      })}
+                      {/* Center flash */}
+                      <div
+                        className="absolute w-16 h-16 -ml-8 -mt-8 rounded-full"
+                        style={{
+                          backgroundColor: '#fff',
+                          boxShadow: `0 0 40px #fff, 0 0 80px ${colors[rocketIndex][0]}, 0 0 120px ${colors[rocketIndex][1]}`,
+                          animation: `firework-flash 2.5s ease-out ${delays[rocketIndex]}s infinite`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+              {/* Sparkle overlay */}
+              {Array.from({ length: 40 }).map((_, i) => {
+                const sparkles = ['✨', '⭐', '🌟', '💫', '🎇', '🎆'];
+                const sparkle = sparkles[i % sparkles.length];
+                const left = ((i * 29) % 100);
+                const top = ((i * 41) % 70) + 5;
+                const delay = (i * 0.15) % 2.5;
+                const size = 1.5 + (i % 3) * 0.6;
                 return (
                   <div
-                    key={i}
-                    className="absolute text-2xl opacity-80"
+                    key={`sparkle-${i}`}
+                    className="absolute"
                     style={{
                       left: `${left}%`,
-                      top: '-50px',
+                      top: `${top}%`,
                       fontSize: `${size}rem`,
-                      animation: `confetti-fall ${duration}s linear ${delay}s infinite`,
+                      animation: `sparkle-twinkle 1.2s ease-in-out ${delay}s infinite`,
                     }}
                   >
-                    {emoji}
+                    {sparkle}
                   </div>
                 );
               })}
@@ -823,14 +909,76 @@ export default function GamePage() {
 
         {/* CSS for animations */}
         <style jsx>{`
-          @keyframes confetti-fall {
+          @keyframes rocket-launch {
             0% {
-              transform: translateY(0) rotate(0deg);
+              transform: translateY(0);
+              opacity: 1;
+            }
+            30% {
+              transform: translateY(calc(-100vh + var(--explode-height)));
+              opacity: 1;
+            }
+            35% {
+              opacity: 0;
+            }
+            100% {
+              opacity: 0;
+            }
+          }
+          @keyframes explosion-appear {
+            0%, 25% {
+              transform: scale(0);
+              opacity: 0;
+            }
+            30% {
+              transform: scale(1);
               opacity: 1;
             }
             100% {
-              transform: translateY(110vh) rotate(720deg);
-              opacity: 0.3;
+              transform: scale(1);
+              opacity: 0;
+            }
+          }
+          @keyframes firework-explode {
+            0%, 25% {
+              transform: translate(0, 0) scale(0);
+              opacity: 0;
+            }
+            35% {
+              transform: translate(0, 0) scale(1);
+              opacity: 1;
+            }
+            100% {
+              transform: translate(var(--tx), var(--ty)) scale(0.3);
+              opacity: 0;
+            }
+          }
+          @keyframes firework-flash {
+            0%, 25% {
+              transform: scale(0);
+              opacity: 0;
+            }
+            30% {
+              transform: scale(1.5);
+              opacity: 1;
+            }
+            50% {
+              transform: scale(0.3);
+              opacity: 0;
+            }
+            100% {
+              transform: scale(0);
+              opacity: 0;
+            }
+          }
+          @keyframes sparkle-twinkle {
+            0%, 100% {
+              transform: scale(0.5);
+              opacity: 0.2;
+            }
+            50% {
+              transform: scale(1.3);
+              opacity: 1;
             }
           }
           @keyframes sad-fall {

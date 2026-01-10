@@ -104,15 +104,35 @@ const soundDefinitions: Record<SoundType, (ctx: AudioContext, volumeMultiplier: 
   },
 
   win: (ctx, vol) => {
-    // Dramatic win fanfare - triumphant ascending arpeggio with flourish
+    // Celebratory victory fanfare - longer triumphant melody
+    // First phrase - ascending fanfare
     playNoteSequence(ctx, [
-      { freq: 523, duration: 0.15, delay: 0 },       // C5
-      { freq: 659, duration: 0.15, delay: 0.12 },    // E5
-      { freq: 784, duration: 0.15, delay: 0.24 },    // G5
-      { freq: 1047, duration: 0.25, delay: 0.36 },   // C6 (octave up)
-      { freq: 784, duration: 0.1, delay: 0.55 },     // G5 (grace note)
-      { freq: 1047, duration: 0.4, delay: 0.62 },    // C6 (sustained finish)
+      { freq: 523, duration: 0.12, delay: 0 },       // C5
+      { freq: 659, duration: 0.12, delay: 0.1 },     // E5
+      { freq: 784, duration: 0.12, delay: 0.2 },     // G5
+      { freq: 1047, duration: 0.3, delay: 0.3 },     // C6 (hold)
+    ], 'sine', 0.45 * vol);
+    // Second phrase - triumphant resolution
+    playNoteSequence(ctx, [
+      { freq: 880, duration: 0.15, delay: 0.7 },     // A5
+      { freq: 988, duration: 0.15, delay: 0.85 },    // B5
+      { freq: 1047, duration: 0.2, delay: 1.0 },     // C6
+      { freq: 1319, duration: 0.4, delay: 1.2 },     // E6 (high)
+    ], 'sine', 0.4 * vol);
+    // Third phrase - celebratory flourish
+    playNoteSequence(ctx, [
+      { freq: 1047, duration: 0.1, delay: 1.7 },     // C6
+      { freq: 1175, duration: 0.1, delay: 1.8 },     // D6
+      { freq: 1319, duration: 0.1, delay: 1.9 },     // E6
+      { freq: 1568, duration: 0.5, delay: 2.0 },     // G6 (finale)
     ], 'sine', 0.5 * vol);
+    // Bass accompaniment
+    playNoteSequence(ctx, [
+      { freq: 262, duration: 0.3, delay: 0 },        // C4
+      { freq: 330, duration: 0.3, delay: 0.7 },      // E4
+      { freq: 392, duration: 0.3, delay: 1.2 },      // G4
+      { freq: 523, duration: 0.6, delay: 1.7 },      // C5
+    ], 'sine', 0.25 * vol);
   },
 
   yourTurn: (ctx, vol) => {
