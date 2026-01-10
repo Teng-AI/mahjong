@@ -1246,7 +1246,7 @@ export default function GamePage() {
                 key={seat}
                 className={`px-2 py-1 rounded ${
                   isDiscarder
-                    ? 'bg-red-500/30 text-red-300'
+                    ? 'bg-slate-600/50 text-slate-400'
                     : hasResponded
                     ? 'bg-emerald-500/30 text-emerald-300'
                     : isWaiting
@@ -1255,7 +1255,7 @@ export default function GamePage() {
                 }`}
               >
                 {playerName}
-                {isDiscarder && <span className="ml-1 text-xs">(discarded)</span>}
+                {isDiscarder && <span className="ml-1 text-xs opacity-60">—</span>}
                 {hasResponded && <span className="ml-1">✓</span>}
                 {isWaiting && <span className="ml-1">...</span>}
               </div>
