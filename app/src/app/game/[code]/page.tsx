@@ -247,8 +247,9 @@ export default function GamePage() {
     }
   }, [gameState?.actionLog?.length]);
 
-  // Play win sound on loop for the winner when game ends
+  // Play win sound on loop for the winner when game ends (only if sound enabled)
   useEffect(() => {
+    if (!soundEnabled) return; // Don't play if sound is disabled
     if (gameState?.phase === 'ended' && gameState?.winner && gameState.winner.seat === mySeat) {
       // Play immediately
       playSound('win');
@@ -258,7 +259,7 @@ export default function GamePage() {
       }, 3000);
       return () => clearInterval(interval);
     }
-  }, [gameState?.phase, gameState?.winner, mySeat, playSound]);
+  }, [gameState?.phase, gameState?.winner, mySeat, playSound, soundEnabled]);
 
   // Handle drawing a tile
   const onDraw = async () => {
