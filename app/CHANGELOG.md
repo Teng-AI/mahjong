@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Previous Action and Discarded sections side-by-side on mobile
 
 ### Changed
+- Redesigned room lobby player cards with consistent heights and better spacing
 - Removed seat labels (East/South/West/North) from UI for cleaner look
 - Kong melds now display as single tile with ×4 badge (saves space on mobile)
 - Other players' bonus count moved to info line above melds
