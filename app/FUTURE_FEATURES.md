@@ -43,11 +43,11 @@
   - Room setting configured by host
   - *Note: Previously attempted, reverted due to Firebase sync issues*
 
-- [ ] **Dead wall implementation** 🟡
-  - Reserve 0-16 tiles as dead wall (unplayable)
-  - Game ends when live wall exhausted (not total wall)
-  - Configurable in room settings
-  - Display dead wall count in UI
+- [x] **Dead wall implementation** 🟡 ✅
+  - ~~Reserve 0-16 tiles as dead wall (unplayable)~~ 16 tiles removed at game start
+  - ~~Game ends when live wall exhausted (not total wall)~~ ✅ Done
+  - ~~Configurable in room settings~~ (Not needed - hardcoded to 16)
+  - ~~Display dead wall count in UI~~ Wall count shows drawable tiles only
 
 ---
 
@@ -189,6 +189,8 @@
 
 ## Completed
 
+- [x] **Dead wall** - 16 tiles reserved at game start (per Fujian Mahjong rules)
+- [x] **UI cleanup** - removed seat labels (East/South/West/North), compact Kong display (×4 badge)
 - [x] **Mobile layout rework complete** - fixed bottom action bar, calling status integration
 - [x] Fixed bottom action bar for mobile (Draw/Discard/calling buttons)
 - [x] WIN button larger and more prominent on mobile

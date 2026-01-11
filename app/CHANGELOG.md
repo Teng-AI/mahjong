@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Dead wall** - 16 tiles reserved at game start per Fujian Mahjong rules (wall count shows drawable tiles only)
+- **Bonus tile count** - shows +X badge next to your bonus tiles
 - **Fixed bottom action bar for mobile** - thumb-friendly actions at screen bottom
   - Context-aware: shows Draw/Discard during play, calling buttons during calling phase
   - WIN button larger and more prominent when available
@@ -16,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Previous Action and Discarded sections side-by-side on mobile
 
 ### Changed
+- Removed seat labels (East/South/West/North) from UI for cleaner look
+- Kong melds now display as single tile with ×4 badge (saves space on mobile)
+- Other players' bonus count moved to info line above melds
+- Mobile action buttons now full-width with even distribution
 - Reorganized game layout: calling status moved to bottom, middle row reordered (Last Discard → Discard Pile → Game Log)
 - PASS button changed to emerald green for better visibility
 - Mobile header made smaller (reduced padding and text sizes)
