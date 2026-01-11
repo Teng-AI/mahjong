@@ -900,32 +900,67 @@ export function useBotRunner({
       if (botsNeedingResponse.length === 0) {
         return;
       }
+
+      // Check if all human players have responded first
+      // Find human seats (non-bots) that aren't the discarder
+      const humanSeats = ([0, 1, 2, 3] as SeatIndex[]).filter(seat => !isBotSeat(seat));
+      const humansNeedingResponse = humanSeats.filter(seat => {
+        const callStatus = pendingCalls[`seat${seat}` as keyof typeof pendingCalls];
+        // null/undefined means waiting, 'discarder' means they can't call
+        return callStatus === null || callStatus === undefined;
+      });
+
+      // If any human still needs to respond, wait for them
+      if (humansNeedingResponse.length > 0) {
+        if (DEBUG_BOT) console.log(`[Bot] Waiting for humans to respond: ${humansNeedingResponse.join(', ')}`);
+        return;
+      }
     }
 
     const runBotActions = async () => {
-      // Small delay for natural feel
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      if (cancelled) return;
-
       try {
         // Handle playing phase
         if (gameState.phase === 'playing' && isCurrentPlayerBot) {
+          // Delay before bot plays
+          await new Promise(resolve => setTimeout(resolve, botDelay));
+          if (cancelled) return;
           const difficulty = getBotDifficulty(currentSeat);
           await handlePlayingPhase(currentSeat, difficulty);
           return;
         }
 
-        // Handle calling phase - all bots respond
+        // Handle calling phase - all bots respond simultaneously
         if (gameState.phase === 'calling') {
-          for (const seat of bots) {
-            if (cancelled) return;
-            const myCall = gameState.pendingCalls?.[`seat${seat}` as keyof typeof gameState.pendingCalls];
-            if (myCall === null || myCall === undefined) {
-              const difficulty = getBotDifficulty(seat);
-              await handleCallingPhase(seat, difficulty);
-              // Small delay between bots
-              await new Promise(resolve => setTimeout(resolve, 200));
-            }
+          const pendingCalls = gameState.pendingCalls;
+          if (!pendingCalls) return;
+
+          // Check how many bots still need to respond
+          const botsStillWaiting = bots.filter(seat => {
+            const callStatus = pendingCalls[`seat${seat}` as keyof typeof pendingCalls];
+            return callStatus === null || callStatus === undefined;
+          });
+
+          // Only apply the full delay if ALL bots are still waiting (first run after human responded)
+          // If some bots have already responded, we're mid-processing - use short delay
+          const isFirstRun = botsStillWaiting.length === bots.filter(seat => {
+            const callStatus = pendingCalls[`seat${seat}` as keyof typeof pendingCalls];
+            return callStatus !== 'discarder'; // Count all non-discarder bots
+          }).length;
+
+          if (isFirstRun) {
+            if (DEBUG_BOT) console.log(`[Bot] First run - applying ${botDelay}ms delay`);
+            await new Promise(resolve => setTimeout(resolve, botDelay));
+          } else {
+            // Short delay for subsequent bots
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+          if (cancelled) return;
+
+          // Respond for ONE bot at a time (effect will re-trigger for next bot)
+          const nextBot = botsStillWaiting[0];
+          if (nextBot !== undefined) {
+            const difficulty = getBotDifficulty(nextBot);
+            await handleCallingPhase(nextBot, difficulty);
           }
         }
       } catch (err) {

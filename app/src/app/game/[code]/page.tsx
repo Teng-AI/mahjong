@@ -2035,8 +2035,8 @@ export default function GamePage() {
             </>
           )}
 
-          {/* Waiting for call result - show all players' status */}
-          {isCallingPhase && myPendingCall !== null && myPendingCall !== 'discarder' && gameState.pendingCalls && (
+          {/* Waiting for call result - show all players' status (discarder or after making choice) */}
+          {isCallingPhase && myPendingCall !== null && gameState.pendingCalls && (
             <div className="flex items-center justify-center gap-1.5 flex-wrap w-full">
               {([0, 1, 2, 3] as SeatIndex[]).map((seat) => {
                 const call = gameState.pendingCalls?.[`seat${seat}` as keyof typeof gameState.pendingCalls];
