@@ -247,6 +247,16 @@ export default function GamePage() {
     }
   }, [gameState?.actionLog?.length]);
 
+  // Scroll to top when new round starts (phase changes from 'ended')
+  const prevPhaseRef = useRef<string | null>(null);
+  useEffect(() => {
+    const currentPhase = gameState?.phase;
+    if (prevPhaseRef.current === 'ended' && currentPhase && currentPhase !== 'ended') {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+    prevPhaseRef.current = currentPhase ?? null;
+  }, [gameState?.phase]);
+
   // Play win sound on loop for the winner when game ends (only if sound enabled)
   useEffect(() => {
     if (!soundEnabled) return; // Don't play if sound is disabled
