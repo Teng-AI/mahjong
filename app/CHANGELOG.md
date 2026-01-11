@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Fixed bottom action bar for mobile** - thumb-friendly actions at screen bottom
+  - Context-aware: shows Draw/Discard during play, calling buttons during calling phase
+  - WIN button larger and more prominent when available
+  - Calling status flips with action buttons (see status after making choice)
 - "Previous Action" box showing what happened before discard (draw, pung, chow, kong)
 - Previous Action and Discarded sections side-by-side on mobile
 
@@ -17,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Mobile header made smaller (reduced padding and text sizes)
 - Mobile game log moved to bottom of page
 - Settings button moved to far left of header
+- Bot delay now waits for human to respond before starting (better UX during calling)
 
 ### Fixed
 - Win sound loop now respects sound enabled setting on mobile
@@ -24,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Mobile game log auto-scrolls to show recent actions
 - Tile text overflow on mobile (character tiles like 萬 now fit properly)
 - Melds wrap to next line when overflowing horizontally
+- Bot delay no longer stacks (single delay after human responds, then bots respond quickly)
 
 ### Added
 - Kong (Quad) support with three declaration types:

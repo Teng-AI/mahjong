@@ -22,7 +22,7 @@
 
 ## High Priority (Features)
 
-- [ ] **Mobile layout rework** 🔴
+- [x] **Mobile layout rework** 🔴 ✅
   - Reorganize game UI for portrait mobile screens
   - ~~Reorder middle row: Last Discard → Discard Pile → Game Log~~ ✅ Done
   - ~~Move calling status to bottom~~ ✅ Done
@@ -31,8 +31,10 @@
   - ~~Smaller header on mobile~~ ✅ Done
   - ~~Auto-scroll game log to recent actions~~ ✅ Done
   - ~~PASS button more prominent (emerald green)~~ ✅ Done
-  - Collapse other players into compact view
-  - Consider bottom sheet for action buttons
+  - ~~Fixed bottom action bar for mobile~~ ✅ Done
+  - ~~WIN button larger and more prominent~~ ✅ Done
+  - ~~Calling status in bottom bar (flips with action buttons)~~ ✅ Done
+  - ~~Collapse other players into compact view~~ (Decided not to implement)
 
 - [ ] **Calling phase timer** 🔴
   - Configurable timer: 10s, 30s, 60s, 120s, or no limit
@@ -187,6 +189,11 @@
 
 ## Completed
 
+- [x] **Mobile layout rework complete** - fixed bottom action bar, calling status integration
+- [x] Fixed bottom action bar for mobile (Draw/Discard/calling buttons)
+- [x] WIN button larger and more prominent on mobile
+- [x] Calling status shows in bottom bar (flips between buttons and status)
+- [x] Bot delay waits for human response before starting
 - [x] Previous Action box showing draw/call before discard
 - [x] Mobile game log auto-scrolls to recent actions
 - [x] Page scrolls to top when starting new round
