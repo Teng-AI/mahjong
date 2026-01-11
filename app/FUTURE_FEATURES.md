@@ -13,10 +13,10 @@
 
 ## High Priority (Bugs)
 
-- [ ] **Mobile tile UX broken** 🟡
-  - Tiles overflow or don't fit on small screens
-  - Hand becomes unplayable on narrow devices
-  - Fix: Responsive tile sizing, horizontal scroll, or tile stacking
+- [x] **Mobile tile UX broken** 🟡 ✅
+  - ~~Tiles overflow or don't fit on small screens~~ Fixed tile text overflow
+  - ~~Hand becomes unplayable on narrow devices~~ Responsive sizing improved
+  - ~~Fix: Responsive tile sizing, horizontal scroll, or tile stacking~~ Melds now wrap
 
 ---
 
@@ -27,6 +27,10 @@
   - ~~Reorder middle row: Last Discard → Discard Pile → Game Log~~ ✅ Done
   - ~~Move calling status to bottom~~ ✅ Done
   - ~~Hide sound controls inside Settings modal~~ ✅ Done
+  - ~~Move Game Log to bottom on mobile~~ ✅ Done
+  - ~~Smaller header on mobile~~ ✅ Done
+  - ~~Auto-scroll game log to recent actions~~ ✅ Done
+  - ~~PASS button more prominent (emerald green)~~ ✅ Done
   - Collapse other players into compact view
   - Consider bottom sheet for action buttons
 
@@ -52,10 +56,10 @@
   - e.g., "Pung" → "Triple", "Chow" → "Sequence"
   - Or add tooltips explaining each action
 
-- [ ] **Show last action in discard box** 🟢
-  - Display what action just happened (e.g., "Player drew", "Player called Pung")
-  - Integrate with existing Last Discard section
-  - Use lastAction from gameState
+- [x] **Show last action in discard box** 🟢 ✅
+  - ~~Display what action just happened (e.g., "Player drew", "Player called Pung")~~ Added "Previous Action" box
+  - ~~Integrate with existing Last Discard section~~ Side-by-side layout
+  - ~~Use lastAction from gameState~~ Uses previousAction field
 
 - [ ] **Bonus phase animation delays** 🟡
   - Add visual delays between: expose → replace → gold flip → auto-win check
@@ -183,6 +187,14 @@
 
 ## Completed
 
+- [x] Previous Action box showing draw/call before discard
+- [x] Mobile game log auto-scrolls to recent actions
+- [x] Page scrolls to top when starting new round
+- [x] Mobile tile text overflow fix (character tiles)
+- [x] Melds wrap to next line when overflowing
+- [x] PASS button changed to emerald green for prominence
+- [x] Mobile header made smaller (reduced padding, text sizes)
+- [x] Mobile game log moved to bottom
 - [x] Game layout reorganization (calling status to bottom, middle row reordered)
 - [x] **Bug fix**: Win sound loop now respects sound enabled setting
 - [x] Renamed "UPGRADE" button to "KONG" for pung upgrades
