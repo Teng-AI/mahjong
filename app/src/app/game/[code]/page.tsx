@@ -1914,9 +1914,9 @@ export default function GamePage() {
         </div>
       </div>
 
-      {/* Calling phase: show who's left to respond */}
+      {/* Calling phase: show who's left to respond (desktop only - mobile shows in bottom bar) */}
       {isCallingPhase && gameState.pendingCalls && (
-        <div className="bg-slate-700/40 rounded-lg px-3 py-2 mt-2 flex items-center justify-center gap-2 sm:gap-3 text-sm flex-wrap">
+        <div className="hidden md:flex bg-slate-700/40 rounded-lg px-3 py-2 mt-2 items-center justify-center gap-2 sm:gap-3 text-sm flex-wrap">
           {([0, 1, 2, 3] as SeatIndex[]).map((seat) => {
             const call = gameState.pendingCalls?.[`seat${seat}` as keyof typeof gameState.pendingCalls];
             const playerName = room.players[`seat${seat}` as keyof typeof room.players]?.name || SEAT_LABELS[seat];
@@ -2035,12 +2035,42 @@ export default function GamePage() {
             </>
           )}
 
-          {/* Waiting for call result */}
-          {isCallingPhase && myPendingCall !== null && myPendingCall !== 'discarder' && (
-            <div className="px-4 py-2.5 bg-slate-700/80 rounded-lg text-sm">
-              <span className="text-slate-300">Chose </span>
-              <span className="text-white font-bold uppercase">{myPendingCall}</span>
-              <span className="text-slate-400 animate-pulse ml-1">...</span>
+          {/* Waiting for call result - show all players' status */}
+          {isCallingPhase && myPendingCall !== null && myPendingCall !== 'discarder' && gameState.pendingCalls && (
+            <div className="flex items-center justify-center gap-1.5 flex-wrap w-full">
+              {([0, 1, 2, 3] as SeatIndex[]).map((seat) => {
+                const call = gameState.pendingCalls?.[`seat${seat}` as keyof typeof gameState.pendingCalls];
+                const playerName = room?.players[`seat${seat}` as keyof typeof room.players]?.name || SEAT_LABELS[seat];
+                const isMe = seat === mySeat;
+                const isDiscarder = call === 'discarder';
+                const isWaiting = !call;
+                const hasResponded = !!call && call !== 'discarder';
+
+                // Truncate name for mobile
+                const displayName = playerName.length > 6 ? playerName.slice(0, 5) + '…' : playerName;
+
+                return (
+                  <div
+                    key={seat}
+                    className={`px-2 py-1.5 rounded text-xs font-medium ${
+                      isMe
+                        ? 'bg-blue-500/40 text-blue-200 ring-1 ring-blue-400/50'
+                        : isDiscarder
+                        ? 'bg-slate-600/50 text-slate-400'
+                        : hasResponded
+                        ? 'bg-emerald-500/30 text-emerald-300'
+                        : isWaiting
+                        ? 'bg-orange-500/30 text-orange-300 animate-pulse'
+                        : 'bg-slate-600/50 text-slate-400'
+                    }`}
+                  >
+                    {displayName}
+                    {isDiscarder && <span className="ml-0.5 opacity-60">—</span>}
+                    {hasResponded && <span className="ml-0.5">✓</span>}
+                    {isWaiting && <span className="ml-0.5">…</span>}
+                  </div>
+                );
+              })}
             </div>
           )}
 
