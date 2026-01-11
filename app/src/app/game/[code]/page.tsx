@@ -1559,8 +1559,8 @@ export default function GamePage() {
           />
         )}
 
-        {/* Action Buttons - inside the hand section */}
-        <div className="mt-2 sm:mt-4 flex flex-wrap justify-center gap-2 sm:gap-3">
+        {/* Action Buttons - inside the hand section (desktop only) */}
+        <div className="mt-2 sm:mt-4 hidden md:flex flex-wrap justify-center gap-2 sm:gap-3">
           {/* Call buttons during calling phase */}
           {isCallingPhase && myPendingCall === null && !chowSelectionMode && (
             <>
@@ -1949,7 +1949,7 @@ export default function GamePage() {
       )}
 
       {/* Game Log - Mobile only (at bottom) */}
-      <div className="md:hidden bg-slate-800/50 rounded-xl p-2 border border-slate-600 mt-2">
+      <div className="md:hidden bg-slate-800/50 rounded-xl p-2 border border-slate-600 mt-2 mb-20">
         <div className="text-sm text-slate-300 font-medium mb-2">Game Log</div>
         <div ref={mobileLogRef} className="max-h-24 overflow-y-auto space-y-0.5">
           {(gameState.actionLog || []).map((entry, index, arr) => (
@@ -1960,6 +1960,164 @@ export default function GamePage() {
               {transformLogEntry(entry, room)}
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Mobile Bottom Action Bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 border-t border-slate-700 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] z-40">
+        <div className="flex flex-wrap justify-center gap-2">
+          {/* Calling phase buttons */}
+          {isCallingPhase && myPendingCall === null && !chowSelectionMode && (
+            <>
+              {myValidCalls?.canWin && (
+                <button
+                  onClick={() => onCallResponse('win')}
+                  disabled={processingAction}
+                  className="px-4 py-2.5 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-sm"
+                >
+                  WIN!
+                </button>
+              )}
+              {myValidCalls?.canKong && (
+                <button
+                  onClick={() => onCallResponse('kong')}
+                  disabled={processingAction}
+                  className="px-4 py-2.5 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
+                >
+                  KONG
+                </button>
+              )}
+              {myValidCalls?.canPung && (
+                <button
+                  onClick={() => onCallResponse('pung')}
+                  disabled={processingAction}
+                  className="px-4 py-2.5 bg-purple-500 hover:bg-purple-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
+                >
+                  PUNG
+                </button>
+              )}
+              {myValidCalls?.canChow && (
+                <button
+                  onClick={onChowClick}
+                  disabled={processingAction}
+                  className="px-4 py-2.5 bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
+                >
+                  CHOW
+                </button>
+              )}
+              <button
+                onClick={() => onCallResponse('pass')}
+                disabled={processingAction}
+                className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
+              >
+                PASS
+              </button>
+            </>
+          )}
+
+          {/* Chow selection mode */}
+          {isCallingPhase && chowSelectionMode && (
+            <>
+              <button
+                onClick={onConfirmChow}
+                disabled={selectedChowTiles.length !== 2 || processingAction}
+                className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
+              >
+                Confirm Chow ({selectedChowTiles.length}/2)
+              </button>
+              <button
+                onClick={onCancelChow}
+                disabled={processingAction}
+                className="px-4 py-2.5 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-lg text-sm"
+              >
+                Cancel
+              </button>
+            </>
+          )}
+
+          {/* Waiting for call result */}
+          {isCallingPhase && myPendingCall !== null && myPendingCall !== 'discarder' && (
+            <div className="px-4 py-2.5 bg-slate-700/80 rounded-lg text-sm">
+              <span className="text-slate-300">Chose </span>
+              <span className="text-white font-bold uppercase">{myPendingCall}</span>
+              <span className="text-slate-400 animate-pulse ml-1">...</span>
+            </div>
+          )}
+
+          {/* Playing phase - my turn */}
+          {gameState.phase === 'playing' && isMyTurn && (
+            <>
+              {/* Self-draw win button */}
+              {!shouldDraw && canWinNow && (
+                <button
+                  onClick={onDeclareWin}
+                  disabled={processingAction}
+                  className="px-4 py-2.5 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-sm"
+                >
+                  🎉 WIN!
+                </button>
+              )}
+
+              {/* Kong buttons */}
+              {!shouldDraw && concealedKongOptions.length > 0 && concealedKongOptions.map((tileType) => (
+                <button
+                  key={`mobile-kong-${tileType}`}
+                  onClick={() => onConcealedKong(tileType)}
+                  disabled={processingAction}
+                  className="px-4 py-2.5 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
+                >
+                  KONG ({getTileDisplayText(tileType)})
+                </button>
+              ))}
+              {!shouldDraw && pungUpgradeOptions.length > 0 && !pungUpgradeMode && (
+                <button
+                  onClick={onPungUpgradeClick}
+                  disabled={processingAction}
+                  className="px-4 py-2.5 bg-pink-600 hover:bg-pink-500 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
+                >
+                  KONG
+                </button>
+              )}
+              {pungUpgradeMode && (
+                <button
+                  onClick={onCancelPungUpgrade}
+                  disabled={processingAction}
+                  className="px-4 py-2.5 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-lg text-sm"
+                >
+                  Cancel
+                </button>
+              )}
+
+              {/* Draw button */}
+              {shouldDraw && (
+                <button
+                  onClick={onDraw}
+                  disabled={processingAction}
+                  className="flex-1 max-w-xs px-6 py-3 bg-blue-500 hover:bg-blue-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-base"
+                >
+                  {processingAction ? 'Drawing...' : 'Draw Tile'}
+                </button>
+              )}
+
+              {/* Discard button */}
+              {!shouldDraw && !pungUpgradeMode && (
+                <button
+                  onClick={onDiscard}
+                  disabled={processingAction || !selectedTile}
+                  className="flex-1 max-w-xs px-6 py-3 bg-red-500 hover:bg-red-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-base"
+                >
+                  {selectedTile ? 'Discard' : 'Select a tile'}
+                </button>
+              )}
+            </>
+          )}
+
+          {/* Not my turn - waiting */}
+          {gameState.phase === 'playing' && !isMyTurn && !isCallingPhase && (
+            <div className="px-4 py-2.5 text-slate-400 text-sm">
+              {getPlayerName(room, gameState.currentPlayerSeat)}&apos;s turn...
+            </div>
+          )}
         </div>
       </div>
 
