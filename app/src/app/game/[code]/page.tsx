@@ -1969,25 +1969,23 @@ export default function GamePage() {
       {/* Mobile Bottom Action Bar */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 border-t border-slate-700 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] z-40">
         <div className="flex gap-2">
-          {/* Calling phase buttons */}
+          {/* Calling phase buttons - ordered left-to-right: PASS (lowest) to WIN (highest priority) */}
           {isCallingPhase && myPendingCall === null && !chowSelectionMode && (
             <>
-              {myValidCalls?.canWin && (
+              <button
+                onClick={() => onCallResponse('pass')}
+                disabled={processingAction}
+                className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
+              >
+                PASS
+              </button>
+              {myValidCalls?.canChow && (
                 <button
-                  onClick={() => onCallResponse('win')}
+                  onClick={onChowClick}
                   disabled={processingAction}
-                  className="flex-1 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-sm"
+                  className="flex-1 py-3 bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
                 >
-                  WIN!
-                </button>
-              )}
-              {myValidCalls?.canKong && (
-                <button
-                  onClick={() => onCallResponse('kong')}
-                  disabled={processingAction}
-                  className="flex-1 py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
-                >
-                  KONG
+                  CHOW
                 </button>
               )}
               {myValidCalls?.canPung && (
@@ -1999,22 +1997,24 @@ export default function GamePage() {
                   PUNG
                 </button>
               )}
-              {myValidCalls?.canChow && (
+              {myValidCalls?.canKong && (
                 <button
-                  onClick={onChowClick}
+                  onClick={() => onCallResponse('kong')}
                   disabled={processingAction}
-                  className="flex-1 py-3 bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
+                  className="flex-1 py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
                 >
-                  CHOW
+                  KONG
                 </button>
               )}
-              <button
-                onClick={() => onCallResponse('pass')}
-                disabled={processingAction}
-                className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
-              >
-                PASS
-              </button>
+              {myValidCalls?.canWin && (
+                <button
+                  onClick={() => onCallResponse('win')}
+                  disabled={processingAction}
+                  className="flex-1 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-sm"
+                >
+                  WIN!
+                </button>
+              )}
             </>
           )}
 
