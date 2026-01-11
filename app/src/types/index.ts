@@ -163,6 +163,8 @@ export interface GameState {
   currentPlayerSeat: SeatIndex;
   dealerSeat: SeatIndex;
   lastAction: LastAction | null;
+  /** Action before the current lastAction (e.g., draw/call before discard) */
+  previousAction: LastAction | null;
   exposedMelds: {
     seat0: Meld[];
     seat1: Meld[];

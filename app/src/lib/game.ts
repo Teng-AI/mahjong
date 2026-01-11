@@ -360,6 +360,7 @@ export async function initializeGame(roomCode: string, dealerSeat: SeatIndex): P
     currentPlayerSeat: dealerSeat,
     dealerSeat,
     lastAction: null,
+    previousAction: null,
     exposedMelds: {
       seat0: [],
       seat1: [],
@@ -1153,7 +1154,8 @@ export async function discardTile(
   };
 
   // Update game state - enter calling phase
-  await update(ref(db, `rooms/${roomCode}/game`), {
+  // Save current lastAction as previousAction (e.g., draw or call before discard)
+  const updateData: Record<string, unknown> = {
     discardPile,
     phase: 'calling',
     pendingCalls,
@@ -1163,7 +1165,12 @@ export async function discardTile(
       tile: tileId,
       timestamp: Date.now(),
     },
-  });
+  };
+  // Only set previousAction if there was a lastAction (not on dealer's first discard)
+  if (gameState.lastAction) {
+    updateData.previousAction = gameState.lastAction;
+  }
+  await update(ref(db, `rooms/${roomCode}/game`), updateData);
 
   // Update private hand
   await set(ref(db, `rooms/${roomCode}/privateHands/seat${seat}`), {

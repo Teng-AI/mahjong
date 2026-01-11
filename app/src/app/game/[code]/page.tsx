@@ -1700,22 +1700,47 @@ export default function GamePage() {
       </div>
       {/* End of Primary Hand Section */}
 
-      {/* ========== MIDDLE ROW: LAST DISCARD + DISCARD PILE + GAME LOG ========== */}
-      <div className="grid grid-cols-1 md:grid-cols-[auto_3fr_2fr] gap-2 sm:gap-3 mb-2 sm:mb-3">
-        {/* Last Discard - First column */}
-        <div className={`rounded-xl p-2 sm:p-4 border flex flex-col items-center justify-center ${
+      {/* ========== MIDDLE ROW: PREVIOUS ACTION + LAST DISCARD + DISCARD PILE + GAME LOG ========== */}
+      <div className="grid grid-cols-1 md:grid-cols-[auto_auto_3fr_2fr] gap-2 sm:gap-3 mb-2 sm:mb-3">
+        {/* Previous Action - First column */}
+        <div className={`rounded-xl p-2 sm:p-4 border flex flex-col items-center justify-center min-w-[80px] sm:min-w-[100px] ${
+          gameState.previousAction
+            ? 'bg-blue-500/20 border-blue-500/40'
+            : 'bg-slate-800/50 border-slate-600'
+        }`}>
+          {gameState.previousAction ? (
+            <>
+              <span className="text-blue-300 text-xs sm:text-lg font-medium mb-1 sm:mb-2">
+                {gameState.previousAction.type === 'draw' ? 'Drew' :
+                 gameState.previousAction.type === 'pung' ? 'Pung' :
+                 gameState.previousAction.type === 'chow' ? 'Chow' :
+                 gameState.previousAction.type === 'kong' ? 'Kong' : 'Action'}
+              </span>
+              {/* Only show tile for calls (pung/chow/kong), not for draws (private info) */}
+              {gameState.previousAction.tile && gameState.previousAction.type !== 'draw' && (
+                <Tile tileId={gameState.previousAction.tile} goldTileType={gameState.goldTileType} size="md" />
+              )}
+              <span className="text-white text-xs sm:text-lg mt-1 sm:mt-2">by <span className="font-semibold">{getPlayerName(room, gameState.previousAction.playerSeat)}</span></span>
+            </>
+          ) : (
+            <span className="text-slate-400 text-sm sm:text-lg">-</span>
+          )}
+        </div>
+
+        {/* Last Discard - Second column */}
+        <div className={`rounded-xl p-2 sm:p-4 border flex flex-col items-center justify-center min-w-[80px] sm:min-w-[100px] ${
           gameState.lastAction?.type === 'discard' && gameState.lastAction.tile
             ? 'bg-red-500/20 border-red-500/40'
             : 'bg-slate-800/50 border-slate-600'
         }`}>
           {gameState.lastAction?.type === 'discard' && gameState.lastAction.tile ? (
             <>
-              <span className="text-red-300 text-xs sm:text-lg font-medium mb-1 sm:mb-2">Last Discard</span>
+              <span className="text-red-300 text-xs sm:text-lg font-medium mb-1 sm:mb-2">Discarded</span>
               <Tile tileId={gameState.lastAction.tile} goldTileType={gameState.goldTileType} size="md" />
               <span className="text-white text-xs sm:text-lg mt-1 sm:mt-2">by <span className="font-semibold">{getPlayerName(room, gameState.lastAction.playerSeat)}</span></span>
             </>
           ) : (
-            <span className="text-slate-400 text-sm sm:text-lg">No discard yet</span>
+            <span className="text-slate-400 text-sm sm:text-lg">-</span>
           )}
         </div>
 
