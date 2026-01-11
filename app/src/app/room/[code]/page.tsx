@@ -47,77 +47,80 @@ function PlayerSlot({
 }: PlayerSlotProps) {
   return (
     <div
-      className={`relative p-4 rounded-lg border-2 transition-all ${
+      className={`p-3 rounded-xl border-2 transition-all min-h-[88px] flex flex-col ${
         player
           ? `${SEAT_COLORS[seat]} border-transparent`
           : 'bg-green-900/30 border-dashed border-green-600'
-      } ${isSelf ? 'ring-2 ring-yellow-400' : ''}`}
+      } ${isSelf ? 'ring-2 ring-yellow-400 ring-offset-2 ring-offset-green-950' : ''}`}
     >
       {player ? (
-        <div className="space-y-1">
-          <div className="font-semibold text-lg flex items-center gap-2">
-            {player.isBot && <span className="text-cyan-300">🤖</span>}
-            {player.name}
-            {isSelf && <span className="text-xs text-yellow-300">(You)</span>}
+        <div className="flex flex-col h-full">
+          {/* Row 1: Name and action buttons */}
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-1.5 min-w-0">
+              {player.isBot && <span className="text-lg flex-shrink-0">🤖</span>}
+              <span className="font-semibold text-base truncate">{player.name}</span>
+              {isSelf && <span className="text-xs text-yellow-300 flex-shrink-0">(You)</span>}
+            </div>
+            {/* Action buttons inline with name */}
+            {(canSetDealer || canKick) && (
+              <div className="flex gap-1 flex-shrink-0">
+                {canSetDealer && !isDealer && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onSetDealer(); }}
+                    className="px-2 py-1 text-[11px] bg-black/30 hover:bg-yellow-500 hover:text-black text-white rounded transition-colors font-medium"
+                  >
+                    Dealer
+                  </button>
+                )}
+                {canKick && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onKick(); }}
+                    className="px-2 py-1 text-[11px] bg-black/30 hover:bg-red-500 text-white rounded transition-colors font-medium"
+                  >
+                    {player.isBot ? 'Remove' : 'Kick'}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-2 text-sm">
+          {/* Row 2: Badges */}
+          <div className="flex items-center gap-1.5 flex-wrap mt-auto">
             {isDealer && (
-              <span className="px-2 py-0.5 bg-yellow-500 text-black rounded text-xs font-bold">
+              <span className="px-2 py-0.5 bg-yellow-500 text-black rounded text-[11px] font-bold">
                 DEALER
               </span>
             )}
             {isPlayerHost && (
-              <span className="px-2 py-0.5 bg-white/20 rounded text-xs">
+              <span className="px-2 py-0.5 bg-white/20 rounded text-[11px]">
                 Host
               </span>
             )}
             {player.isBot && (
-              <span className={`px-2 py-0.5 rounded text-xs ${
+              <span className={`px-2 py-0.5 rounded text-[11px] whitespace-nowrap ${
                 player.botDifficulty === 'easy'
-                  ? 'bg-green-500/30 text-green-200'
+                  ? 'bg-black/20 text-green-200'
                   : player.botDifficulty === 'hard'
-                  ? 'bg-red-500/30 text-red-200'
-                  : 'bg-yellow-500/30 text-yellow-200'
+                  ? 'bg-black/20 text-red-200'
+                  : 'bg-black/20 text-yellow-200'
               }`}>
-                {player.botDifficulty ? `${player.botDifficulty.charAt(0).toUpperCase() + player.botDifficulty.slice(1)} Bot` : 'AI Bot'}
+                {player.botDifficulty ? `${player.botDifficulty.charAt(0).toUpperCase()}` : '?'} Bot
               </span>
             )}
             {!player.connected && !player.isBot && (
-              <span className="text-yellow-400 text-xs">Disconnected</span>
+              <span className="text-yellow-400 text-[11px]">Disconnected</span>
             )}
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-between">
-          <span className="text-green-400 italic">Waiting for player...</span>
+        <div className="flex items-center justify-between h-full">
+          <span className="text-green-400/70 italic text-sm">Waiting...</span>
           {canAddBot && (
             <button
               onClick={onAddBot}
-              className="px-2 py-1 text-xs bg-cyan-600/80 hover:bg-cyan-600 text-white rounded transition-colors"
+              className="px-3 py-1.5 text-xs bg-cyan-600/80 hover:bg-cyan-600 text-white rounded-lg transition-colors font-medium"
             >
-              + Bot
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Host action buttons */}
-      {player && (canSetDealer || canKick) && (
-        <div className="absolute top-2 right-2 flex gap-1">
-          {canSetDealer && !isDealer && (
-            <button
-              onClick={onSetDealer}
-              className="px-2 py-1 text-xs bg-yellow-500/80 hover:bg-yellow-500 text-black rounded transition-colors"
-            >
-              Dealer
-            </button>
-          )}
-          {canKick && (
-            <button
-              onClick={onKick}
-              className="px-2 py-1 text-xs bg-red-500/80 hover:bg-red-500 text-white rounded transition-colors"
-            >
-              {player.isBot ? 'Remove' : 'Kick'}
+              + Add Bot
             </button>
           )}
         </div>
