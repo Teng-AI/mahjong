@@ -26,6 +26,31 @@ Sessions are organized by year-month, with individual session files named by dat
 
 ## Recent Sessions
 
+### 2026-01-11
+
+- **[Session 01](2026-01/2026-01-11_session-01.md)** - Test Coverage Expansion & Project Documentation
+  - Expanded test coverage from 58 to 123 tests (+112%)
+  - Created comprehensive project-level CLAUDE.md for AI context
+  - Added 22 tests for settlement calculator (settle.ts)
+  - Added 43 tests for game utility functions (game.ts)
+  - Set up GitHub Actions CI workflow (lint, test, build on PR)
+  - Updated 3 project-specific skills with current feature state
+  - Cleaned up documentation (README, CHANGELOG, FUTURE_FEATURES)
+  - Deleted stale feature/calling-timer branch
+
+### 2026-01-10
+
+- **[Session 01](2026-01/2026-01-10_session-01.md)** - Firebase Update Gotchas Documentation
+  - Documented critical Firebase update() vs. set() behavior
+  - Explained nested object merging issues
+  - Added fix patterns and best practices
+
+### 2026-01-09
+
+- **[Session 01](2026-01/2026-01-09_session-01.md)** - Mobile UX Improvements
+  - Fixed action button ordering and pass button visibility
+  - Improved mobile responsiveness and touch targets
+
 ### 2026-01-08
 
 - **[Session 03](2026-01/2026-01-08_session-03.md)** - UI Polish, Critical Win Detection Bug Fix, and Rules Documentation
@@ -83,9 +108,11 @@ The Fujian Mahjong project follows this development roadmap:
 
 **Post-MVP Enhancements**
 
-- ⏸️ **Kong** (Quad) Declarations
-- ⏸️ **Dealer Streak** Bonus System
-- ⏸️ **Polish & Deployment** (animations, sounds, mobile optimization)
+- ✅ **Kong** (Quad) Declarations - Complete
+- ✅ **Dealer Streak** Bonus System - Complete
+- ✅ **Polish & Deployment** (animations, sounds, mobile optimization) - Complete
+- ✅ **Test Coverage** - 123 tests across core game logic
+- ✅ **CI/CD Pipeline** - GitHub Actions workflow
 
 ## Finding Information
 
@@ -111,5 +138,6 @@ When documenting a new session:
 
 ---
 
-**Last updated**: 2026-01-08
+**Last updated**: 2026-01-11
 **MVP Status**: ✅ Complete - Fully playable game with all core features
+**Current Focus**: Test coverage, documentation, and feature refinement
