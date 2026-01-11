@@ -105,7 +105,7 @@ app/
 
 ## Tech Stack
 
-- **Frontend**: Next.js 14, React 18, TypeScript, Tailwind CSS
+- **Frontend**: Next.js 16, React 19, TypeScript, Tailwind CSS 4
 - **Backend**: Firebase Realtime Database
 - **Auth**: Firebase Anonymous Authentication
 - **State**: React hooks with Firebase real-time sync

@@ -1,6 +1,6 @@
 ---
 name: mahjong-code-reviewer
-description: Review Fujian Mahjong game code against rules and implementation plan. Use when reviewing PRs, checking game logic, verifying scoring calculations, or ensuring MVP scope compliance.
+description: Review Fujian Mahjong game code against rules. Use when reviewing PRs, checking game logic, verifying scoring calculations, or ensuring feature correctness.
 ---
 
 # Mahjong Code Reviewer
@@ -12,7 +12,7 @@ Reviews game code against Fujian Mahjong rules and the implementation plan.
 - Review pull requests for game logic
 - Verify implementation matches rules
 - Check scoring calculations
-- Ensure MVP scope is followed (no out-of-scope features)
+- Ensure features match the roadmap in FUTURE_FEATURES.md
 - Catch rule violations in code
 - Validate state management logic
 
@@ -20,32 +20,29 @@ Reviews game code against Fujian Mahjong rules and the implementation plan.
 
 Always check code against these files:
 - `mahjong-fujian-rules.md` — Authoritative game rules
-- `implementation-plan.md` — MVP scope and technical plan
-- `future-features.md` — Features NOT in MVP (should not be implemented)
+- `app/FUTURE_FEATURES.md` — Roadmap with planned features
 
 ## Review Checklist
 
-### 1. MVP Scope Compliance
+### 1. Implemented Features
 
-**Should NOT be in codebase:**
-- [ ] No Kong implementation (no Kong types, no Kong scoring)
-- [ ] No Golden Pair bonus (+30)
-- [ ] No "No Bonus/Kong" bonus (+10)
-- [ ] No multi-hand game structure
-- [ ] No Robbing the Gold
-- [ ] No dealer rotation logic (single hand mode)
+**Currently implemented (verify correctness):**
+- [x] Kong implementation (concealed, exposed, upgrade)
+- [x] Kong scoring (+2 concealed, +1 exposed)
+- [x] Golden Pair bonus (+30)
+- [x] All One Suit bonus (+60)
+- [x] Multi-round game with cumulative scoring
+- [x] Dealer rotation and streak tracking
 
-**If found, flag as out-of-scope:**
+**Example - Kong scoring:**
 ```javascript
-// ❌ OUT OF SCOPE
-if (hand.kongs.length > 0) {
-  score += hand.kongs.filter(k => k.concealed).length * 2;
-  score += hand.kongs.filter(k => !k.concealed).length * 1;
-}
+// ✅ CORRECT - Kong scoring
+score += concealedKongs * 2;  // +2 per concealed Kong
+score += exposedKongs * 1;    // +1 per exposed Kong
 
-// ❌ OUT OF SCOPE
-if (isGoldenPair(hand)) {
-  score += 30;
+// ✅ CORRECT - Golden Pair
+if (hasGoldenPair(hand)) {
+  score += 30;  // 2 Golds form the pair
 }
 ```
 
@@ -85,9 +82,9 @@ player.concealedTiles.length + player.exposedMelds.length * 3 === 16
 player.concealedTiles.length + player.exposedMelds.length * 3 === 17
 ```
 
-**Exposed melds (MVP):**
-- [ ] Only Chow and Pung (no Kong)
-- [ ] Each meld has exactly 3 tiles
+**Exposed melds:**
+- [ ] Chow, Pung, or Kong
+- [ ] Chow/Pung: 3 tiles, Kong: 4 tiles
 - [ ] Melds are visible to all players
 
 ### 4. Win Detection
@@ -128,10 +125,7 @@ function checkWin(hand, goldTileType) {
 **Priority order:**
 ```javascript
 // ✅ CORRECT
-const PRIORITY = { win: 3, pung: 2, chow: 1, pass: 0 };
-
-// ❌ INCORRECT
-const PRIORITY = { win: 3, kong: 2, pung: 1, chow: 0 };  // Kong not in MVP!
+const PRIORITY = { win: 3, kong: 2, pung: 1, chow: 0 };
 ```
 
 **Chow restriction:**
@@ -169,7 +163,7 @@ function canPung(hand, tile) {
 - [ ] All players must click a button
 - [ ] Invalid options greyed out but visible
 
-### 6. Scoring (MVP)
+### 6. Scoring
 
 **Correct formula:**
 ```javascript
@@ -177,14 +171,17 @@ function canPung(hand, tile) {
 let points = 1;                      // Base
 points += bonusTiles.length;         // +1 per bonus
 points += goldsInHand;               // +1 per Gold
+points += concealedKongs * 2;        // +2 per concealed Kong
+points += exposedKongs * 1;          // +1 per exposed Kong
 
 if (isSelfDraw || isThreeGolds) {
   points *= 2;                       // Self-draw multiplier
 }
 
-if (isThreeGolds) {
-  points += 20;                      // Three Golds bonus (after multiplier)
-}
+// Special bonuses (added after multiplier)
+if (isThreeGolds) points += 20;
+if (hasGoldenPair) points += 30;
+if (isAllOneSuit) points += 60;
 ```
 
 **Common mistakes:**
@@ -194,13 +191,10 @@ if (isSelfDraw) {
   points = (points + threeGoldsBonus) * 2;  // Wrong order!
 }
 
-// ❌ INCORRECT - Out of scope bonuses
+// ❌ INCORRECT - Not yet implemented
 if (noBonusTiles && noKongs) {
-  points += 10;  // Not in MVP!
+  points += 10;  // "No Bonus/Kong" not yet implemented
 }
-
-// ❌ INCORRECT - Kong scoring
-points += concealedKongs * 2 + exposedKongs * 1;  // Not in MVP!
 ```
 
 **Payment:**

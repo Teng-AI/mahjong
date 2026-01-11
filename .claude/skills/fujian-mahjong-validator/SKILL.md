@@ -3,11 +3,11 @@ name: fujian-mahjong-validator
 description: Validate Fujian Mahjong game logic including hands, sets, winning conditions, Gold tile rules, and scoring. Use when testing mahjong game code, checking if a hand wins, calculating scores, or verifying move legality.
 ---
 
-# Fujian Mahjong Validator (MVP Scope)
+# Fujian Mahjong Validator
 
 Validates game logic for Fujian (Fuzhou) Mahjong, also known as "Gold Rush Mahjong" (金麻将).
 
-**MVP Scope**: No Kongs, No Golden Pair bonus, No "No Bonus/Kong" bonus.
+**Current Features**: Full game with Kongs, Golden Pair bonus (+30), All One Suit bonus (+60), dealer streak.
 
 ## When to Use
 
@@ -20,8 +20,7 @@ Validates game logic for Fujian (Fuzhou) Mahjong, also known as "Gold Rush Mahjo
 ## Rules Reference
 
 - `mahjong-fujian-rules.md` — Complete rules
-- `implementation-plan.md` — MVP scope and build plan
-- `future-features.md` — Deferred features (Kongs, Golden Pair, etc.)
+- `app/FUTURE_FEATURES.md` — Roadmap for planned features
 
 ## Tile Representation
 
@@ -65,9 +64,9 @@ function hasThreeGolds(hand, goldTileType) {
 **After draw**: 17 tiles temporarily
 **Winning hand**: 5 sets + 1 pair = 17 tiles
 
-MVP: Sets are Chow or Pung only (no Kong)
+Sets can be Chow, Pung, or Kong (quad counts as one set)
 
-### 3. Set Validation (MVP)
+### 3. Set Validation
 
 **Chow (顺子)**: 3 consecutive same-suit tiles
 ```javascript
@@ -192,16 +191,19 @@ function canFormFiveSets(tiles, goldsRemaining, setsFormed = 0) {
 }
 ```
 
-### 5. Score Calculation (MVP)
+### 5. Score Calculation
 
 ```javascript
 function calculateScore(winner) {
-  const { bonusTiles, goldsInHand, isSelfDraw, isThreeGolds } = winner;
+  const { bonusTiles, goldsInHand, isSelfDraw, isThreeGolds,
+          concealedKongs, exposedKongs, hasGoldenPair, isAllOneSuit } = winner;
 
   // Non-special points
   let points = 1;                          // Base
   points += bonusTiles.length;             // +1 per bonus tile
   points += goldsInHand;                   // +1 per Gold
+  points += concealedKongs * 2;            // +2 per concealed Kong
+  points += exposedKongs * 1;              // +1 per exposed Kong
 
   // Self-draw multiplier
   if (isSelfDraw || isThreeGolds) {
@@ -209,9 +211,9 @@ function calculateScore(winner) {
   }
 
   // Special bonuses (added after multiplier)
-  if (isThreeGolds) {
-    points += 20;
-  }
+  if (isThreeGolds) points += 20;
+  if (hasGoldenPair) points += 30;         // 2 Golds form the pair
+  if (isAllOneSuit) points += 60;          // All tiles same suit
 
   return {
     points,
@@ -221,13 +223,15 @@ function calculateScore(winner) {
 }
 ```
 
-**MVP Scoring Formula**:
+**Scoring Formula**:
 ```
-points = (1 + bonus_tiles + golds) × 2 if self_draw
+points = (1 + bonus + golds + kong_bonuses) × 2 if self_draw
        + 20 if three_golds
+       + 30 if golden_pair
+       + 60 if all_one_suit
 ```
 
-### 6. Move Legality (MVP)
+### 6. Move Legality
 
 **Chow**:
 - Only from player to your LEFT (previous in turn order)
@@ -288,7 +292,7 @@ function getValidCalls(player, discardedTile, discarderIndex, playerIndex) {
 }
 ```
 
-## Testing Checklist (MVP)
+## Testing Checklist
 
 When validating game code, verify:
 
@@ -298,19 +302,19 @@ When validating game code, verify:
 - [ ] Wind/dragon tiles auto-exposed with replacement draws
 - [ ] Taking discard skips normal draw
 - [ ] **Three Golds**: instant automatic win when player collects all 3 Golds
-- [ ] Scoring: `(1 + bonus + golds) × 2 if self_draw + 20 if three_golds`
+- [ ] Kong replacement draw from back of wall
+- [ ] Scoring includes kong bonuses (+2 concealed, +1 exposed)
+- [ ] Golden Pair bonus (+30) when 2 Golds form the pair
+- [ ] All One Suit bonus (+60) for flush hands
 - [ ] Payment: all 3 losers pay winner
-- [ ] Call priority: Win > Pung > Chow
+- [ ] Call priority: Win > Kong > Pung > Chow
 - [ ] Chow only from player to your left
-- [ ] Gold cannot be used for calling (Chow/Pung)
+- [ ] Gold cannot be used for calling (Chow/Pung/Kong)
 - [ ] Winning is optional (except Three Golds)
 - [ ] All players must manually pass (no auto-pass)
-- [ ] Invalid call options greyed out but visible
 
-## NOT in MVP (see future-features.md)
+## Not Yet Implemented
 
-- ❌ Kongs (all types)
-- ❌ Golden Pair (+30 bonus)
-- ❌ No Bonus/Kong (+10 bonus)
-- ❌ Multi-hand games
-- ❌ Robbing the Gold
+- ❌ Calling phase timer (reverted due to Firebase sync issues)
+- ❌ Robbing the Kong
+- ❌ No Bonus/Kong bonus (+10)

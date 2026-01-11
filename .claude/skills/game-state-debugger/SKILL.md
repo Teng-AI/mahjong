@@ -294,22 +294,23 @@ function validateMelds(gameState, goldTileType) {
     const melds = gameState.exposedMelds[`seat${seat}`] || [];
 
     for (const meld of melds) {
-      if (!['chow', 'pung'].includes(meld.type)) {
+      if (!['chow', 'pung', 'kong', 'concealed_kong'].includes(meld.type)) {
         errors.push({
           type: 'INVALID_MELD_TYPE',
           seat,
           meld,
-          reason: 'MVP only supports chow and pung'
+          reason: 'Valid types: chow, pung, kong, concealed_kong'
         });
         continue;
       }
 
-      if (meld.tiles.length !== 3) {
+      const expectedSize = meld.type.includes('kong') ? 4 : 3;
+      if (meld.tiles.length !== expectedSize) {
         errors.push({
           type: 'INVALID_MELD_SIZE',
           seat,
           meld,
-          expected: 3,
+          expected: expectedSize,
           actual: meld.tiles.length
         });
         continue;
