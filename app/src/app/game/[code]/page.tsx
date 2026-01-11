@@ -1603,7 +1603,7 @@ export default function GamePage() {
               <button
                 onClick={() => onCallResponse('pass')}
                 disabled={processingAction}
-                className="px-4 sm:px-6 py-2 sm:py-3 bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
+                className="px-4 sm:px-6 py-2 sm:py-3 bg-white hover:bg-gray-100 disabled:bg-gray-500 text-slate-800 disabled:text-white font-bold rounded-lg text-sm sm:text-base"
               >
                 PASS <span className="text-xs opacity-60 ml-1">({shortcuts.pass})</span>
               </button>
@@ -1991,7 +1991,7 @@ export default function GamePage() {
               <button
                 onClick={() => onCallResponse('pass')}
                 disabled={processingAction}
-                className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
+                className="flex-1 py-3 bg-white hover:bg-gray-100 disabled:bg-gray-500 text-slate-800 disabled:text-white font-bold rounded-lg text-sm"
               >
                 PASS
               </button>
