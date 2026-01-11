@@ -1732,10 +1732,26 @@ export default function GamePage() {
                    gameState.previousAction.type === 'chow' ? 'Chow' :
                    gameState.previousAction.type === 'kong' ? 'Kong' : 'Action'}
                 </span>
-                {/* Only show tile for calls (pung/chow/kong), not for draws (private info) */}
-                {gameState.previousAction.tile && gameState.previousAction.type !== 'draw' && (
-                  <Tile tileId={gameState.previousAction.tile} goldTileType={gameState.goldTileType} size="md" />
-                )}
+                {/* For calls (pung/chow/kong), show the full meld with called tile highlighted */}
+                {gameState.previousAction.tile && (gameState.previousAction.type === 'pung' || gameState.previousAction.type === 'chow' || gameState.previousAction.type === 'kong') && (() => {
+                  const melds = gameState.exposedMelds[`seat${gameState.previousAction.playerSeat}` as keyof typeof gameState.exposedMelds];
+                  const lastMeld = melds[melds.length - 1];
+                  if (lastMeld) {
+                    return (
+                      <div className="flex gap-0.5">
+                        {lastMeld.tiles.map((tileId, idx) => (
+                          <div
+                            key={idx}
+                            className={`${tileId === lastMeld.calledTile ? 'ring-2 ring-yellow-400 rounded' : ''}`}
+                          >
+                            <Tile tileId={tileId} goldTileType={gameState.goldTileType} size="sm" />
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }
+                  return <Tile tileId={gameState.previousAction.tile} goldTileType={gameState.goldTileType} size="md" />;
+                })()}
                 <span className="text-white text-xs sm:text-lg mt-1 sm:mt-2">by <span className="font-semibold">{getPlayerName(room, gameState.previousAction.playerSeat)}</span></span>
               </>
             ) : (
