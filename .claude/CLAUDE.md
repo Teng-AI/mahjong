@@ -53,22 +53,15 @@ npm test              # Run all tests
 npm run test:watch    # Watch mode
 ```
 
-Current coverage: `tiles.ts` only (41 tests). Gaps in `game.ts`, `settle.ts`, hooks.
+Current coverage: 123 tests across `tiles.ts`, `settle.ts`, `game.ts`. Gaps in hooks.
 
 ## Development Workflow
 
-### Before Starting Work
-1. Check `app/FUTURE_FEATURES.md` for current priorities
-2. Review recent work logs in `.claude/work-logs/`
-3. Run `npm test` to verify state
+See global `~/.claude/CLAUDE.md` for standard workflow (session start, pre-implement, docs-sync, etc.)
 
-### Before Committing
-- Pre-commit hook runs tests automatically
-- Use conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`
-
-### Before Pushing
-- Run `/docs-sync` to update documentation
-- Ensure README, CHANGELOG, and roadmap are current
+**Project-specific notes:**
+- Check `app/FUTURE_FEATURES.md` for priorities
+- Review work logs in `.claude/work-logs/`
 
 ## Firebase Gotchas
 
