@@ -50,8 +50,8 @@ function Tile({ tileId, goldTileType, onClick, selected, isJustDrawn, isChowVali
 
   // Responsive tile sizes: smaller on mobile (< 640px)
   const sizeClasses = {
-    sm: 'w-7 h-9 text-base sm:w-9 sm:h-11 sm:text-lg',           // Melds, bonus tiles
-    md: 'w-10 h-12 text-xl sm:w-14 sm:h-[72px] sm:text-2xl',     // Discard pile, other player melds
+    sm: 'w-7 h-9 text-xs sm:w-9 sm:h-11 sm:text-lg',             // Melds, bonus tiles (tighter text on mobile)
+    md: 'w-10 h-12 text-xl sm:w-14 sm:h-[72px] sm:text-2xl',     // Last action, discarded sections
     lg: 'w-12 h-14 text-2xl sm:w-16 sm:h-20 sm:text-3xl md:w-20 md:h-24 md:text-4xl',  // Player's hand
   };
 
@@ -1459,7 +1459,7 @@ export default function GamePage() {
           </div>
           {/* Melds inline */}
           {(gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds] || []).length > 0 && (
-            <div className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center gap-1">
               <span className="text-slate-500 text-xs sm:text-base">Melds:</span>
               {(gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds] || []).map((meld, meldIdx) => (
                 <div key={meldIdx} className={`flex gap-0.5 rounded px-1 ${meld.isConcealed ? 'bg-pink-800/50' : 'bg-slate-800/50'}`}>
