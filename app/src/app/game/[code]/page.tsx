@@ -239,11 +239,15 @@ export default function GamePage() {
     }
   }, [toastMessage]);
 
-  // Game log auto-scroll
+  // Game log auto-scroll (desktop and mobile)
   const logRef = useRef<HTMLDivElement>(null);
+  const mobileLogRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (logRef.current) {
       logRef.current.scrollTop = logRef.current.scrollHeight;
+    }
+    if (mobileLogRef.current) {
+      mobileLogRef.current.scrollTop = mobileLogRef.current.scrollHeight;
     }
   }, [gameState?.actionLog?.length]);
 
@@ -1947,7 +1951,7 @@ export default function GamePage() {
       {/* Game Log - Mobile only (at bottom) */}
       <div className="md:hidden bg-slate-800/50 rounded-xl p-2 border border-slate-600 mt-2">
         <div className="text-sm text-slate-300 font-medium mb-2">Game Log</div>
-        <div className="max-h-24 overflow-y-auto space-y-0.5">
+        <div ref={mobileLogRef} className="max-h-24 overflow-y-auto space-y-0.5">
           {(gameState.actionLog || []).map((entry, index, arr) => (
             <div
               key={index}
