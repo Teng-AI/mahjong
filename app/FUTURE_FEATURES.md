@@ -229,7 +229,7 @@
 - [x] Debug logging (dev-only)
 - [x] Auth state feedback
 - [x] Copy room code button
-- [x] Test coverage (58 tests)
+- [x] Test coverage (123 tests)
 - [x] CHANGELOG.md
 - [x] Pre-commit hooks
 - [x] `/docs-sync` and `/session-wrap` skills

@@ -48,8 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Kong available anytime during turn before discarding
 - Copy room code button in lobby
 - Auth state feedback on homepage (loading spinner, error message)
-- Basic test coverage (41 tests for core game logic)
+- Test coverage expanded to 123 tests (tiles, settle, game utilities)
 - Conditional debug logging (development only)
+- GitHub Actions CI workflow (test, lint, build on every PR)
+- Project-level CLAUDE.md for AI context
 
 ### Changed
 - Branding updated to "Mahjong Vibes" throughout
