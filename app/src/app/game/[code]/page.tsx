@@ -1468,7 +1468,6 @@ export default function GamePage() {
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2 text-sm sm:text-lg">
           <div className="flex items-center gap-1 sm:gap-2">
             <span className="text-white font-medium">{room.players[`seat${mySeat}` as keyof typeof room.players]?.name || 'You'}</span>
-            <span className="text-slate-500 text-xs sm:text-base">({SEAT_LABELS[mySeat]})</span>
             {gameState.dealerSeat === mySeat && <span className="bg-amber-500 text-black text-xs px-1 sm:px-1.5 py-0.5 rounded font-bold">D</span>}
           </div>
           {/* Melds inline */}
@@ -1487,6 +1486,7 @@ export default function GamePage() {
           {(gameState.bonusTiles?.[`seat${mySeat}` as keyof typeof gameState.bonusTiles] || []).length > 0 && (
             <div className="flex items-center gap-1">
               <span className="text-slate-500 text-xs sm:text-base">Bonus:</span>
+              <span className="text-amber-400 text-xs sm:text-base font-bold">+{(gameState.bonusTiles?.[`seat${mySeat}` as keyof typeof gameState.bonusTiles] || []).length}</span>
               {(gameState.bonusTiles?.[`seat${mySeat}` as keyof typeof gameState.bonusTiles] || []).map((tile, i) => (
                 <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="sm" />
               ))}
@@ -1847,9 +1847,6 @@ export default function GamePage() {
                   <div className={`font-semibold text-xs sm:text-sm ${isCurrentTurn ? 'text-emerald-200' : 'text-blue-200'}`}>
                     You
                   </div>
-                  <div className="text-slate-400 text-[10px] sm:text-xs">
-                    {SEAT_LABELS[seat]}
-                  </div>
                   {isDealer && <span className="bg-amber-500 text-black text-[10px] sm:text-xs px-1 py-0.5 rounded font-bold">D</span>}
                 </div>
               );
@@ -1874,8 +1871,6 @@ export default function GamePage() {
                     {isDealer && <span className="bg-amber-500 text-black text-[10px] sm:text-xs px-1 py-0.5 rounded font-bold">D</span>}
                   </div>
                   <div className="flex items-center gap-1 text-slate-400 text-[10px] sm:text-xs">
-                    <span>{SEAT_LABELS[seat]}</span>
-                    <span>·</span>
                     <span>{tileCount}</span>
                     {player.isBot && player.botDifficulty && (
                       <>
@@ -1889,23 +1884,31 @@ export default function GamePage() {
                         </span>
                       </>
                     )}
+                    {bonusTiles.length > 0 && (
+                      <>
+                        <span>·</span>
+                        <span className="text-amber-400 font-bold">+{bonusTiles.length}</span>
+                      </>
+                    )}
                   </div>
                 </div>
-                {/* Melds and bonus tiles */}
-                {(exposedMelds.length > 0 || bonusTiles.length > 0) && (
+                {/* Melds */}
+                {exposedMelds.length > 0 && (
                   <div className="flex flex-wrap items-center gap-0.5 sm:gap-1 mt-1">
                     {exposedMelds.map((meld, meldIdx) => (
-                      <div key={meldIdx} className={`flex gap-0.5 rounded p-0.5 ${meld.isConcealed ? 'bg-blue-900/50' : 'bg-slate-800/70'}`}>
-                        {meld.tiles.map((tile, i) => (
-                          <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="sm" faceDown={meld.isConcealed} />
-                        ))}
+                      <div key={meldIdx} className={`flex items-center gap-0.5 rounded p-0.5 ${meld.isConcealed ? 'bg-blue-900/50' : 'bg-slate-800/70'}`}>
+                        {meld.tiles.length === 4 ? (
+                          <>
+                            <Tile tileId={meld.tiles[0]} goldTileType={gameState.goldTileType} size="sm" faceDown={meld.isConcealed} />
+                            <span className="bg-amber-500 text-black text-[10px] px-1 py-0.5 rounded font-bold">×4</span>
+                          </>
+                        ) : (
+                          meld.tiles.map((tile, i) => (
+                            <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="sm" faceDown={meld.isConcealed} />
+                          ))
+                        )}
                       </div>
                     ))}
-                    {bonusTiles.length > 0 && (
-                      <div className="bg-amber-500/30 rounded px-1 sm:px-2 py-0.5 flex items-center gap-0.5">
-                        <span className="text-amber-400 text-sm sm:text-lg font-bold">+{bonusTiles.length}</span>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -1965,7 +1968,7 @@ export default function GamePage() {
 
       {/* Mobile Bottom Action Bar */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 border-t border-slate-700 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] z-40">
-        <div className="flex flex-wrap justify-center gap-2">
+        <div className="flex gap-2">
           {/* Calling phase buttons */}
           {isCallingPhase && myPendingCall === null && !chowSelectionMode && (
             <>
@@ -1973,16 +1976,16 @@ export default function GamePage() {
                 <button
                   onClick={() => onCallResponse('win')}
                   disabled={processingAction}
-                  className="flex-[3] min-w-0 px-6 py-3.5 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-lg"
+                  className="flex-1 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-sm"
                 >
-                  🎉 WIN!
+                  WIN!
                 </button>
               )}
               {myValidCalls?.canKong && (
                 <button
                   onClick={() => onCallResponse('kong')}
                   disabled={processingAction}
-                  className={`${myValidCalls?.canWin ? 'px-3 py-2.5 text-xs' : 'px-4 py-2.5 text-sm'} bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg`}
+                  className="flex-1 py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
                 >
                   KONG
                 </button>
@@ -1991,7 +1994,7 @@ export default function GamePage() {
                 <button
                   onClick={() => onCallResponse('pung')}
                   disabled={processingAction}
-                  className={`${myValidCalls?.canWin ? 'px-3 py-2.5 text-xs' : 'px-4 py-2.5 text-sm'} bg-purple-500 hover:bg-purple-400 disabled:bg-gray-500 text-white font-bold rounded-lg`}
+                  className="flex-1 py-3 bg-purple-500 hover:bg-purple-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
                 >
                   PUNG
                 </button>
@@ -2000,7 +2003,7 @@ export default function GamePage() {
                 <button
                   onClick={onChowClick}
                   disabled={processingAction}
-                  className={`${myValidCalls?.canWin ? 'px-3 py-2.5 text-xs' : 'px-4 py-2.5 text-sm'} bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-500 text-white font-bold rounded-lg`}
+                  className="flex-1 py-3 bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
                 >
                   CHOW
                 </button>
@@ -2008,7 +2011,7 @@ export default function GamePage() {
               <button
                 onClick={() => onCallResponse('pass')}
                 disabled={processingAction}
-                className={`${myValidCalls?.canWin ? 'px-3 py-2.5 text-xs' : 'px-4 py-2.5 text-sm'} bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-500 text-white font-bold rounded-lg`}
+                className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
               >
                 PASS
               </button>
@@ -2021,14 +2024,14 @@ export default function GamePage() {
               <button
                 onClick={onConfirmChow}
                 disabled={selectedChowTiles.length !== 2 || processingAction}
-                className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
+                className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
               >
-                Confirm Chow ({selectedChowTiles.length}/2)
+                Confirm ({selectedChowTiles.length}/2)
               </button>
               <button
                 onClick={onCancelChow}
                 disabled={processingAction}
-                className="px-4 py-2.5 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-lg text-sm"
+                className="flex-1 py-3 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-lg text-sm"
               >
                 Cancel
               </button>
@@ -2077,24 +2080,24 @@ export default function GamePage() {
           {/* Playing phase - my turn */}
           {gameState.phase === 'playing' && isMyTurn && (
             <>
-              {/* Self-draw win button - large and prominent */}
+              {/* Self-draw win button */}
               {!shouldDraw && canWinNow && (
                 <button
                   onClick={onDeclareWin}
                   disabled={processingAction}
-                  className="flex-[3] min-w-0 px-6 py-3.5 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-lg"
+                  className="flex-1 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-sm"
                 >
-                  🎉 WIN!
+                  WIN!
                 </button>
               )}
 
-              {/* Kong buttons - smaller when WIN is available */}
+              {/* Kong buttons */}
               {!shouldDraw && concealedKongOptions.length > 0 && concealedKongOptions.map((tileType) => (
                 <button
                   key={`mobile-kong-${tileType}`}
                   onClick={() => onConcealedKong(tileType)}
                   disabled={processingAction}
-                  className={`${canWinNow ? 'px-3 py-2.5 text-xs' : 'px-4 py-2.5 text-sm'} bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg`}
+                  className="flex-1 py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
                 >
                   KONG
                 </button>
@@ -2103,7 +2106,7 @@ export default function GamePage() {
                 <button
                   onClick={onPungUpgradeClick}
                   disabled={processingAction}
-                  className={`${canWinNow ? 'px-3 py-2.5 text-xs' : 'px-4 py-2.5 text-sm'} bg-pink-600 hover:bg-pink-500 disabled:bg-gray-500 text-white font-bold rounded-lg`}
+                  className="flex-1 py-3 bg-pink-600 hover:bg-pink-500 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
                 >
                   KONG
                 </button>
@@ -2112,7 +2115,7 @@ export default function GamePage() {
                 <button
                   onClick={onCancelPungUpgrade}
                   disabled={processingAction}
-                  className="px-4 py-2.5 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-lg text-sm"
+                  className="flex-1 py-3 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-lg text-sm"
                 >
                   Cancel
                 </button>
@@ -2123,18 +2126,18 @@ export default function GamePage() {
                 <button
                   onClick={onDraw}
                   disabled={processingAction}
-                  className="flex-1 max-w-xs px-6 py-3 bg-blue-500 hover:bg-blue-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-base"
+                  className="flex-1 py-3 bg-blue-500 hover:bg-blue-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
                 >
-                  {processingAction ? 'Drawing...' : 'Draw Tile'}
+                  {processingAction ? 'Drawing...' : 'Draw'}
                 </button>
               )}
 
-              {/* Discard button - smaller when WIN is available */}
+              {/* Discard button */}
               {!shouldDraw && !pungUpgradeMode && (
                 <button
                   onClick={onDiscard}
                   disabled={processingAction || !selectedTile}
-                  className={`${canWinNow ? 'flex-1 px-4 py-2.5 text-sm' : 'flex-1 max-w-xs px-6 py-3 text-base'} bg-red-500 hover:bg-red-400 disabled:bg-gray-500 text-white font-bold rounded-lg`}
+                  className="flex-1 py-3 bg-red-500 hover:bg-red-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
                 >
                   {selectedTile ? 'Discard' : 'Select tile'}
                 </button>

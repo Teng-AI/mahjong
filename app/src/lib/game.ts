@@ -294,6 +294,11 @@ export async function initializeGame(roomCode: string, dealerSeat: SeatIndex): P
     ? shuffledTiles // Already set up correctly in test modes
     : shuffledTiles.slice(tileIndex);
 
+  // Remove 16 tiles as dead wall (unplayable, per Fujian Mahjong rules)
+  if (!TEST_WINNING_HAND && !TEST_KONG_MODE) {
+    wall = wall.slice(0, -16);
+  }
+
   // Auto-expose bonus tiles for all players, starting from dealer
   const bonusTiles: TileId[][] = [[], [], [], []];
   const actionLog: string[] = ['Game started'];

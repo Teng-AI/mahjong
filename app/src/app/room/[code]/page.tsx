@@ -11,7 +11,6 @@ import { SeatIndex, RoomPlayer, BotDifficulty } from '@/types';
 // Debug logging - only enabled in development
 const DEBUG_ROOM = process.env.NODE_ENV === 'development';
 
-const SEAT_LABELS = ['East', 'South', 'West', 'North'] as const;
 const SEAT_COLORS = [
   'bg-blue-600',
   'bg-red-600',
@@ -54,11 +53,6 @@ function PlayerSlot({
           : 'bg-green-900/30 border-dashed border-green-600'
       } ${isSelf ? 'ring-2 ring-yellow-400' : ''}`}
     >
-      {/* Seat label */}
-      <div className="text-xs font-semibold text-green-200 mb-1">
-        {SEAT_LABELS[seat]}
-      </div>
-
       {player ? (
         <div className="space-y-1">
           <div className="font-semibold text-lg flex items-center gap-2">
