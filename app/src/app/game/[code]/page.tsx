@@ -1561,25 +1561,23 @@ export default function GamePage() {
 
         {/* Action Buttons - inside the hand section (desktop only) */}
         <div className="mt-2 sm:mt-4 hidden md:flex flex-wrap justify-center gap-2 sm:gap-3">
-          {/* Call buttons during calling phase */}
+          {/* Call buttons during calling phase - ordered left-to-right: PASS (lowest) to WIN (highest priority) */}
           {isCallingPhase && myPendingCall === null && !chowSelectionMode && (
             <>
-              {myValidCalls?.canWin && (
+              <button
+                onClick={() => onCallResponse('pass')}
+                disabled={processingAction}
+                className="px-4 sm:px-6 py-2 sm:py-3 bg-white hover:bg-gray-100 disabled:bg-gray-500 text-slate-800 disabled:text-white font-bold rounded-lg text-sm sm:text-base"
+              >
+                PASS <span className="text-xs opacity-60 ml-1">({shortcuts.pass})</span>
+              </button>
+              {myValidCalls?.canChow && (
                 <button
-                  onClick={() => onCallResponse('win')}
+                  onClick={onChowClick}
                   disabled={processingAction}
-                  className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-sm sm:text-base"
+                  className="px-4 sm:px-6 py-2 sm:py-3 bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
                 >
-                  WIN! <span className="text-xs opacity-60 ml-1">({shortcuts.win})</span>
-                </button>
-              )}
-              {myValidCalls?.canKong && (
-                <button
-                  onClick={() => onCallResponse('kong')}
-                  disabled={processingAction}
-                  className="px-4 sm:px-6 py-2 sm:py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
-                >
-                  KONG <span className="text-xs opacity-60 ml-1">({shortcuts.kong})</span>
+                  CHOW <span className="text-xs opacity-60 ml-1">({shortcuts.chow})</span>
                 </button>
               )}
               {myValidCalls?.canPung && (
@@ -1591,41 +1589,43 @@ export default function GamePage() {
                   PUNG <span className="text-xs opacity-60 ml-1">({shortcuts.pung})</span>
                 </button>
               )}
-              {myValidCalls?.canChow && (
+              {myValidCalls?.canKong && (
                 <button
-                  onClick={onChowClick}
+                  onClick={() => onCallResponse('kong')}
                   disabled={processingAction}
-                  className="px-4 sm:px-6 py-2 sm:py-3 bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
+                  className="px-4 sm:px-6 py-2 sm:py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
                 >
-                  CHOW <span className="text-xs opacity-60 ml-1">({shortcuts.chow})</span>
+                  KONG <span className="text-xs opacity-60 ml-1">({shortcuts.kong})</span>
                 </button>
               )}
-              <button
-                onClick={() => onCallResponse('pass')}
-                disabled={processingAction}
-                className="px-4 sm:px-6 py-2 sm:py-3 bg-white hover:bg-gray-100 disabled:bg-gray-500 text-slate-800 disabled:text-white font-bold rounded-lg text-sm sm:text-base"
-              >
-                PASS <span className="text-xs opacity-60 ml-1">({shortcuts.pass})</span>
-              </button>
+              {myValidCalls?.canWin && (
+                <button
+                  onClick={() => onCallResponse('win')}
+                  disabled={processingAction}
+                  className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-sm sm:text-base"
+                >
+                  WIN! <span className="text-xs opacity-60 ml-1">({shortcuts.win})</span>
+                </button>
+              )}
             </>
           )}
 
-          {/* Chow selection mode buttons */}
+          {/* Chow selection mode buttons - Cancel (left) to Confirm (right) */}
           {isCallingPhase && chowSelectionMode && (
             <>
-              <button
-                onClick={onConfirmChow}
-                disabled={selectedChowTiles.length !== 2 || processingAction}
-                className="px-4 sm:px-6 py-2 sm:py-3 bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
-              >
-                Confirm Chow ({selectedChowTiles.length}/2)
-              </button>
               <button
                 onClick={onCancelChow}
                 disabled={processingAction}
                 className="px-4 sm:px-6 py-2 sm:py-3 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-lg text-sm sm:text-base"
               >
                 Cancel
+              </button>
+              <button
+                onClick={onConfirmChow}
+                disabled={selectedChowTiles.length !== 2 || processingAction}
+                className="px-4 sm:px-6 py-2 sm:py-3 bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
+              >
+                Confirm Chow ({selectedChowTiles.length}/2)
               </button>
             </>
           )}
@@ -2034,22 +2034,22 @@ export default function GamePage() {
             </>
           )}
 
-          {/* Chow selection mode */}
+          {/* Chow selection mode - Cancel (left) to Confirm (right) */}
           {isCallingPhase && chowSelectionMode && (
             <>
-              <button
-                onClick={onConfirmChow}
-                disabled={selectedChowTiles.length !== 2 || processingAction}
-                className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
-              >
-                Confirm ({selectedChowTiles.length}/2)
-              </button>
               <button
                 onClick={onCancelChow}
                 disabled={processingAction}
                 className="flex-1 py-3 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-lg text-sm"
               >
                 Cancel
+              </button>
+              <button
+                onClick={onConfirmChow}
+                disabled={selectedChowTiles.length !== 2 || processingAction}
+                className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
+              >
+                Confirm ({selectedChowTiles.length}/2)
               </button>
             </>
           )}
