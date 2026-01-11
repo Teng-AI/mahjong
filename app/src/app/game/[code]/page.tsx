@@ -1973,16 +1973,16 @@ export default function GamePage() {
                 <button
                   onClick={() => onCallResponse('win')}
                   disabled={processingAction}
-                  className="px-4 py-2.5 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-sm"
+                  className="flex-[3] min-w-0 px-6 py-3.5 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-lg"
                 >
-                  WIN!
+                  🎉 WIN!
                 </button>
               )}
               {myValidCalls?.canKong && (
                 <button
                   onClick={() => onCallResponse('kong')}
                   disabled={processingAction}
-                  className="px-4 py-2.5 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
+                  className={`${myValidCalls?.canWin ? 'px-3 py-2.5 text-xs' : 'px-4 py-2.5 text-sm'} bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg`}
                 >
                   KONG
                 </button>
@@ -1991,7 +1991,7 @@ export default function GamePage() {
                 <button
                   onClick={() => onCallResponse('pung')}
                   disabled={processingAction}
-                  className="px-4 py-2.5 bg-purple-500 hover:bg-purple-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
+                  className={`${myValidCalls?.canWin ? 'px-3 py-2.5 text-xs' : 'px-4 py-2.5 text-sm'} bg-purple-500 hover:bg-purple-400 disabled:bg-gray-500 text-white font-bold rounded-lg`}
                 >
                   PUNG
                 </button>
@@ -2000,7 +2000,7 @@ export default function GamePage() {
                 <button
                   onClick={onChowClick}
                   disabled={processingAction}
-                  className="px-4 py-2.5 bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
+                  className={`${myValidCalls?.canWin ? 'px-3 py-2.5 text-xs' : 'px-4 py-2.5 text-sm'} bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-500 text-white font-bold rounded-lg`}
                 >
                   CHOW
                 </button>
@@ -2008,7 +2008,7 @@ export default function GamePage() {
               <button
                 onClick={() => onCallResponse('pass')}
                 disabled={processingAction}
-                className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
+                className={`${myValidCalls?.canWin ? 'px-3 py-2.5 text-xs' : 'px-4 py-2.5 text-sm'} bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-500 text-white font-bold rounded-lg`}
               >
                 PASS
               </button>
@@ -2047,33 +2047,33 @@ export default function GamePage() {
           {/* Playing phase - my turn */}
           {gameState.phase === 'playing' && isMyTurn && (
             <>
-              {/* Self-draw win button */}
+              {/* Self-draw win button - large and prominent */}
               {!shouldDraw && canWinNow && (
                 <button
                   onClick={onDeclareWin}
                   disabled={processingAction}
-                  className="px-4 py-2.5 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-sm"
+                  className="flex-[3] min-w-0 px-6 py-3.5 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-lg"
                 >
                   🎉 WIN!
                 </button>
               )}
 
-              {/* Kong buttons */}
+              {/* Kong buttons - smaller when WIN is available */}
               {!shouldDraw && concealedKongOptions.length > 0 && concealedKongOptions.map((tileType) => (
                 <button
                   key={`mobile-kong-${tileType}`}
                   onClick={() => onConcealedKong(tileType)}
                   disabled={processingAction}
-                  className="px-4 py-2.5 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
+                  className={`${canWinNow ? 'px-3 py-2.5 text-xs' : 'px-4 py-2.5 text-sm'} bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg`}
                 >
-                  KONG ({getTileDisplayText(tileType)})
+                  KONG
                 </button>
               ))}
               {!shouldDraw && pungUpgradeOptions.length > 0 && !pungUpgradeMode && (
                 <button
                   onClick={onPungUpgradeClick}
                   disabled={processingAction}
-                  className="px-4 py-2.5 bg-pink-600 hover:bg-pink-500 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
+                  className={`${canWinNow ? 'px-3 py-2.5 text-xs' : 'px-4 py-2.5 text-sm'} bg-pink-600 hover:bg-pink-500 disabled:bg-gray-500 text-white font-bold rounded-lg`}
                 >
                   KONG
                 </button>
@@ -2099,14 +2099,14 @@ export default function GamePage() {
                 </button>
               )}
 
-              {/* Discard button */}
+              {/* Discard button - smaller when WIN is available */}
               {!shouldDraw && !pungUpgradeMode && (
                 <button
                   onClick={onDiscard}
                   disabled={processingAction || !selectedTile}
-                  className="flex-1 max-w-xs px-6 py-3 bg-red-500 hover:bg-red-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-base"
+                  className={`${canWinNow ? 'flex-1 px-4 py-2.5 text-sm' : 'flex-1 max-w-xs px-6 py-3 text-base'} bg-red-500 hover:bg-red-400 disabled:bg-gray-500 text-white font-bold rounded-lg`}
                 >
-                  {selectedTile ? 'Discard' : 'Select a tile'}
+                  {selectedTile ? 'Discard' : 'Select tile'}
                 </button>
               )}
             </>
