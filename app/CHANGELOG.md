@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Turn Indicator** - Round table view showing N/E/S/W positions with player always at South
+  - Green box highlights current actor (whose turn it is)
+  - Grey box shows previous discarder (who acted before)
+  - Updates correctly during both playing and calling phases
 - **Dead wall** - 16 tiles reserved at game start per Fujian Mahjong rules (wall count shows drawable tiles only)
 - **Bonus tile count** - shows +X badge next to your bonus tiles
 - **Fixed bottom action bar for mobile** - thumb-friendly actions at screen bottom
@@ -18,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Previous Action and Discarded sections side-by-side on mobile
 
 ### Changed
+- Desktop layout reorganized: Turn Indicator + Previous Action + Last Discard on left, Discard Pile on right
+- Game Log moved to bottom of page (below player call statuses) on desktop
+- Action buttons area now has fixed height to prevent layout shifts
 - Redesigned room lobby player cards with consistent heights and better spacing
 - Removed seat labels (East/South/West/North) from UI for cleaner look
 - Kong melds now display as single tile with ×4 badge (saves space on mobile)

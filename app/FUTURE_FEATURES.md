@@ -234,3 +234,4 @@
 - [x] Pre-commit hooks
 - [x] `/docs-sync` and `/session-wrap` skills
 - [x] Lint cleanup
+- [x] Turn Indicator (N/E/S/W round table view showing current/previous actor)

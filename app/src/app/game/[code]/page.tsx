@@ -11,6 +11,7 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { getTileType, getTileDisplayText, isBonusTile, isGoldTile, sortTilesForDisplay } from '@/lib/tiles';
 import { calculateSettlement, calculateNetPositions } from '@/lib/settle';
 import { SettingsModal } from '@/components/SettingsModal';
+import { TurnIndicator } from '@/components/TurnIndicator';
 import { SeatIndex, TileId, TileType, CallAction, Room } from '@/types';
 
 // Debug logging - only enabled in development
@@ -238,6 +239,35 @@ export default function GamePage() {
       return () => clearTimeout(timer);
     }
   }, [toastMessage]);
+
+  // Track discarders for turn indicator
+  // Green box = current actor (whose turn it is), Grey box = previous discarder
+  const [lastDiscarder, setLastDiscarder] = useState<SeatIndex | null>(null);
+  const [previousDiscarder, setPreviousDiscarder] = useState<SeatIndex | null>(null);
+  useEffect(() => {
+    if (gameState?.lastAction?.type === 'discard') {
+      const newDiscarder = gameState.lastAction.playerSeat;
+      // Only update if it's a different discarder
+      if (newDiscarder !== lastDiscarder) {
+        setPreviousDiscarder(lastDiscarder);
+        setLastDiscarder(newDiscarder);
+      }
+    }
+  }, [gameState?.lastAction, lastDiscarder]);
+
+  // Determine current actor and previous actor for turn indicator
+  // Green box (currentActor): who is acting right now
+  // Grey box (previousActor): who acted just before them
+  const currentActor = gameState?.phase === 'calling'
+    ? lastDiscarder  // During calling: last discarder is still acting
+    : gameState?.currentPlayerSeat ?? null;  // During playing: current player's turn
+
+  // Previous actor changes based on phase:
+  // - Playing phase: the last discarder (their discard triggered current player's turn)
+  // - Calling phase: the discarder before the last one
+  const previousActor = gameState?.phase === 'calling'
+    ? previousDiscarder
+    : lastDiscarder;
 
   // Game log auto-scroll (desktop and mobile)
   const logRef = useRef<HTMLDivElement>(null);
@@ -1560,7 +1590,8 @@ export default function GamePage() {
         )}
 
         {/* Action Buttons - inside the hand section (desktop only) */}
-        <div className="mt-2 sm:mt-4 hidden md:flex flex-wrap justify-center gap-2 sm:gap-3">
+        {/* Fixed height container to prevent layout shifts */}
+        <div className="mt-2 sm:mt-4 hidden md:flex flex-wrap justify-center items-center gap-2 sm:gap-3 min-h-[52px]">
           {/* Call buttons during calling phase - ordered left-to-right: PASS (lowest) to WIN (highest priority) */}
           {isCallingPhase && myPendingCall === null && !chowSelectionMode && (
             <>
@@ -1710,14 +1741,28 @@ export default function GamePage() {
               )}
             </>
           )}
+
+          {/* Waiting for other players - show when it's not my turn and not calling phase */}
+          {gameState.phase === 'playing' && !isMyTurn && !isCallingPhase && (
+            <div className="text-slate-500 text-sm">
+              Waiting for {getPlayerName(room, gameState.currentPlayerSeat)}...
+            </div>
+          )}
         </div>
       </div>
       {/* End of Primary Hand Section */}
 
-      {/* ========== MIDDLE ROW: PREVIOUS ACTION + LAST DISCARD + DISCARD PILE + GAME LOG ========== */}
-      <div className="grid grid-cols-1 md:grid-cols-[auto_3fr_2fr] gap-2 sm:gap-3 mb-2 sm:mb-3">
-        {/* Previous Action + Last Discard - Always side by side */}
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 md:w-[320px]">
+      {/* ========== MIDDLE ROW: TURN INDICATOR + PREVIOUS ACTION + LAST DISCARD + DISCARD PILE ========== */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3 mb-2 sm:mb-3">
+        {/* Turn Indicator + Previous Action + Last Discard - Left half on desktop */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          {/* Turn Indicator */}
+          <TurnIndicator
+            currentActor={currentActor}
+            previousActor={previousActor}
+            mySeat={mySeat!}
+          />
+
           {/* Previous Action */}
           <div className={`rounded-xl p-2 sm:p-4 border flex flex-col items-center justify-center ${
             gameState.previousAction
@@ -1812,20 +1857,6 @@ export default function GamePage() {
           )}
         </div>
 
-        {/* Game Log - Last column (desktop only) */}
-        <div className="hidden md:block bg-slate-800/50 rounded-xl p-2 sm:p-4 border border-slate-600">
-          <div className="text-sm sm:text-lg text-slate-300 font-medium mb-2 sm:mb-3">Game Log</div>
-          <div ref={logRef} className="max-h-28 sm:max-h-40 overflow-y-auto space-y-0.5 sm:space-y-1">
-            {(gameState.actionLog || []).map((entry, index, arr) => (
-              <div
-                key={index}
-                className={`text-xs sm:text-lg py-0.5 ${index === arr.length - 1 ? 'text-white font-medium' : 'text-slate-300'}`}
-              >
-                {transformLogEntry(entry, room)}
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* ========== ALL PLAYERS - TURN ORDER ========== */}
@@ -1966,6 +1997,21 @@ export default function GamePage() {
           })}
         </div>
       )}
+
+      {/* ========== GAME LOG ROW (Desktop only) ========== */}
+      <div className="hidden md:block bg-slate-800/50 rounded-xl p-2 sm:p-4 border border-slate-600 mt-2 sm:mt-3">
+        <div className="text-sm sm:text-lg text-slate-300 font-medium mb-2 sm:mb-3">Game Log</div>
+        <div ref={logRef} className="max-h-24 overflow-y-auto space-y-0.5 sm:space-y-1">
+          {(gameState.actionLog || []).map((entry, index, arr) => (
+            <div
+              key={index}
+              className={`text-xs sm:text-lg py-0.5 ${index === arr.length - 1 ? 'text-white font-medium' : 'text-slate-300'}`}
+            >
+              {transformLogEntry(entry, room)}
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Game Log - Mobile only (at bottom) */}
       <div className="md:hidden bg-slate-800/50 rounded-xl p-2 border border-slate-600 mt-2 mb-20">
