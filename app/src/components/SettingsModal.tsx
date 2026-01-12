@@ -18,11 +18,10 @@ interface SettingsModalProps {
 
 // Check if device has touch capabilities (likely mobile)
 function useIsTouchDevice() {
-  const [isTouch, setIsTouch] = useState(false);
-
-  useEffect(() => {
-    setIsTouch('ontouchstart' in window || navigator.maxTouchPoints > 0);
-  }, []);
+  const [isTouch] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  });
 
   return isTouch;
 }

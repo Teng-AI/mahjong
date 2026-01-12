@@ -307,8 +307,7 @@ export function useGame({ roomCode, mySeat }: UseGameOptions): UseGameReturn {
       return new Map();
     }
 
-    const myExposedMelds = gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds] || [];
-    return getValidChowTiles(myHand, gameState.lastAction.tile, gameState.goldTileType, myExposedMelds.length);
+    return getValidChowTiles(myHand, gameState.lastAction.tile, gameState.goldTileType);
   }, [gameState, mySeat, myHand, isNextInTurn]);
 
   // Phase 8: Submit call response

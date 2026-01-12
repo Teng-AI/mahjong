@@ -172,9 +172,7 @@ interface OpponentInfo {
 
 function getOpponentInfo(
   gameState: GameState,
-  mySeat: SeatIndex,
-  _discardPile: TileId[],
-  _actionLog: string[]
+  mySeat: SeatIndex
 ): OpponentInfo[] {
   const opponents: OpponentInfo[] = [];
 
@@ -653,7 +651,7 @@ export function useBotRunner({
 
     // Get opponent info for defensive play (medium/hard)
     const opponents = difficulty !== 'easy'
-      ? getOpponentInfo(gameState!, seat, discardPile, gameState!.actionLog || [])
+      ? getOpponentInfo(gameState!, seat)
       : [];
 
     if (DEBUG_BOT) console.log(`[Bot ${seat}] Turn (${difficulty}) - ${tiles.length} tiles, ${meldCount} melds`);
@@ -832,7 +830,7 @@ export function useBotRunner({
     }
 
     // Check for pung (with difficulty-aware logic)
-    if (canPung(tiles, discardTileId, goldType, meldCount) &&
+    if (canPung(tiles, discardTileId, goldType) &&
         shouldCallPung(tiles, discardTileId, goldType, meldCount, difficulty, wallRemaining)) {
       if (DEBUG_BOT) console.log(`[Bot ${seat}] Calling PUNG!`);
       const result = await submitCallResponse(roomCode, seat, 'pung');

@@ -57,7 +57,7 @@ describe('generateAllTiles', () => {
     }
 
     // Check that each type has exactly 4 copies
-    for (const [_type, count] of typeCounts.entries()) {
+    for (const count of typeCounts.values()) {
       expect(count).toBe(4);
     }
   });

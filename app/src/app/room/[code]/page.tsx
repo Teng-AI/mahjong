@@ -266,7 +266,7 @@ export default function RoomPage() {
     }
   };
 
-  const handleAddBotToSeat = async (_seat: SeatIndex) => {
+  const handleAddBotToSeat = async () => {
     if (addingBot) return;
     setAddingBot(true);
     try {
@@ -479,7 +479,7 @@ export default function RoomPage() {
                   isSelf={isSelf}
                   onSetDealer={() => setDealerSeat(seat)}
                   onKick={() => isBot ? handleRemoveBot(seat) : kickPlayer(seat)}
-                  onAddBot={() => handleAddBotToSeat(seat)}
+                  onAddBot={() => handleAddBotToSeat()}
                   canSetDealer={isHost && player !== null}
                   canKick={isHost && player !== null && !isSelf && !isPlayerHost}
                   canAddBot={isHost && player === null && !addingBot}

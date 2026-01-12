@@ -1268,7 +1268,7 @@ export async function submitCallResponse(
       return { success: false, error: 'Cannot win on this tile' };
     }
   } else if (action === 'pung') {
-    if (!canPung(hand, discardTile, gameState.goldTileType, exposedMeldCount)) {
+    if (!canPung(hand, discardTile, gameState.goldTileType)) {
       return { success: false, error: 'Cannot pung this tile' };
     }
   } else if (action === 'kong') {
@@ -1282,7 +1282,7 @@ export async function submitCallResponse(
     if (!chowTiles) {
       return { success: false, error: 'Chow tiles required' };
     }
-    const chowOption = validateChowSelection(hand, discardTile, chowTiles, gameState.goldTileType, exposedMeldCount);
+    const chowOption = validateChowSelection(hand, discardTile, chowTiles, gameState.goldTileType);
     if (!chowOption) {
       return { success: false, error: 'Invalid chow selection' };
     }

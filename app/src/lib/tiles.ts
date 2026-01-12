@@ -710,8 +710,7 @@ function getAllSuitTileTypes(): TileType[] {
 export function canPung(
   hand: TileId[],
   discardTile: TileId,
-  goldTileType: TileType,
-  _exposedMeldCount: number = 0
+  goldTileType: TileType
 ): boolean {
   // Gold tiles cannot be called
   if (isGoldTile(discardTile, goldTileType)) {
@@ -859,8 +858,7 @@ export function canUpgradePungToKong(
 export function canChow(
   hand: TileId[],
   discardTile: TileId,
-  goldTileType: TileType,
-  _exposedMeldCount: number = 0
+  goldTileType: TileType
 ): ChowOption[] {
   const options: ChowOption[] = [];
 
@@ -951,10 +949,9 @@ export function canChow(
 export function hasChowOption(
   hand: TileId[],
   discardTile: TileId,
-  goldTileType: TileType,
-  exposedMeldCount: number = 0
+  goldTileType: TileType
 ): boolean {
-  return canChow(hand, discardTile, goldTileType, exposedMeldCount).length > 0;
+  return canChow(hand, discardTile, goldTileType).length > 0;
 }
 
 /**
@@ -988,8 +985,8 @@ export function getValidCalls(
   return {
     canWin: canWinOnDiscard(hand, discardTile, goldTileType, exposedMeldCount),
     canKong: canKong(hand, discardTile, goldTileType),
-    canPung: canPung(hand, discardTile, goldTileType, exposedMeldCount),
-    canChow: isNextInTurn && hasChowOption(hand, discardTile, goldTileType, exposedMeldCount),
+    canPung: canPung(hand, discardTile, goldTileType),
+    canChow: isNextInTurn && hasChowOption(hand, discardTile, goldTileType),
   };
 }
 
@@ -1003,13 +1000,12 @@ export function getValidCalls(
 export function getValidChowTiles(
   hand: TileId[],
   discardTile: TileId,
-  goldTileType: TileType,
-  exposedMeldCount: number = 0
+  goldTileType: TileType
 ): Map<TileId, TileId[]> {
   const validPairs = new Map<TileId, TileId[]>();
 
   // Get all chow options
-  const options = canChow(hand, discardTile, goldTileType, exposedMeldCount);
+  const options = canChow(hand, discardTile, goldTileType);
 
   for (const option of options) {
     const [tile1, tile2] = option.tilesFromHand;
@@ -1042,10 +1038,9 @@ export function validateChowSelection(
   hand: TileId[],
   discardTile: TileId,
   selectedTiles: [TileId, TileId],
-  goldTileType: TileType,
-  exposedMeldCount: number = 0
+  goldTileType: TileType
 ): ChowOption | null {
-  const options = canChow(hand, discardTile, goldTileType, exposedMeldCount);
+  const options = canChow(hand, discardTile, goldTileType);
 
   for (const option of options) {
     const [t1, t2] = option.tilesFromHand;
