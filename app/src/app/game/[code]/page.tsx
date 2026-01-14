@@ -29,12 +29,13 @@ interface TileProps {
   isJustDrawn?: boolean;
   isChowValid?: boolean; // Valid for chow selection
   isChowSelected?: boolean; // Selected for chow
+  isFocused?: boolean; // Keyboard focus for chow selection
   disabled?: boolean;
   size?: 'sm' | 'md' | 'lg';
   faceDown?: boolean; // Show tile back (for concealed kongs from other players)
 }
 
-function Tile({ tileId, goldTileType, onClick, selected, isJustDrawn, isChowValid, isChowSelected, disabled, size = 'md', faceDown = false }: TileProps) {
+function Tile({ tileId, goldTileType, onClick, selected, isJustDrawn, isChowValid, isChowSelected, isFocused, disabled, size = 'md', faceDown = false }: TileProps) {
   const tileType = getTileType(tileId);
   const displayText = faceDown ? '🀫' : getTileDisplayText(tileType);
   const isGold = !faceDown && goldTileType && tileType === goldTileType;
@@ -76,6 +77,7 @@ function Tile({ tileId, goldTileType, onClick, selected, isJustDrawn, isChowVali
         ${isJustDrawn ? 'ring-2 ring-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]' : ''}
         ${isChowValid ? 'ring-2 ring-cyan-400' : ''}
         ${isChowSelected ? 'ring-2 ring-green-500 -translate-y-2 bg-green-100' : ''}
+        ${isFocused && !isChowSelected ? 'ring-4 ring-yellow-400 ring-offset-2 ring-offset-slate-800 -translate-y-1' : ''}
         ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
         ${onClick && !disabled ? 'hover:brightness-95 cursor-pointer' : 'cursor-default'}
       `}
@@ -224,6 +226,7 @@ export default function GamePage() {
   // Phase 8: Chow selection mode
   const [chowSelectionMode, setChowSelectionMode] = useState(false);
   const [selectedChowTiles, setSelectedChowTiles] = useState<TileId[]>([]);
+  const [focusedChowTileIndex, setFocusedChowTileIndex] = useState(0);
 
   // Kong: Pung upgrade selection mode
   const [pungUpgradeMode, setPungUpgradeMode] = useState(false);
@@ -327,6 +330,23 @@ export default function GamePage() {
     }
   };
 
+  // Auto-select the just-drawn tile for discard
+  useEffect(() => {
+    const isMyTurnToDiscard = gameState?.phase === 'playing' &&
+      gameState?.currentPlayerSeat === mySeat &&
+      !shouldDraw;
+
+    if (isMyTurnToDiscard && gameState?.lastAction?.type === 'draw' &&
+        gameState?.lastAction?.playerSeat === mySeat &&
+        gameState?.lastAction?.tile) {
+      // Don't auto-select gold tiles (can't be discarded)
+      const drawnTile = gameState.lastAction.tile;
+      if (!gameState.goldTileType || !isGoldTile(drawnTile, gameState.goldTileType)) {
+        setSelectedTile(drawnTile);
+      }
+    }
+  }, [gameState?.phase, gameState?.currentPlayerSeat, mySeat, shouldDraw, gameState?.lastAction, gameState?.goldTileType]);
+
   // Handle discarding a tile
   const onDiscard = async () => {
     if (processingAction || !selectedTile) return;
@@ -406,6 +426,7 @@ export default function GamePage() {
   const onChowClick = () => {
     setChowSelectionMode(true);
     setSelectedChowTiles([]);
+    setFocusedChowTileIndex(0);
   };
 
   // Keyboard shortcut handler for game actions
@@ -417,13 +438,125 @@ export default function GamePage() {
       if (processingAction) return;
 
       const key = e.key.toUpperCase();
+      const isCurrentPlayersTurn = gameState?.currentPlayerSeat === mySeat;
+      const isDiscardPhase = gameState?.phase === 'playing' && isCurrentPlayersTurn && !shouldDraw;
 
       // Draw shortcut - during playing phase when it's my turn and I need to draw
-      const isCurrentPlayersTurn = gameState?.currentPlayerSeat === mySeat;
       if (key === shortcuts.draw && gameState?.phase === 'playing' && isCurrentPlayersTurn && shouldDraw) {
         e.preventDefault();
         onDraw();
         return;
+      }
+
+      // Self-draw win shortcut - during discard phase when you can win
+      if (key === shortcuts.win && isDiscardPhase && canWinNow) {
+        e.preventDefault();
+        onDeclareWin();
+        return;
+      }
+
+      // Tile selection with arrow keys (during discard phase)
+      if (isDiscardPhase && myHand.length > 0) {
+        // Filter out gold tiles (can't be discarded)
+        const discardableTiles = myHand.filter(tile =>
+          !gameState?.goldTileType || !isGoldTile(tile, gameState.goldTileType)
+        );
+
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          const currentIndex = selectedTile ? discardableTiles.indexOf(selectedTile) : -1;
+          let newIndex: number;
+
+          if (e.key === 'ArrowRight') {
+            newIndex = currentIndex < discardableTiles.length - 1 ? currentIndex + 1 : 0;
+          } else {
+            newIndex = currentIndex > 0 ? currentIndex - 1 : discardableTiles.length - 1;
+          }
+
+          const newTile = discardableTiles[newIndex];
+          if (newTile) {
+            setSelectedTile(newTile);
+            playSound('tileSelect');
+          }
+          return;
+        }
+
+        // Enter to discard selected tile
+        if (e.key === 'Enter' && selectedTile) {
+          e.preventDefault();
+          onDiscard();
+          return;
+        }
+
+        // Escape to cancel selection
+        if (e.key === 'Escape' && selectedTile) {
+          e.preventDefault();
+          setSelectedTile(null);
+          return;
+        }
+
+        // Number keys 1-9, 0 for quick tile selection (1=first, 0=10th)
+        const numKey = e.key === '0' ? 10 : parseInt(e.key);
+        if (!isNaN(numKey) && numKey >= 1 && numKey <= 10) {
+          const tileIndex = numKey - 1;
+          if (tileIndex < discardableTiles.length) {
+            e.preventDefault();
+            setSelectedTile(discardableTiles[tileIndex]);
+            playSound('tileSelect');
+          }
+          return;
+        }
+      }
+
+      // Chow selection mode keyboard navigation
+      if (chowSelectionMode && isCallingPhase) {
+        // Get the list of valid tiles to navigate
+        const validTiles: TileId[] = selectedChowTiles.length === 0
+          ? Array.from(validChowTiles.keys()) // First tile: all keys in the map
+          : validChowTiles.get(selectedChowTiles[0]) || []; // Second tile: values for selected first tile
+
+        // Arrow keys to navigate through valid tiles
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          if (validTiles.length > 0) {
+            let newIndex: number;
+            if (e.key === 'ArrowRight') {
+              newIndex = focusedChowTileIndex < validTiles.length - 1 ? focusedChowTileIndex + 1 : 0;
+            } else {
+              newIndex = focusedChowTileIndex > 0 ? focusedChowTileIndex - 1 : validTiles.length - 1;
+            }
+            setFocusedChowTileIndex(newIndex);
+            playSound('tileSelect');
+          }
+          return;
+        }
+
+        // Space to select the focused tile
+        if (e.key === ' ') {
+          e.preventDefault();
+          const focusedTile = validTiles[focusedChowTileIndex];
+          if (focusedTile) {
+            onChowTileClick(focusedTile);
+            setFocusedChowTileIndex(0); // Reset focus for next selection
+          }
+          return;
+        }
+
+        // Enter to confirm chow (when 2 tiles selected)
+        if (e.key === 'Enter' && selectedChowTiles.length === 2) {
+          e.preventDefault();
+          onConfirmChow();
+          return;
+        }
+
+        // Escape to cancel chow selection
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          onCancelChow();
+          return;
+        }
+
+        return; // Don't process other shortcuts during chow selection
       }
 
       // Calling phase shortcuts
@@ -449,14 +582,15 @@ export default function GamePage() {
 
     window.addEventListener('keydown', handleKeyboardShortcut);
     return () => window.removeEventListener('keydown', handleKeyboardShortcut);
-    // onCallResponse, onChowClick, onDraw are intentionally excluded - they're not memoized and would cause unnecessary re-registrations
+    // onCallResponse, onChowClick, onChowTileClick, onCancelChow, onDraw, onDiscard, onDeclareWin are intentionally excluded - they're not memoized and would cause unnecessary re-registrations
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCallingPhase, myPendingCall, chowSelectionMode, processingAction, shortcuts, myValidCalls, showSettings, gameState?.phase, gameState?.currentPlayerSeat, mySeat, shouldDraw]);
+  }, [isCallingPhase, myPendingCall, chowSelectionMode, processingAction, shortcuts, myValidCalls, showSettings, gameState?.phase, gameState?.currentPlayerSeat, mySeat, shouldDraw, myHand, selectedTile, gameState?.goldTileType, selectedChowTiles, validChowTiles, focusedChowTileIndex, canWinNow]);
 
   // Phase 8: Cancel chow selection
   const onCancelChow = () => {
     setChowSelectionMode(false);
     setSelectedChowTiles([]);
+    setFocusedChowTileIndex(0);
   };
 
   // Phase 8: Handle tile click during chow selection
@@ -1537,28 +1671,40 @@ export default function GamePage() {
         {/* Hand tiles */}
         {chowSelectionMode ? (
           // Chow selection mode - show tiles with chow highlighting
-          <div className="flex gap-1 flex-wrap justify-center">
-            {myHand.map((tile, index) => {
-              const isValidFirst = validChowTiles.has(tile);
-              const isSelected = selectedChowTiles.includes(tile);
-              const isValidSecond = selectedChowTiles.length === 1 &&
-                (validChowTiles.get(selectedChowTiles[0]) || []).includes(tile);
-              const canClick = isValidFirst || isValidSecond;
+          (() => {
+            // Calculate which tile is focused for keyboard navigation
+            const validTilesForFocus: TileId[] = selectedChowTiles.length === 0
+              ? Array.from(validChowTiles.keys())
+              : validChowTiles.get(selectedChowTiles[0]) || [];
+            const focusedTile = validTilesForFocus[focusedChowTileIndex];
 
-              return (
-                <Tile
-                  key={`${tile}-${index}`}
-                  tileId={tile}
-                  goldTileType={gameState.goldTileType}
-                  size="lg"
-                  onClick={canClick ? () => onChowTileClick(tile) : undefined}
-                  isChowValid={selectedChowTiles.length === 0 ? isValidFirst : isValidSecond}
-                  isChowSelected={isSelected}
-                  disabled={!canClick && !isSelected}
-                />
-              );
-            })}
-          </div>
+            return (
+              <div className="flex gap-1 flex-wrap justify-center">
+                {myHand.map((tile, index) => {
+                  const isValidFirst = validChowTiles.has(tile);
+                  const isSelected = selectedChowTiles.includes(tile);
+                  const isValidSecond = selectedChowTiles.length === 1 &&
+                    (validChowTiles.get(selectedChowTiles[0]) || []).includes(tile);
+                  const canClick = isValidFirst || isValidSecond;
+                  const isTileFocused = tile === focusedTile;
+
+                  return (
+                    <Tile
+                      key={`${tile}-${index}`}
+                      tileId={tile}
+                      goldTileType={gameState.goldTileType}
+                      size="lg"
+                      onClick={canClick ? () => onChowTileClick(tile) : undefined}
+                      isChowValid={selectedChowTiles.length === 0 ? isValidFirst : isValidSecond}
+                      isChowSelected={isSelected}
+                      isFocused={isTileFocused}
+                      disabled={!canClick && !isSelected}
+                    />
+                  );
+                })}
+              </div>
+            );
+          })()
         ) : pungUpgradeMode && pungUpgradeOptions.length > 0 ? (
           // Pung upgrade selection mode - highlight ALL tiles that can be used for upgrades
           <div className="flex gap-1 flex-wrap justify-center">
@@ -1687,7 +1833,7 @@ export default function GamePage() {
               disabled={processingAction}
               className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-sm sm:text-base"
             >
-              🎉 WIN!
+              🎉 WIN! <span className="hidden sm:inline text-xs opacity-70">({shortcuts.win})</span>
             </button>
           )}
 

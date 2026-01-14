@@ -119,7 +119,7 @@ export function SettingsModal({
         }
       }}
     >
-      <div className="bg-slate-800 rounded-lg p-6 max-w-sm w-full mx-4 border-2 border-slate-600">
+      <div className="bg-slate-800 rounded-lg p-6 max-w-sm w-full mx-4 border-2 border-slate-600 max-h-[85vh] overflow-y-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-white">Settings</h2>
@@ -224,6 +224,56 @@ export function SettingsModal({
             >
               Reset to Defaults
             </button>
+
+            {/* Fixed shortcuts for tile selection */}
+            <div className="mt-6 pt-4 border-t border-slate-700">
+              <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+                Tile Selection (Discard)
+              </h4>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between text-slate-400">
+                  <span>Navigate tiles</span>
+                  <span className="font-mono text-slate-300">← →</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>Discard selected</span>
+                  <span className="font-mono text-slate-300">Enter</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>Cancel selection</span>
+                  <span className="font-mono text-slate-300">Esc</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>Quick select (1st-10th)</span>
+                  <span className="font-mono text-slate-300">1-9, 0</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Chow selection shortcuts */}
+            <div className="mt-4 pt-4 border-t border-slate-700">
+              <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+                Chow Selection
+              </h4>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between text-slate-400">
+                  <span>Navigate valid tiles</span>
+                  <span className="font-mono text-slate-300">← →</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>Select tile</span>
+                  <span className="font-mono text-slate-300">Space</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>Confirm chow</span>
+                  <span className="font-mono text-slate-300">Enter</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>Cancel chow</span>
+                  <span className="font-mono text-slate-300">Esc</span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
