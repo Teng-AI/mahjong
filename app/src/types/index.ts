@@ -104,6 +104,7 @@ export interface LastAction {
   playerSeat: SeatIndex;
   tile?: TileId;
   replacementTile?: TileId; // For kong: the tile drawn after declaring kong
+  isConcealed?: boolean; // For concealed kong: hides tile info from other players
   timestamp: number;
 }
 

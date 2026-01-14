@@ -755,8 +755,10 @@ export function useBotRunner({
         }
       }
 
-      // If we just called pung/chow/kong, we cannot discard the same tile type
-      const calledTileType = (lastAction?.type === 'pung' || lastAction?.type === 'chow' || lastAction?.type === 'kong')
+      // If we just called pung/chow/exposed kong, we cannot discard the same tile type
+      // Note: concealed kong has no tile in lastAction (to prevent info leak), so skip that case
+      const calledTileType = (lastAction?.type === 'pung' || lastAction?.type === 'chow' ||
+        (lastAction?.type === 'kong' && lastAction.tile))
         ? getTileType(lastAction.tile!)
         : undefined;
 

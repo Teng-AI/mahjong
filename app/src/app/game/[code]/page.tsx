@@ -1775,9 +1775,19 @@ export default function GamePage() {
                   {gameState.previousAction.type === 'draw' ? 'Drew' :
                    gameState.previousAction.type === 'pung' ? 'Pung' :
                    gameState.previousAction.type === 'chow' ? 'Chow' :
-                   gameState.previousAction.type === 'kong' ? 'Kong' : 'Action'}
+                   gameState.previousAction.type === 'kong' ? (gameState.previousAction.isConcealed ? 'Concealed Kong' : 'Kong') : 'Action'}
                 </span>
-                {/* For calls (pung/chow/kong), show the full meld with called tile highlighted */}
+                {/* For concealed kong, show face-down tiles to hide tile identity */}
+                {gameState.previousAction.type === 'kong' && gameState.previousAction.isConcealed && (
+                  <div className="flex gap-0.5">
+                    {[0, 1, 2, 3].map((idx) => (
+                      <div key={idx} className="w-6 h-8 sm:w-8 sm:h-10 bg-green-700 rounded border border-green-600 flex items-center justify-center">
+                        <span className="text-green-300 text-xs">?</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {/* For calls (pung/chow/exposed kong), show the full meld with called tile highlighted */}
                 {gameState.previousAction.tile && (gameState.previousAction.type === 'pung' || gameState.previousAction.type === 'chow' || gameState.previousAction.type === 'kong') && (() => {
                   const melds = gameState.exposedMelds[`seat${gameState.previousAction.playerSeat}` as keyof typeof gameState.exposedMelds];
                   const lastMeld = melds[melds.length - 1];

@@ -13,6 +13,11 @@
 
 ## High Priority (Bugs)
 
+- [x] **Concealed Kong leaks tile info** 🟢 ✅
+  - ~~Game log shows which tile was konged~~ Fixed: shows "declared a concealed Kong"
+  - ~~Last Action box also reveals the tile~~ Fixed: shows face-down tiles
+  - Added `isConcealed` flag to LastAction type
+
 - [x] **Mobile tile UX broken** 🟡 ✅
   - ~~Tiles overflow or don't fit on small screens~~ Fixed tile text overflow
   - ~~Hand becomes unplayable on narrow devices~~ Responsive sizing improved
@@ -52,6 +57,18 @@
 ---
 
 ## Medium Priority
+
+- [ ] **Wall count warning colors** 🟢
+  - Make wall tile count more prominent when almost exhausted
+  - Yellow highlight when < 10 tiles left
+  - Red highlight when < 5 tiles left
+  - Helps players anticipate draw game
+
+- [ ] **Dramatic win announcement** 🟡
+  - Add delay before revealing winner (build suspense)
+  - Special sound effect / fanfare leading up to win
+  - Visual effect (screen flash, zoom, etc.)
+  - Makes winning moments more exciting
 
 - [ ] **Rename calling actions** 🟢
   - Make button labels more intuitive for new players

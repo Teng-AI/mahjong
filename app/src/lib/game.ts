@@ -195,86 +195,55 @@ export async function initializeGame(roomCode: string, dealerSeat: SeatIndex): P
       }
     }
   } else if (TEST_KONG_MODE) {
-    // TEST MODE: Set up hands for testing Kong functionality
-    // Dealer gets:
-    //   - 4x dots_1 (concealed kong #1)
-    //   - 4x bamboo_8 (concealed kong #2)
-    //   - 3x bamboo_3 (kong call when bot discards bamboo_3_3)
-    //   - 3x characters_7 (kong call when bot discards characters_7_3)
-    //   - 3 scattered tiles to make 17 total
-    // Bot (seat 1 / South) gets:
-    //   - bamboo_3_3 as isolated tile (bot will discard this, dealer can call kong)
-    //   - 15 tiles forming pairs/pungs (bot keeps these)
-    // Bot (seat 2 / West) gets:
-    //   - characters_7_3 as isolated tile (bot will discard this, dealer can call kong)
-    //   - 15 tiles forming pairs/pungs (bot keeps these)
+    // TEST MODE: Set up hands for testing concealed Kong
+    // Each player gets exactly ONE concealed kong (4 identical tiles)
+    // Remaining tiles are scattered to avoid instant wins
+    // Dealer: 4 + 13 = 17, Others: 4 + 12 = 16
 
     const dealerHand: TileId[] = [
-      // 4x dots_1 for concealed kong #1
-      'dots_1_0', 'dots_1_1', 'dots_1_2', 'dots_1_3',
-      // 4x bamboo_8 for concealed kong #2
-      'bamboo_8_0', 'bamboo_8_1', 'bamboo_8_2', 'bamboo_8_3',
-      // 3x bamboo_3 for kong call (bot will discard bamboo_3_3)
-      'bamboo_3_0', 'bamboo_3_1', 'bamboo_3_2',
-      // 3x characters_7 for kong call (bot will discard characters_7_3)
-      'characters_7_0', 'characters_7_1', 'characters_7_2',
-      // 3 scattered tiles to make 17 total
-      'dots_6_0', 'characters_2_0', 'characters_4_0',
+      'dots_1_0', 'dots_1_1', 'dots_1_2', 'dots_1_3', // kong
+      'bamboo_1_0', 'bamboo_4_0', 'bamboo_7_0',
+      'characters_2_0', 'characters_5_0', 'characters_9_0',
+      'dots_3_0', 'dots_5_0', 'dots_8_0',
+      'wind_east_0', 'wind_south_0', 'wind_west_0', 'wind_north_0',
     ];
 
     const seat1Hand: TileId[] = [
-      // bamboo_3_3 - isolated tile, bot will discard this! Dealer can call kong.
-      'bamboo_3_3',
-      // Rest of hand has pairs/sequences so bot keeps them (avoiding dealer's tiles)
-      'dots_2_0', 'dots_2_1', 'dots_2_2',        // pung
-      'dots_4_0', 'dots_4_1', 'dots_4_2',        // pung
-      'bamboo_1_0', 'bamboo_1_1',                // pair
-      'bamboo_6_0', 'bamboo_6_1',                // pair
-      'bamboo_7_0', 'bamboo_7_1',                // pair
-      'characters_5_0', 'characters_5_1',        // pair
+      'bamboo_2_0', 'bamboo_2_1', 'bamboo_2_2', 'bamboo_2_3', // kong
+      'dots_2_0', 'dots_4_0', 'dots_6_0', 'dots_9_0',
+      'characters_1_0', 'characters_3_0', 'characters_6_0', 'characters_8_0',
+      'bamboo_5_0', 'bamboo_8_0',
+      'dragon_red_0', 'dragon_green_0',
     ];
 
     const seat2Hand: TileId[] = [
-      // characters_7_3 - isolated tile, bot will discard this! Dealer can call kong.
-      'characters_7_3',
-      // Rest of hand has pairs/sequences so bot keeps them
-      'dots_7_0', 'dots_7_1', 'dots_7_2',        // pung
-      'dots_9_1', 'dots_9_2', 'dots_9_3',        // pung
-      'bamboo_2_0', 'bamboo_2_1',                // pair
-      'bamboo_4_0', 'bamboo_4_1', 'bamboo_4_2',  // pung
-      'characters_1_0', 'characters_1_1',        // pair
-      'characters_3_0',                          // (15 + 1 = 16)
+      'characters_7_0', 'characters_7_1', 'characters_7_2', 'characters_7_3', // kong
+      'dots_2_1', 'dots_4_1', 'dots_7_0', 'dots_9_1',
+      'bamboo_1_1', 'bamboo_3_0', 'bamboo_6_0', 'bamboo_9_0',
+      'characters_1_1', 'characters_4_0',
+      'wind_east_1', 'wind_south_1',
     ];
 
-    // No special tiles needed in wall anymore - both kong calls come from bot discards
-    const topOfWall: TileId[] = [];
+    const seat3Hand: TileId[] = [
+      'dots_6_1', 'dots_6_2', 'dots_6_3', 'dots_6_0', // kong
+      'bamboo_1_2', 'bamboo_3_1', 'bamboo_5_1', 'bamboo_7_1',
+      'characters_2_1', 'characters_5_1', 'characters_8_1', 'characters_9_1',
+      'dots_7_1', 'dots_8_1',
+      'wind_west_1', 'wind_north_1',
+    ];
 
     // Remove test tiles from shuffled deck
-    const usedTiles = new Set([...dealerHand, ...seat1Hand, ...seat2Hand, ...topOfWall]);
+    const usedTiles = new Set([...dealerHand, ...seat1Hand, ...seat2Hand, ...seat3Hand]);
     shuffledTiles = shuffledTiles.filter(t => !usedTiles.has(t));
 
-    // Give dealer their test hand
+    // Assign hands based on dealer position
     hands[dealerSeat] = dealerHand;
+    hands[((dealerSeat + 1) % 4) as SeatIndex] = seat1Hand;
+    hands[((dealerSeat + 2) % 4) as SeatIndex] = seat2Hand;
+    hands[((dealerSeat + 3) % 4) as SeatIndex] = seat3Hand;
 
-    // Seat 1 is next after dealer (counter-clockwise)
-    const seat1 = ((dealerSeat - 1) + 4) % 4 as SeatIndex;
-    hands[seat1] = seat1Hand;
-
-    // Seat 2 is two seats after dealer (counter-clockwise)
-    const seat2 = ((dealerSeat - 2) + 4) % 4 as SeatIndex;
-    hands[seat2] = seat2Hand;
-
-    // Deal 16 tiles to remaining player (seat 3) from remaining deck
-    for (let seat = 0; seat < 4; seat++) {
-      if (seat !== dealerSeat && seat !== seat1 && seat !== seat2) {
-        for (let i = 0; i < 16; i++) {
-          hands[seat].push(shuffledTiles[tileIndex++]);
-        }
-      }
-    }
-
-    // Put special tiles at top of remaining deck, then rest of shuffled tiles
-    shuffledTiles = [...topOfWall, ...shuffledTiles.slice(tileIndex)];
+    // Wall is the remaining shuffled tiles
+    shuffledTiles = shuffledTiles.slice(0);
     tileIndex = 0; // Reset for wall creation
   } else {
     // Normal dealing
@@ -704,7 +673,7 @@ async function handleThreeGoldsWin(
   // Get bonus tiles and melds for scoring
   const gameSnapshot = await get(ref(db, `rooms/${roomCode}/game`));
   const gameState = gameSnapshot.val() as GameState;
-  const bonusTiles = gameState.bonusTiles[`seat${winnerSeat}` as keyof typeof gameState.bonusTiles] || [];
+  const bonusTiles = gameState.bonusTiles?.[`seat${winnerSeat}` as keyof typeof gameState.bonusTiles] || [];
   const exposedMelds = gameState.exposedMelds?.[`seat${winnerSeat}` as keyof typeof gameState.exposedMelds] || [];
 
   // Get dealer streak bonus (only if winner is dealer)
@@ -2143,12 +2112,14 @@ export async function declareConcealedKong(
   }
 
   // Update game state with last action
+  // Note: tile is intentionally omitted for concealed kong to prevent leaking info to other players
   await update(ref(db, `rooms/${roomCode}/game`), {
     lastAction: {
       type: 'kong',
       playerSeat: seat,
-      tile: matchingTiles[0],
+      // tile omitted - concealed kong tile should not be visible to other players
       replacementTile: replacementTile, // For highlighting the drawn tile
+      isConcealed: true, // Flag to identify concealed kong in UI
       timestamp: Date.now(),
     },
   });
@@ -2159,8 +2130,8 @@ export async function declareConcealedKong(
     concealedTiles: sortedHand,
   });
 
-  const tileName = getTileDisplayText(tileType);
-  await addToLog(roomCode, `${SEAT_NAMES[seat]} declared concealed Kong (${tileName})`);
+  // Log message hides the specific tile to prevent info leak
+  await addToLog(roomCode, `${SEAT_NAMES[seat]} declared a concealed Kong`);
 
   return { success: true };
 }
