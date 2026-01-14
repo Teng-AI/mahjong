@@ -82,11 +82,11 @@ function Tile({ tileId, goldTileType, onClick, selected, isJustDrawn, isChowVali
             : 'bg-white border-gray-300'
         }
         ${!faceDown && getSuitTextColor()}
-        ${selected ? 'ring-2 ring-blue-500 -translate-y-2' : ''}
+        ${selected ? 'ring-2 ring-blue-500 -translate-y-2 relative z-10' : ''}
         ${isJustDrawn ? 'ring-2 ring-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]' : ''}
         ${isChowValid ? 'ring-2 ring-cyan-400' : ''}
-        ${isChowSelected ? 'ring-2 ring-green-500 -translate-y-2 bg-green-100' : ''}
-        ${isFocused && !isChowSelected ? 'ring-4 ring-yellow-400 ring-offset-2 ring-offset-slate-800 -translate-y-1' : ''}
+        ${isChowSelected ? 'ring-2 ring-green-500 -translate-y-2 bg-green-100 relative z-10' : ''}
+        ${isFocused && !isChowSelected ? 'ring-4 ring-yellow-400 ring-offset-2 ring-offset-slate-800 -translate-y-1 relative z-10' : ''}
         ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
         ${onClick && !disabled ? 'hover:brightness-95 cursor-pointer' : 'cursor-default'}
       `}
@@ -111,7 +111,7 @@ interface HandProps {
 
 function Hand({ tiles, goldTileType, onTileClick, selectedTile, justDrawnTile, size = 'lg' }: HandProps) {
   return (
-    <div className="flex gap-1 flex-wrap justify-center">
+    <div className="flex gap-1 flex-wrap justify-center overflow-visible pt-2">
       {tiles.map((tile, index) => {
         // Gold tiles cannot be discarded - disable click when in discard mode
         const isGold = goldTileType ? isGoldTile(tile, goldTileType) : false;
@@ -689,8 +689,15 @@ export default function GamePage() {
         setSelectedChowTiles([tile]);
       }
     } else {
-      // Already have 2 tiles selected - reset to this tile if valid
-      if (validChowTiles.has(tile)) {
+      // Already have 2 tiles selected
+      if (tile === selectedChowTiles[1]) {
+        // Clicked second tile - deselect it, keep first
+        setSelectedChowTiles([selectedChowTiles[0]]);
+      } else if (tile === selectedChowTiles[0]) {
+        // Clicked first tile - reset selection entirely
+        setSelectedChowTiles([]);
+      } else if (validChowTiles.has(tile)) {
+        // Clicked a different valid first tile - restart with that tile
         setSelectedChowTiles([tile]);
       }
     }
@@ -1759,7 +1766,7 @@ export default function GamePage() {
             const focusedTileType = focusedOption?.tileType;
 
             return (
-              <div className="flex gap-1 flex-wrap justify-center">
+              <div className="flex gap-1 flex-wrap justify-center overflow-visible pt-2">
                 {myHand.map((tile, index) => {
                   const tileType = getTileType(tile);
                   // For concealed kong: highlight all 4 tiles of that type
@@ -1795,7 +1802,7 @@ export default function GamePage() {
             const focusedTile = validTilesForFocus[focusedChowTileIndex];
 
             return (
-              <div className="flex gap-1 flex-wrap justify-center">
+              <div className="flex gap-1 flex-wrap justify-center overflow-visible pt-2">
                 {myHand.map((tile, index) => {
                   const isValidFirst = validChowTiles.has(tile);
                   const isSelected = selectedChowTiles.includes(tile);
