@@ -1476,9 +1476,18 @@ export default function GamePage() {
               <Tile tileId={gameState.exposedGold} goldTileType={gameState.goldTileType} size="sm" />
             </div>
           )}
-          <div className="flex items-center gap-0.5 sm:gap-1">
-            <span className="text-slate-400 text-xs sm:text-lg">Wall</span>
-            <span className="font-mono text-white text-xs sm:text-base">{gameState.wall?.length ?? 0}</span>
+          <div className={`flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 py-0.5 rounded-md transition-colors ${
+            (gameState.wall?.length ?? 0) < 5 ? 'bg-red-500/30 animate-pulse' :
+            (gameState.wall?.length ?? 0) < 10 ? 'bg-yellow-500/20' : ''
+          }`}>
+            <span className={`text-xs sm:text-lg ${
+              (gameState.wall?.length ?? 0) < 5 ? 'text-red-400 font-semibold' :
+              (gameState.wall?.length ?? 0) < 10 ? 'text-yellow-400' : 'text-slate-400'
+            }`}>Wall</span>
+            <span className={`font-mono text-xs sm:text-base ${
+              (gameState.wall?.length ?? 0) < 5 ? 'text-red-300 font-bold' :
+              (gameState.wall?.length ?? 0) < 10 ? 'text-yellow-300 font-semibold' : 'text-white'
+            }`}>{gameState.wall?.length ?? 0}</span>
           </div>
         </div>
         {/* Phase indicator - right side */}

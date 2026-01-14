@@ -58,10 +58,9 @@
 
 ## Medium Priority
 
-- [ ] **Wall count warning colors** 🟢
-  - Make wall tile count more prominent when almost exhausted
-  - Yellow highlight when < 10 tiles left
-  - Red highlight when < 5 tiles left
+- [x] **Wall count warning colors** 🟢 ✅
+  - ~~Yellow highlight when < 10 tiles left~~ Yellow text + background
+  - ~~Red highlight when < 5 tiles left~~ Red text + pulsing background
   - Helps players anticipate draw game
 
 - [ ] **Dramatic win announcement** 🟡
