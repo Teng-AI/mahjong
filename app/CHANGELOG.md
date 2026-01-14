@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Arrow keys now work correctly in kong selection mode (was blocked by tile selection)
 - Space bar no longer confirms kong (only Enter does)
 - **Mobile chow/kong UX restored** - keyboard focus indicators (yellow ring, tile lift) hidden on touch devices
+- **Tile click precision** - lifted tiles now have proper z-index for correct click targeting
+- **Visual glitch in chow mode** - tile containers now have overflow-visible to prevent clipping artifacts
+- **Chow deselection logic** - clicking a selected tile now properly deselects it (was resetting to wrong tile)
 
 ### Added
 - **Turn Indicator** - Round table view showing N/E/S/W positions with player always at South
