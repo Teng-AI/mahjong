@@ -251,3 +251,6 @@
 - [x] `/docs-sync` and `/session-wrap` skills
 - [x] Lint cleanup
 - [x] Turn Indicator (N/E/S/W round table view showing current/previous actor)
+- [x] Full keyboard controls (customizable shortcuts for Draw, Win, Kong, Pung, Chow, Pass)
+- [x] Kong keyboard selection with unified button and arrow key navigation
+- [x] Chow keyboard selection (arrow keys, Space to select, Enter to confirm)

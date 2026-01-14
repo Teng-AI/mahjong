@@ -8,6 +8,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Full keyboard controls** for gameplay actions
+  - Customizable shortcuts for Draw, Win, Kong, Pung, Chow, Pass
+  - Arrow keys navigate tile selection during discard phase
+  - Number keys (1-9, 0) for quick tile selection
+  - Enter to confirm, Escape to cancel
+- **Kong keyboard selection** with unified button
+  - Single KONG button for all kong types (concealed & pung upgrade)
+  - Arrow keys navigate between multiple kong options
+  - Visual highlighting groups all 4 tiles when focused
+  - Enter to confirm selection
+- **Chow keyboard selection** for choosing which tiles to use
+  - Arrow keys navigate valid tiles, Space to select, Enter to confirm
+  - Green highlight for selected tiles, yellow for focused
+- Kong selection shortcuts documented in Settings modal
+
+### Changed
+- Consolidated all kong buttons into single unified KONG button
+- Settings modal now scrollable with max-height constraint
+
+### Fixed
+- Arrow keys now work correctly in kong selection mode (was blocked by tile selection)
+- Space bar no longer confirms kong (only Enter does)
+
+### Added
 - **Turn Indicator** - Round table view showing N/E/S/W positions with player always at South
   - Green box highlights current actor (whose turn it is)
   - Grey box shows previous discarder (who acted before)
