@@ -26,6 +26,18 @@ Sessions are organized by year-month, with individual session files named by dat
 
 ## Recent Sessions
 
+### 2026-01-12
+
+- **[Session 01](2026-01/2026-01-12_session-01.md)** - Turn Indicator & Layout Improvements
+  - Created TurnIndicator component with N/E/S/W compass positions
+  - Green box highlights current actor, grey box shows previous discarder
+  - Player always positioned at South (relative positioning)
+  - Reorganized desktop layout: Turn Indicator + context on left, Discard Pile on right
+  - Moved Game Log to bottom of page for better information hierarchy
+  - Fixed turn indicator logic to update correctly during playing and calling phases
+  - Added "Waiting for..." placeholder in action buttons area
+  - Fixed layout shifts by setting min-height on action buttons container
+
 ### 2026-01-11
 
 - **[Session 01](2026-01/2026-01-11_session-01.md)** - Test Coverage Expansion & Project Documentation
@@ -138,6 +150,6 @@ When documenting a new session:
 
 ---
 
-**Last updated**: 2026-01-11
+**Last updated**: 2026-01-12
 **MVP Status**: ✅ Complete - Fully playable game with all core features
-**Current Focus**: Test coverage, documentation, and feature refinement
+**Current Focus**: UX improvements, test coverage, and feature refinement

@@ -17,6 +17,15 @@ import { SeatIndex, TileId, TileType, CallAction, Room } from '@/types';
 // Debug logging - only enabled in development
 const DEBUG_GAME = process.env.NODE_ENV === 'development';
 
+// Check if device has touch capabilities (likely mobile)
+function useIsTouchDevice() {
+  const [isTouch] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  });
+  return isTouch;
+}
+
 // ============================================
 // TILE COMPONENT
 // ============================================
@@ -219,6 +228,7 @@ export default function GamePage() {
   const { shortcuts, setShortcut, resetToDefaults } = useKeyboardShortcuts();
   const [showSettings, setShowSettings] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const isTouchDevice = useIsTouchDevice();
 
   const [selectedTile, setSelectedTile] = useState<TileId | null>(null);
   const [processingAction, setProcessingAction] = useState(false);
@@ -1719,7 +1729,7 @@ export default function GamePage() {
                     key={meldIdx}
                     className={`flex gap-0.5 rounded px-1 transition-all ${
                       meld.isConcealed ? 'bg-pink-800/50' : 'bg-slate-800/50'
-                    } ${isMeldHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2 ring-offset-slate-700' : ''}`}
+                    } ${isMeldHighlighted && !isTouchDevice ? 'ring-4 ring-yellow-400 ring-offset-2 ring-offset-slate-700' : ''}`}
                   >
                     {meld.tiles.map((tile, i) => <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="sm" />)}
                     {meld.isConcealed && <span className="text-pink-300 text-[10px] ml-0.5 self-center">C</span>}
@@ -1766,7 +1776,8 @@ export default function GamePage() {
                       tileId={tile}
                       goldTileType={gameState.goldTileType}
                       size="lg"
-                      isFocused={isKongTile}
+                      isFocused={isKongTile && !isTouchDevice}
+                      isChowSelected={isKongTile && isTouchDevice}
                       disabled={!isKongTile}
                     />
                   );
@@ -1802,7 +1813,7 @@ export default function GamePage() {
                       onClick={canClick ? () => onChowTileClick(tile) : undefined}
                       isChowValid={selectedChowTiles.length === 0 ? isValidFirst : isValidSecond}
                       isChowSelected={isSelected}
-                      isFocused={isTileFocused}
+                      isFocused={isTileFocused && !isTouchDevice}
                       disabled={!canClick && !isSelected}
                     />
                   );
