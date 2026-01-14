@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useRoom } from '@/hooks/useRoom';
@@ -228,8 +228,29 @@ export default function GamePage() {
   const [selectedChowTiles, setSelectedChowTiles] = useState<TileId[]>([]);
   const [focusedChowTileIndex, setFocusedChowTileIndex] = useState(0);
 
-  // Kong: Pung upgrade selection mode
-  const [pungUpgradeMode, setPungUpgradeMode] = useState(false);
+
+  // Kong: Unified kong selection mode (for keyboard navigation)
+  const [kongSelectionMode, setKongSelectionMode] = useState(false);
+  const [focusedKongIndex, setFocusedKongIndex] = useState(0);
+
+  // Combined kong options for keyboard navigation
+  type KongOption =
+    | { type: 'concealed'; tileType: TileType }
+    | { type: 'upgrade'; meldIndex: number; tileFromHand: TileId; tileType: TileType };
+
+  const combinedKongOptions: KongOption[] = useMemo(() => {
+    const options: KongOption[] = [];
+    // Add concealed kong options
+    for (const tileType of concealedKongOptions) {
+      options.push({ type: 'concealed', tileType });
+    }
+    // Add pung upgrade options
+    for (const opt of pungUpgradeOptions) {
+      const tileType = getTileType(opt.tileFromHand);
+      options.push({ type: 'upgrade', meldIndex: opt.meldIndex, tileFromHand: opt.tileFromHand, tileType });
+    }
+    return options;
+  }, [concealedKongOptions, pungUpgradeOptions]);
 
   // Settlement modal
   const [showSettleModal, setShowSettleModal] = useState(false);
@@ -455,8 +476,8 @@ export default function GamePage() {
         return;
       }
 
-      // Tile selection with arrow keys (during discard phase)
-      if (isDiscardPhase && myHand.length > 0) {
+      // Tile selection with arrow keys (during discard phase, not in kong selection)
+      if (isDiscardPhase && myHand.length > 0 && !kongSelectionMode) {
         // Filter out gold tiles (can't be discarded)
         const discardableTiles = myHand.filter(tile =>
           !gameState?.goldTileType || !isGoldTile(tile, gameState.goldTileType)
@@ -559,6 +580,51 @@ export default function GamePage() {
         return; // Don't process other shortcuts during chow selection
       }
 
+      // Kong selection mode keyboard navigation
+      if (kongSelectionMode && isDiscardPhase) {
+        // Arrow keys to navigate through kong options
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          if (combinedKongOptions.length > 0) {
+            let newIndex: number;
+            if (e.key === 'ArrowRight') {
+              newIndex = focusedKongIndex < combinedKongOptions.length - 1 ? focusedKongIndex + 1 : 0;
+            } else {
+              newIndex = focusedKongIndex > 0 ? focusedKongIndex - 1 : combinedKongOptions.length - 1;
+            }
+            setFocusedKongIndex(newIndex);
+            playSound('tileSelect');
+          }
+          return;
+        }
+
+        // Enter to confirm the focused kong option
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const focusedOption = combinedKongOptions[focusedKongIndex];
+          if (focusedOption) {
+            executeKongOption(focusedOption);
+          }
+          return;
+        }
+
+        // Escape to cancel kong selection
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          onCancelKongSelection();
+          return;
+        }
+
+        return; // Don't process other shortcuts during kong selection
+      }
+
+      // K key to trigger kong during discard phase (your turn)
+      if (key === shortcuts.kong && isDiscardPhase && combinedKongOptions.length > 0 && !kongSelectionMode) {
+        e.preventDefault();
+        onKongKeyPress();
+        return;
+      }
+
       // Calling phase shortcuts
       if (!isCallingPhase || myPendingCall !== null || chowSelectionMode) return;
 
@@ -582,9 +648,9 @@ export default function GamePage() {
 
     window.addEventListener('keydown', handleKeyboardShortcut);
     return () => window.removeEventListener('keydown', handleKeyboardShortcut);
-    // onCallResponse, onChowClick, onChowTileClick, onCancelChow, onDraw, onDiscard, onDeclareWin are intentionally excluded - they're not memoized and would cause unnecessary re-registrations
+    // onCallResponse, onChowClick, onChowTileClick, onCancelChow, onDraw, onDiscard, onDeclareWin, onKongKeyPress, executeKongOption, onCancelKongSelection are intentionally excluded - they're not memoized and would cause unnecessary re-registrations
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCallingPhase, myPendingCall, chowSelectionMode, processingAction, shortcuts, myValidCalls, showSettings, gameState?.phase, gameState?.currentPlayerSeat, mySeat, shouldDraw, myHand, selectedTile, gameState?.goldTileType, selectedChowTiles, validChowTiles, focusedChowTileIndex, canWinNow]);
+  }, [isCallingPhase, myPendingCall, chowSelectionMode, processingAction, shortcuts, myValidCalls, showSettings, gameState?.phase, gameState?.currentPlayerSeat, mySeat, shouldDraw, myHand, selectedTile, gameState?.goldTileType, selectedChowTiles, validChowTiles, focusedChowTileIndex, canWinNow, kongSelectionMode, focusedKongIndex, combinedKongOptions]);
 
   // Phase 8: Cancel chow selection
   const onCancelChow = () => {
@@ -641,61 +707,6 @@ export default function GamePage() {
     }
   };
 
-  // Kong: Declare concealed kong (4 of a kind in hand)
-  const onConcealedKong = async (tileType: TileType) => {
-    if (processingAction) return;
-
-    setProcessingAction(true);
-    try {
-      const result = await handleConcealedKong(tileType);
-      if (result.success) {
-        playSound('pung'); // Use pung sound for kong
-      } else {
-        if (DEBUG_GAME) console.error('Concealed kong failed:', result.error);
-        setToastMessage(result.error || 'Failed to declare kong');
-      }
-    } catch (err) {
-      if (DEBUG_GAME) console.error('Concealed kong failed:', err);
-    } finally {
-      setProcessingAction(false);
-    }
-  };
-
-  // Kong: Enter pung upgrade selection mode
-  const onPungUpgradeClick = () => {
-    setPungUpgradeMode(true);
-  };
-
-  // Kong: Cancel pung upgrade selection
-  const onCancelPungUpgrade = () => {
-    setPungUpgradeMode(false);
-  };
-
-  // Kong: Confirm pung upgrade by clicking the tile
-  const onConfirmPungUpgrade = async (tile: TileId) => {
-    if (processingAction || pungUpgradeOptions.length === 0) return;
-
-    // Find the upgrade option that matches this tile
-    const option = pungUpgradeOptions.find(opt => opt.tileFromHand === tile);
-    if (!option) return;
-
-    setProcessingAction(true);
-    try {
-      const result = await handlePungUpgrade(option.meldIndex, option.tileFromHand);
-      if (result.success) {
-        playSound('pung'); // Use pung sound for kong
-        setPungUpgradeMode(false);
-      } else {
-        if (DEBUG_GAME) console.error('Pung upgrade failed:', result.error);
-        setToastMessage(result.error || 'Failed to upgrade to kong');
-      }
-    } catch (err) {
-      if (DEBUG_GAME) console.error('Pung upgrade failed:', err);
-    } finally {
-      setProcessingAction(false);
-    }
-  };
-
   // Reset chow selection when leaving calling phase
   useEffect(() => {
     if (!isCallingPhase) {
@@ -704,13 +715,64 @@ export default function GamePage() {
     }
   }, [isCallingPhase]);
 
-  // Reset pung upgrade mode when options disappear or turn changes
+  // Reset kong selection mode when options disappear or turn changes
   useEffect(() => {
     const isCurrentlyMyTurn = gameState?.currentPlayerSeat === mySeat;
-    if (pungUpgradeOptions.length === 0 || !isCurrentlyMyTurn || gameState?.phase !== 'playing') {
-      setPungUpgradeMode(false);
+    if (combinedKongOptions.length === 0 || !isCurrentlyMyTurn || gameState?.phase !== 'playing') {
+      setKongSelectionMode(false);
+      setFocusedKongIndex(0);
     }
-  }, [pungUpgradeOptions, gameState?.currentPlayerSeat, mySeat, gameState?.phase]);
+  }, [combinedKongOptions.length, gameState?.currentPlayerSeat, mySeat, gameState?.phase]);
+
+  // Kong: Enter kong selection mode or execute single option
+  const onKongKeyPress = () => {
+    if (combinedKongOptions.length === 0) return;
+
+    if (combinedKongOptions.length === 1) {
+      // Single option - execute immediately
+      executeKongOption(combinedKongOptions[0]);
+    } else {
+      // Multiple options - enter selection mode
+      setKongSelectionMode(true);
+      setFocusedKongIndex(0);
+    }
+  };
+
+  // Kong: Execute a specific kong option
+  const executeKongOption = async (option: KongOption) => {
+    if (processingAction) return;
+
+    setProcessingAction(true);
+    try {
+      if (option.type === 'concealed') {
+        const result = await handleConcealedKong(option.tileType);
+        if (result.success) {
+          playSound('pung');
+        } else {
+          setToastMessage(result.error || 'Failed to declare kong');
+        }
+      } else {
+        const result = await handlePungUpgrade(option.meldIndex, option.tileFromHand);
+        if (result.success) {
+          playSound('pung');
+        } else {
+          setToastMessage(result.error || 'Failed to upgrade to kong');
+        }
+      }
+      setKongSelectionMode(false);
+      setFocusedKongIndex(0);
+    } catch (err) {
+      if (DEBUG_GAME) console.error('Kong failed:', err);
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  // Kong: Cancel kong selection mode
+  const onCancelKongSelection = () => {
+    setKongSelectionMode(false);
+    setFocusedKongIndex(0);
+  };
 
   // Play sound and show indicator when it becomes my turn
   const prevTurnRef = useRef<SeatIndex | null>(null);
@@ -1647,12 +1709,23 @@ export default function GamePage() {
           {(gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds] || []).length > 0 && (
             <div className="flex flex-wrap items-center gap-1">
               <span className="text-slate-500 text-xs sm:text-base">Melds:</span>
-              {(gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds] || []).map((meld, meldIdx) => (
-                <div key={meldIdx} className={`flex gap-0.5 rounded px-1 ${meld.isConcealed ? 'bg-pink-800/50' : 'bg-slate-800/50'}`}>
-                  {meld.tiles.map((tile, i) => <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="sm" />)}
-                  {meld.isConcealed && <span className="text-pink-300 text-[10px] ml-0.5 self-center">C</span>}
-                </div>
-              ))}
+              {(gameState.exposedMelds?.[`seat${mySeat}` as keyof typeof gameState.exposedMelds] || []).map((meld, meldIdx) => {
+                // Check if this meld should be highlighted for kong selection
+                const focusedKongOption = kongSelectionMode ? combinedKongOptions[focusedKongIndex] : null;
+                const isMeldHighlighted = focusedKongOption?.type === 'upgrade' && focusedKongOption.meldIndex === meldIdx;
+
+                return (
+                  <div
+                    key={meldIdx}
+                    className={`flex gap-0.5 rounded px-1 transition-all ${
+                      meld.isConcealed ? 'bg-pink-800/50' : 'bg-slate-800/50'
+                    } ${isMeldHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2 ring-offset-slate-700' : ''}`}
+                  >
+                    {meld.tiles.map((tile, i) => <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="sm" />)}
+                    {meld.isConcealed && <span className="text-pink-300 text-[10px] ml-0.5 self-center">C</span>}
+                  </div>
+                );
+              })}
             </div>
           )}
           {/* Bonus inline */}
@@ -1669,7 +1742,39 @@ export default function GamePage() {
         </div>
 
         {/* Hand tiles */}
-        {chowSelectionMode ? (
+        {kongSelectionMode ? (
+          // Kong selection mode - show tiles with kong highlighting
+          (() => {
+            const focusedOption = combinedKongOptions[focusedKongIndex];
+            const focusedTileType = focusedOption?.tileType;
+
+            return (
+              <div className="flex gap-1 flex-wrap justify-center">
+                {myHand.map((tile, index) => {
+                  const tileType = getTileType(tile);
+                  // For concealed kong: highlight all 4 tiles of that type
+                  // For upgrade: highlight just the single tile from hand
+                  const isKongTile = focusedOption?.type === 'concealed'
+                    ? tileType === focusedTileType
+                    : focusedOption?.type === 'upgrade'
+                      ? tile === focusedOption.tileFromHand
+                      : false;
+
+                  return (
+                    <Tile
+                      key={`${tile}-${index}`}
+                      tileId={tile}
+                      goldTileType={gameState.goldTileType}
+                      size="lg"
+                      isFocused={isKongTile}
+                      disabled={!isKongTile}
+                    />
+                  );
+                })}
+              </div>
+            );
+          })()
+        ) : chowSelectionMode ? (
           // Chow selection mode - show tiles with chow highlighting
           (() => {
             // Calculate which tile is focused for keyboard navigation
@@ -1705,25 +1810,6 @@ export default function GamePage() {
               </div>
             );
           })()
-        ) : pungUpgradeMode && pungUpgradeOptions.length > 0 ? (
-          // Pung upgrade selection mode - highlight ALL tiles that can be used for upgrades
-          <div className="flex gap-1 flex-wrap justify-center">
-            {myHand.map((tile, index) => {
-              const isUpgradeTile = pungUpgradeOptions.some(opt => opt.tileFromHand === tile);
-              return (
-                <Tile
-                  key={`${tile}-${index}`}
-                  tileId={tile}
-                  goldTileType={gameState.goldTileType}
-                  size="lg"
-                  onClick={isUpgradeTile ? () => onConfirmPungUpgrade(tile) : undefined}
-                  isChowValid={isUpgradeTile}
-                  isChowSelected={isUpgradeTile}
-                  disabled={!isUpgradeTile}
-                />
-              );
-            })}
-          </div>
         ) : (
           // Normal mode
           <Hand
@@ -1837,40 +1923,34 @@ export default function GamePage() {
             </button>
           )}
 
-          {/* Kong buttons during playing phase (after drawing) */}
-          {gameState.phase === 'playing' && isMyTurn && !shouldDraw && (
+          {/* Kong button during playing phase (after drawing) - single unified button */}
+          {gameState.phase === 'playing' && isMyTurn && !shouldDraw && !kongSelectionMode && combinedKongOptions.length > 0 && (
+            <button
+              onClick={onKongKeyPress}
+              disabled={processingAction}
+              className="px-4 sm:px-6 py-2 sm:py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
+            >
+              KONG <span className="text-xs opacity-60 ml-1">({shortcuts.kong})</span>
+            </button>
+          )}
+
+          {/* Kong selection mode buttons */}
+          {gameState.phase === 'playing' && isMyTurn && !shouldDraw && kongSelectionMode && (
             <>
-              {/* Concealed Kong button - show if player has 4 of a kind */}
-              {concealedKongOptions.length > 0 && concealedKongOptions.map((tileType) => (
-                <button
-                  key={`kong-${tileType}`}
-                  onClick={() => onConcealedKong(tileType)}
-                  disabled={processingAction}
-                  className="px-4 sm:px-6 py-2 sm:py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
-                >
-                  KONG ({getTileDisplayText(tileType)})
-                </button>
-              ))}
-              {/* Pung upgrade button - show if player can upgrade a pung to kong */}
-              {pungUpgradeOptions.length > 0 && !pungUpgradeMode && (
-                <button
-                  onClick={onPungUpgradeClick}
-                  disabled={processingAction}
-                  className="px-4 sm:px-6 py-2 sm:py-3 bg-pink-600 hover:bg-pink-500 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
-                >
-                  KONG
-                </button>
-              )}
-              {/* Pung upgrade selection mode - cancel button (click tile to confirm) */}
-              {pungUpgradeMode && pungUpgradeOptions.length > 0 && (
-                <button
-                  onClick={onCancelPungUpgrade}
-                  disabled={processingAction}
-                  className="px-4 sm:px-6 py-2 sm:py-3 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-lg text-sm sm:text-base"
-                >
-                  Cancel
-                </button>
-              )}
+              <button
+                onClick={onCancelKongSelection}
+                disabled={processingAction}
+                className="px-4 sm:px-6 py-2 sm:py-3 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-lg text-sm sm:text-base"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => executeKongOption(combinedKongOptions[focusedKongIndex])}
+                disabled={processingAction}
+                className="px-4 sm:px-6 py-2 sm:py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
+              >
+                Confirm Kong ({focusedKongIndex + 1}/{combinedKongOptions.length})
+              </button>
             </>
           )}
 
@@ -2318,34 +2398,34 @@ export default function GamePage() {
                 </button>
               )}
 
-              {/* Kong buttons */}
-              {!shouldDraw && concealedKongOptions.length > 0 && concealedKongOptions.map((tileType) => (
+              {/* Kong button - unified */}
+              {!shouldDraw && !kongSelectionMode && combinedKongOptions.length > 0 && (
                 <button
-                  key={`mobile-kong-${tileType}`}
-                  onClick={() => onConcealedKong(tileType)}
+                  onClick={onKongKeyPress}
                   disabled={processingAction}
                   className="flex-1 py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
                 >
                   KONG
                 </button>
-              ))}
-              {!shouldDraw && pungUpgradeOptions.length > 0 && !pungUpgradeMode && (
-                <button
-                  onClick={onPungUpgradeClick}
-                  disabled={processingAction}
-                  className="flex-1 py-3 bg-pink-600 hover:bg-pink-500 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
-                >
-                  KONG
-                </button>
               )}
-              {pungUpgradeMode && (
-                <button
-                  onClick={onCancelPungUpgrade}
-                  disabled={processingAction}
-                  className="flex-1 py-3 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-lg text-sm"
-                >
-                  Cancel
-                </button>
+              {/* Kong selection mode */}
+              {!shouldDraw && kongSelectionMode && (
+                <>
+                  <button
+                    onClick={onCancelKongSelection}
+                    disabled={processingAction}
+                    className="py-3 px-4 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-lg text-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => executeKongOption(combinedKongOptions[focusedKongIndex])}
+                    disabled={processingAction}
+                    className="flex-1 py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
+                  >
+                    Confirm Kong ({focusedKongIndex + 1}/{combinedKongOptions.length})
+                  </button>
+                </>
               )}
 
               {/* Draw button */}
@@ -2360,7 +2440,7 @@ export default function GamePage() {
               )}
 
               {/* Discard button */}
-              {!shouldDraw && !pungUpgradeMode && (
+              {!shouldDraw && !kongSelectionMode && (
                 <button
                   onClick={onDiscard}
                   disabled={processingAction || !selectedTile}

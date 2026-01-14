@@ -274,6 +274,27 @@ export function SettingsModal({
                 </div>
               </div>
             </div>
+
+            {/* Kong selection shortcuts */}
+            <div className="mt-4 pt-4 border-t border-slate-700">
+              <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+                Kong Selection (Multiple Options)
+              </h4>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between text-slate-400">
+                  <span>Navigate options</span>
+                  <span className="font-mono text-slate-300">← →</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>Confirm kong</span>
+                  <span className="font-mono text-slate-300">Space / Enter</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>Cancel</span>
+                  <span className="font-mono text-slate-300">Esc</span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

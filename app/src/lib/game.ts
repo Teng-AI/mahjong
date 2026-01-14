@@ -195,41 +195,51 @@ export async function initializeGame(roomCode: string, dealerSeat: SeatIndex): P
       }
     }
   } else if (TEST_KONG_MODE) {
-    // TEST MODE: Set up hands for testing concealed Kong
-    // Each player gets exactly ONE concealed kong (4 identical tiles)
-    // Remaining tiles are scattered to avoid instant wins
-    // Dealer: 4 + 13 = 17, Others: 4 + 12 = 16
+    // TEST MODE: Set up hands for testing Kong keyboard selection
+    // Dealer gets: 2 concealed kongs (8 tiles) + triple (3 tiles) + scattered (6 tiles) = 17 tiles
+    // Seat 1 has the 4th tile of dealer's triple (will discard it so dealer can pung then upgrade)
 
     const dealerHand: TileId[] = [
-      'dots_1_0', 'dots_1_1', 'dots_1_2', 'dots_1_3', // kong
-      'bamboo_1_0', 'bamboo_4_0', 'bamboo_7_0',
-      'characters_2_0', 'characters_5_0', 'characters_9_0',
-      'dots_3_0', 'dots_5_0', 'dots_8_0',
-      'wind_east_0', 'wind_south_0', 'wind_west_0', 'wind_north_0',
+      // Concealed Kong #1: 4x dots_1
+      'dots_1_0', 'dots_1_1', 'dots_1_2', 'dots_1_3',
+      // Concealed Kong #2: 4x bamboo_5
+      'bamboo_5_0', 'bamboo_5_1', 'bamboo_5_2', 'bamboo_5_3',
+      // Triple (for pung->upgrade): 3x characters_3 (seat1 has the 4th)
+      'characters_3_0', 'characters_3_1', 'characters_3_2',
+      // Scattered tiles (6 tiles to reach 17)
+      'dots_4_0', 'dots_7_0', 'bamboo_2_0', 'characters_8_0', 'wind_east_0', 'wind_south_0',
     ];
 
     const seat1Hand: TileId[] = [
-      'bamboo_2_0', 'bamboo_2_1', 'bamboo_2_2', 'bamboo_2_3', // kong
-      'dots_2_0', 'dots_4_0', 'dots_6_0', 'dots_9_0',
-      'characters_1_0', 'characters_3_0', 'characters_6_0', 'characters_8_0',
-      'bamboo_5_0', 'bamboo_8_0',
-      'dragon_red_0', 'dragon_green_0',
+      // Give seat1 pairs and sequences so they KEEP everything except characters_3_3
+      // 4 PAIRS (valuable - bot keeps)
+      'dots_2_0', 'dots_2_2',
+      'bamboo_7_0', 'bamboo_7_2',
+      'bamboo_9_0', 'bamboo_9_2',
+      'wind_north_0', 'wind_north_2',
+      // SEQUENCE POTENTIAL (valuable)
+      'dots_5_0', 'dots_6_2', 'dots_8_0', // 5,6,8 shape
+      'bamboo_1_0', 'bamboo_3_0',         // 1,3 waiting for 2
+      // ANOTHER PAIR
+      'dragon_red_0', 'dragon_red_2',
+      // ISOLATED - bot will discard this (only char tile, no pair, no sequence)
+      'characters_3_3',
     ];
 
     const seat2Hand: TileId[] = [
-      'characters_7_0', 'characters_7_1', 'characters_7_2', 'characters_7_3', // kong
-      'dots_2_1', 'dots_4_1', 'dots_7_0', 'dots_9_1',
-      'bamboo_1_1', 'bamboo_3_0', 'bamboo_6_0', 'bamboo_9_0',
-      'characters_1_1', 'characters_4_0',
-      'wind_east_1', 'wind_south_1',
+      // Scattered tiles (16 tiles)
+      'dots_2_1', 'dots_3_1', 'dots_5_1', 'dots_6_0',
+      'bamboo_1_1', 'bamboo_2_1', 'bamboo_4_0', 'bamboo_8_0',
+      'characters_1_1', 'characters_2_0', 'characters_4_0', 'characters_6_0',
+      'wind_east_1', 'wind_south_1', 'wind_west_1', 'wind_north_1',
     ];
 
     const seat3Hand: TileId[] = [
-      'dots_6_1', 'dots_6_2', 'dots_6_3', 'dots_6_0', // kong
-      'bamboo_1_2', 'bamboo_3_1', 'bamboo_5_1', 'bamboo_7_1',
-      'characters_2_1', 'characters_5_1', 'characters_8_1', 'characters_9_1',
-      'dots_7_1', 'dots_8_1',
-      'wind_west_1', 'wind_north_1',
+      // Scattered tiles (16 tiles)
+      'dots_6_1', 'dots_8_1', 'dots_9_0', 'dots_9_1',
+      'bamboo_3_1', 'bamboo_4_1', 'bamboo_6_0', 'bamboo_6_1',
+      'characters_2_1', 'characters_4_1', 'characters_6_1', 'characters_8_1',
+      'dragon_green_0', 'dragon_white_0', 'dragon_red_1', 'dragon_green_1',
     ];
 
     // Remove test tiles from shuffled deck
