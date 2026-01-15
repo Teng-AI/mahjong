@@ -1776,10 +1776,10 @@ export async function declareSelfDrawWin(
   const bonusCount = bonusTiles.length;
   const subtotal = base + bonusCount + goldCount + concealedKongBonus + exposedKongBonus + dealerStreakBonus;
 
-  // Check for All One Suit bonus (doesn't stack with self-draw multiplier)
+  // Check for All One Suit bonus
   const isFlush = isAllOneSuit(hand, exposedMelds, gameState.goldTileType);
   const allOneSuitBonus = isFlush ? 60 : 0;
-  const multiplier = isFlush ? 1 : 2; // Self-draw multiplier (disabled if All One Suit)
+  const multiplier = 2; // Self-draw multiplier (stacks with All One Suit)
 
   // Special bonuses (added after multiplier)
   const goldenPairBonus = hasGoldenPair(hand, gameState.goldTileType, exposedMeldCount) ? 30 : 0;
@@ -1922,9 +1922,8 @@ export async function declareDiscardWin(
   const base = 1;
   const bonusCount = bonusTiles.length;
   const subtotal = base + bonusCount + goldCount + concealedKongBonus + exposedKongBonus + dealerStreakBonus;
-  const multiplier = 1; // Discard win (no self-draw multiplier)
 
-  // Special bonuses (added after multiplier)
+  // Special bonuses (calculated first to determine multiplier)
   const goldenPairBonus = hasGoldenPair(fullHand, gameState.goldTileType, exposedMeldCount) ? 30 : 0;
   // No Bonus/Kong: +10 for no bonus tiles AND no kongs
   const hasNoKongs = kongBonuses.concealed === 0 && kongBonuses.exposed === 0;
@@ -1932,6 +1931,10 @@ export async function declareDiscardWin(
   // All One Suit bonus
   const isFlush = isAllOneSuit(fullHand, exposedMelds, gameState.goldTileType);
   const allOneSuitBonus = isFlush ? 60 : 0;
+
+  // Special bonuses trigger ×2 multiplier even on discard wins
+  const hasSpecialBonus = goldenPairBonus > 0 || noBonusBonus > 0 || allOneSuitBonus > 0;
+  const multiplier = hasSpecialBonus ? 2 : 1;
 
   const total = (subtotal * multiplier) + goldenPairBonus + noBonusBonus + allOneSuitBonus;
 

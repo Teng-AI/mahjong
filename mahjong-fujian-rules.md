@@ -113,8 +113,7 @@ When a tile is discarded, other players may call it:
 | Action | Priority | Requirement |
 |--------|----------|-------------|
 | **Win (胡)** | Highest | Completes your hand |
-| **Kong (杠)** | High | Have 3 matching tiles |
-| **Pung (碰)** | Medium | Have 2 matching tiles |
+| **Pung (碰) / Kong (杠)** | High | Have 2 or 3 matching tiles |
 | **Chow (吃)** | Lowest | Have 2 sequential tiles |
 
 **Priority tie-breaker**: If multiple players call the same priority, the player **closest to the discarder** (counter-clockwise) wins. Other callers get nothing.
@@ -175,7 +174,7 @@ Total = Non-Special Points + Special Hand Bonuses
 
 ### Special Hand Bonuses
 
-Added after the self-draw multiplier (not multiplied):
+Special bonuses are added **after** the multiplier is applied. However, having ANY special bonus automatically triggers the ×2 multiplier (even on discard wins).
 
 | Hand | Points | Condition |
 |------|--------|-----------|
@@ -183,18 +182,21 @@ Added after the self-draw multiplier (not multiplied):
 | **Three Golds (三金)** | +20 | Instant win with all 3 Golds |
 | **Robbing the Gold (抢金)** | +20 | Win by claiming the revealed Gold tile |
 | **Golden Pair (金对)** | +30 | Pair is 2 Gold tiles |
+| **All One Suit (清一色)** | +60 | All tiles in hand are same suit (excluding Golds) |
 
 **Notes**:
 - You can have Gold tiles and still qualify for "No Bonus/Kong"
 - Special bonuses can stack (e.g., Golden Pair + No Bonus/Kong = +40)
 - Three Golds still counts +3 for the Golds in hand (total: 20 + 3 = 23 minimum)
+- All special bonuses trigger the ×2 multiplier, even on discard wins
 
 ### Payment
 
 **All 3 losers pay the winner** the total amount (regardless of who discarded the winning tile).
 
-### Example
+### Examples
 
+**Example 1: Self-draw with Golden Pair**
 ```
 Hand: 5 sets + 1 pair (Golden Pair)
 Bonus tiles: 3 (wind_east, wind_south, dragon_red)
@@ -203,9 +205,37 @@ Kongs: 0
 Self-draw: Yes
 
 Non-Special: 1 (base) + 3 (bonus) + 2 (golds) = 6
-Self-draw:   6 × 2 = 12
+Multiplier:  6 × 2 = 12 (self-draw)
 Golden Pair: +30
 Total:       42 points (each loser pays 42)
+```
+
+**Example 2: Discard win with special bonus**
+```
+Hand: 5 sets + 1 pair (Golden Pair)
+Bonus tiles: 2 (wind_east, wind_south)
+Golds in hand: 2 (used as pair)
+Kongs: 0
+Self-draw: No (won from discard)
+
+Non-Special: 1 (base) + 2 (bonus) + 2 (golds) = 5
+Multiplier:  5 × 2 = 10 (special bonus triggers ×2)
+Golden Pair: +30
+Total:       40 points (each loser pays 40)
+```
+
+**Example 3: All One Suit flush**
+```
+Hand: All bamboo tiles (5 sets + 1 pair)
+Bonus tiles: 1 (wind_north)
+Golds in hand: 1 (substituting in a set)
+Kongs: 1 concealed
+Self-draw: No
+
+Non-Special: 1 (base) + 1 (bonus) + 1 (gold) + 2 (concealed kong) = 5
+Multiplier:  5 × 2 = 10 (All One Suit triggers ×2)
+All One Suit: +60
+Total:       70 points (each loser pays 70)
 ```
 
 ---
@@ -223,9 +253,9 @@ Total:       42 points (each loser pays 42)
 - Draw game (wall exhausted) → dealer stays
 
 ### Draw Game (流局)
-- Game is a draw when **all tiles are completely drawn** from the wall
-- No dead wall - play continues until the wall is empty
-- **Exception**: If the last tile drawn completes a hand, that player wins
+- Game is a draw when **all drawable tiles are exhausted** from the wall
+- **Dead wall**: 16 tiles are reserved and never drawn (per Fujian tradition)
+- **Exception**: If the last drawable tile completes a hand, that player wins
 - **Exception**: If the last tile is a bonus tile (no replacement available), it's a draw
 - No points exchanged on draw
 - Dealer remains the same
@@ -238,7 +268,7 @@ Total:       42 points (each loser pays 42)
 - Suit tiles: 108 (playable)
 - Bonus tiles: 20 (winds + dragons)
 - Gold tiles: 3 in play (1 exposed)
-- No dead wall (play until wall is empty)
+- Dead wall: 16 tiles reserved (not drawable)
 
 ### Win Requirements
 - Standard: 5 sets + 1 pair
@@ -269,9 +299,9 @@ Gold:    Determined at game start (3 copies in play)
 - Gold tile type (which tile is wild, always a suit tile)
 - Exposed Gold tile (visible, not in play)
 - Each player: concealed tiles, exposed melds, bonus tiles, Gold count
-- Wall: single draw position (no dead wall)
+- Wall: single draw position with 16-tile dead wall
 - Current dealer
-- Seating order: fixed counter-clockwise (East → South → West → North)
+- Seating order: fixed counter-clockwise (South → East → North → West from player's view)
 
 ### Win Checks (in order)
 1. **Three Golds**: Player has 3 Gold tiles → instant win
@@ -282,10 +312,7 @@ Gold:    Determined at game start (3 copies in play)
 ```
 non_special = 1 + bonus_tiles + golds_in_hand + (concealed_kongs × 2) + (exposed_kongs × 1) + dealer_streak_bonus
 
-# Self-draw, Three Golds, and Robbing the Gold count as self-draw
-if self_draw or three_golds or robbing_gold:
-    non_special = non_special × 2
-
+# Calculate special bonuses first
 special = 0
 if no_bonus_tiles and no_kongs:
     special += 10
@@ -295,6 +322,12 @@ if three_golds:
     special += 20  # also gets +3 from golds_in_hand
 if robbing_gold:
     special += 20
+if all_one_suit:
+    special += 60
+
+# ×2 multiplier applies if self-draw OR any special bonus
+if self_draw or three_golds or robbing_gold or special > 0:
+    non_special = non_special × 2
 
 total = non_special + special
 payment = total × 3  # from all losers
