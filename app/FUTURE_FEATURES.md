@@ -254,3 +254,6 @@
 - [x] Full keyboard controls (customizable shortcuts for Draw, Win, Kong, Pung, Chow, Pass)
 - [x] Kong keyboard selection with unified button and arrow key navigation
 - [x] Chow keyboard selection (arrow keys, Space to select, Enter to confirm)
+- [x] Comprehensive rules modal rewrite with all game nuances
+- [x] Scoring fix: special bonuses trigger ×2 multiplier on discard wins
+- [x] Rules documentation sync (`mahjong-fujian-rules.md`)

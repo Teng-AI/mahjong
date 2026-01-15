@@ -34,6 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tile click precision** - lifted tiles now have proper z-index for correct click targeting
 - **Visual glitch in chow mode** - tile containers now have overflow-visible to prevent clipping artifacts
 - **Chow deselection logic** - clicking a selected tile now properly deselects it (was resetting to wrong tile)
+- **Scoring: special bonuses now trigger ×2 multiplier** even on discard wins (Golden Pair, No Bonus/Kong, All One Suit)
+
+### Changed
+- **Comprehensive rules modal rewrite** with all game rules, scoring examples, and special bonuses
+- Rules modal color scheme simplified (amber headers, emerald points, slate body text)
+- Added All One Suit (+60), Robbing the Gold (+20) to rules modal
 
 ### Added
 - **Turn Indicator** - Round table view showing N/E/S/W positions with player always at South
