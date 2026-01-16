@@ -47,6 +47,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Visual glitch in chow mode** - tile containers now have overflow-visible to prevent clipping artifacts
 - **Chow deselection logic** - clicking a selected tile now properly deselects it (was resetting to wrong tile)
 - **Scoring: special bonuses now trigger ×2 multiplier** even on discard wins (Golden Pair, No Bonus/Kong, All One Suit)
+- **Mobile bottom bar call status** - now hides until player makes a choice (was showing prematurely)
+- **Turn timer default** - changed from 60s to 30s for faster games
+- **Mobile header overflow** - shortened text ("Draw a tile" → "Draw") and tightened spacing
 
 ### Changed
 - **Comprehensive rules modal rewrite** with all game rules, scoring examples, and special bonuses
