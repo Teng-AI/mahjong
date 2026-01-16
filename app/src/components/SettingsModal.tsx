@@ -14,6 +14,10 @@ interface SettingsModalProps {
   toggleSound: () => void;
   volume: number;
   setVolume: (volume: number) => void;
+  // Timer settings (host only)
+  isHost?: boolean;
+  callingTimerSeconds?: number | null;
+  setCallingTimerSeconds?: (seconds: number | null) => Promise<void>;
 }
 
 // Check if device has touch capabilities (likely mobile)
@@ -47,10 +51,67 @@ export function SettingsModal({
   toggleSound,
   volume,
   setVolume,
+  isHost,
+  callingTimerSeconds,
+  setCallingTimerSeconds,
 }: SettingsModalProps) {
   const [recordingFor, setRecordingFor] = useState<keyof KeyboardShortcuts | null>(null);
   const [error, setError] = useState<string | null>(null);
   const isTouchDevice = useIsTouchDevice();
+
+  // Timer input state (local until blur)
+  const [timerInputValue, setTimerInputValue] = useState<string>(
+    callingTimerSeconds !== null && callingTimerSeconds !== undefined
+      ? String(callingTimerSeconds)
+      : ''
+  );
+  const [timerEnabled, setTimerEnabled] = useState(
+    callingTimerSeconds !== null && callingTimerSeconds !== undefined
+  );
+
+  // Sync local timer state when prop changes
+  useEffect(() => {
+    const hasTimer = callingTimerSeconds !== null && callingTimerSeconds !== undefined;
+    setTimerEnabled(hasTimer);
+    setTimerInputValue(hasTimer ? String(callingTimerSeconds) : '30');
+  }, [callingTimerSeconds]);
+
+  // Handle timer toggle
+  const handleTimerToggle = async () => {
+    if (!setCallingTimerSeconds) return;
+    if (timerEnabled) {
+      await setCallingTimerSeconds(null);
+      setTimerEnabled(false);
+    } else {
+      const defaultSeconds = 30;
+      await setCallingTimerSeconds(defaultSeconds);
+      setTimerEnabled(true);
+      setTimerInputValue(String(defaultSeconds));
+    }
+  };
+
+  // Handle timer slider change
+  const handleTimerSliderChange = async (value: number) => {
+    if (!setCallingTimerSeconds) return;
+    setTimerInputValue(String(value));
+    await setCallingTimerSeconds(value);
+  };
+
+  // Handle timer input blur (validate and save)
+  const handleTimerInputBlur = async () => {
+    if (!setCallingTimerSeconds) return;
+    const parsed = parseInt(timerInputValue, 10);
+    if (isNaN(parsed) || parsed < 10) {
+      setTimerInputValue('10');
+      await setCallingTimerSeconds(10);
+    } else if (parsed > 120) {
+      setTimerInputValue('120');
+      await setCallingTimerSeconds(120);
+    } else {
+      setTimerInputValue(String(parsed));
+      await setCallingTimerSeconds(parsed);
+    }
+  };
 
   // Handle key capture when recording
   const handleKeyCapture = useCallback((e: KeyboardEvent) => {
@@ -174,6 +235,63 @@ export function SettingsModal({
             )}
           </div>
         </div>
+
+        {/* Timer Settings Section - Host only */}
+        {isHost && setCallingTimerSeconds && (
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wide mb-3">
+              Calling Timer
+            </h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-300">Enable Timer</span>
+                <button
+                  onClick={handleTimerToggle}
+                  className={`w-12 h-7 rounded-full transition-colors ${
+                    timerEnabled ? 'bg-emerald-500' : 'bg-slate-600'
+                  }`}
+                >
+                  <div
+                    className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                      timerEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+              {timerEnabled && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-300">Duration</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min="10"
+                        max="120"
+                        step="5"
+                        value={parseInt(timerInputValue) || 30}
+                        onChange={(e) => handleTimerSliderChange(parseInt(e.target.value))}
+                        className="w-24 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                      />
+                      <input
+                        type="number"
+                        min="10"
+                        max="120"
+                        value={timerInputValue}
+                        onChange={(e) => setTimerInputValue(e.target.value)}
+                        onBlur={handleTimerInputBlur}
+                        className="w-16 px-2 py-1 text-sm text-center bg-slate-700 border border-slate-600 rounded text-white"
+                      />
+                      <span className="text-slate-400 text-sm">sec</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Players who don&apos;t respond within the timer will auto-pass.
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Keyboard Shortcuts Section - Hidden on touch devices */}
         {!isTouchDevice && (

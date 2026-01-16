@@ -68,8 +68,8 @@ export interface PlayerState {
 /** Possible call actions */
 export type CallAction = 'win' | 'kong' | 'pung' | 'chow' | 'pass';
 
-/** Call state for a player */
-export type PendingCall = CallAction | 'discarder' | null;
+/** Call state for a player ('waiting' = hasn't responded yet) */
+export type PendingCall = CallAction | 'discarder' | 'waiting';
 
 /** All pending calls during calling phase */
 export interface PendingCalls {
@@ -180,6 +180,12 @@ export interface GameState {
   };
   pendingCalls: PendingCalls | null;
   pendingChowOption?: ChowOption; // Temporarily stores chosen chow option during calling
+  /** Unique ID for current calling phase (incremented each phase, detects stale data) */
+  callingPhaseId?: number;
+  /** Server timestamp when calling phase started (for timer calculation) */
+  callingPhaseStartTime?: number;
+  /** Timer seconds for this calling phase (null = no timer, copied from room settings) */
+  callingTimerSeconds?: number | null;
   winner: WinnerInfo | null;
   actionLog: string[];
 }
@@ -199,6 +205,8 @@ export type RoomStatus = 'waiting' | 'playing' | 'ended';
 /** Room settings */
 export interface RoomSettings {
   dealerSeat: SeatIndex;
+  /** Calling phase timer in seconds (null = no timer, 10-120 valid range) */
+  callingTimerSeconds?: number | null;
 }
 
 /** Room data structure */

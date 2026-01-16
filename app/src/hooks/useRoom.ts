@@ -8,6 +8,7 @@ import {
   updatePlayerConnection,
   updatePlayerName,
   setDealer,
+  setCallingTimer,
   updateRoomStatus,
   getPlayerCount,
   isRoomFull,
@@ -30,10 +31,12 @@ interface UseRoomReturn {
   isHost: boolean;
   playerCount: number;
   isFull: boolean;
+  callingTimerSeconds: number | null;
   join: (name: string) => Promise<void>;
   leave: () => Promise<void>;
   updateName: (name: string) => Promise<void>;
   setDealerSeat: (seat: SeatIndex) => Promise<void>;
+  setCallingTimerSeconds: (seconds: number | null) => Promise<void>;
   startGame: () => Promise<void>;
   kickPlayer: (seat: SeatIndex) => Promise<void>;
 }
@@ -179,6 +182,18 @@ export function useRoom({
     [roomCode]
   );
 
+  const setCallingTimerSeconds = useCallback(
+    async (seconds: number | null) => {
+      try {
+        await setCallingTimer(roomCode, seconds);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to set timer');
+        throw err;
+      }
+    },
+    [roomCode]
+  );
+
   const startGame = useCallback(async () => {
     try {
       await updateRoomStatus(roomCode, 'playing');
@@ -208,10 +223,12 @@ export function useRoom({
     isHost: room && userId ? checkIsHost(room, userId) : false,
     playerCount: room ? getPlayerCount(room) : 0,
     isFull: room ? isRoomFull(room) : false,
+    callingTimerSeconds: room?.settings?.callingTimerSeconds ?? null,
     join,
     leave,
     updateName,
     setDealerSeat,
+    setCallingTimerSeconds,
     startGame,
     kickPlayer,
   };

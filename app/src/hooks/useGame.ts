@@ -15,6 +15,7 @@ import {
   submitCallResponse,
   declareConcealedKong,
   upgradePungToKong,
+  autoPassExpiredTimer,
 } from '@/lib/game';
 import {
   getValidCalls,
@@ -46,11 +47,16 @@ interface UseGameReturn {
   handleDiscardWin: () => Promise<{ success: boolean; error?: string }>;
   // Phase 8: Calling system
   isCallingPhase: boolean;
-  myPendingCall: PendingCall;
+  myPendingCall: PendingCall | null;
   myValidCalls: ValidCalls | null;
   validChowTiles: Map<TileId, TileId[]>;
   isNextInTurn: boolean;
   handleCallResponse: (action: CallAction, chowTiles?: [TileId, TileId]) => Promise<{ success: boolean; error?: string }>;
+  // Calling phase timer
+  callingPhaseId: number | undefined;
+  callingPhaseStartTime: number | undefined;
+  callingTimerSeconds: number | null | undefined;
+  handleAutoPass: (expectedPhaseId: number) => Promise<{ success: boolean; error?: string }>;
   // Kong declarations
   concealedKongOptions: TileType[];
   pungUpgradeOptions: { meldIndex: number; tileFromHand: TileId }[];
@@ -261,13 +267,35 @@ export function useGame({ roomCode, mySeat }: UseGameOptions): UseGameReturn {
   const isCallingPhase = gameState?.phase === 'calling';
 
   // Phase 8: Get my pending call status
-  const myPendingCall: PendingCall = useMemo(() => {
+  // Returns null when not in calling phase, 'waiting' when waiting to respond, or the response
+  const myPendingCall: PendingCall | null = useMemo(() => {
     if (!gameState || mySeat === null || !gameState.pendingCalls) {
       return null;
     }
-    // Firebase doesn't store null values, so undefined means no response yet
+    // 'waiting' is the sentinel value for "hasn't responded yet"
     return gameState.pendingCalls[`seat${mySeat}` as keyof typeof gameState.pendingCalls] ?? null;
   }, [gameState, mySeat]);
+
+  // Calling phase timer fields
+  const callingPhaseId = gameState?.callingPhaseId;
+  const callingPhaseStartTime = gameState?.callingPhaseStartTime;
+  const callingTimerSeconds = gameState?.callingTimerSeconds;
+
+  // Auto-pass when timer expires
+  const handleAutoPass = useCallback(
+    async (expectedPhaseId: number) => {
+      if (mySeat === null) {
+        return { success: false, error: 'Not in game' };
+      }
+      try {
+        return await autoPassExpiredTimer(roomCode, mySeat, expectedPhaseId);
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to auto-pass';
+        return { success: false, error: errorMsg };
+      }
+    },
+    [roomCode, mySeat]
+  );
 
   // Phase 8: Check if I'm next in turn (for chow eligibility)
   const isNextInTurn = useMemo(() => {
@@ -422,6 +450,11 @@ export function useGame({ roomCode, mySeat }: UseGameOptions): UseGameReturn {
     validChowTiles,
     isNextInTurn,
     handleCallResponse,
+    // Calling phase timer
+    callingPhaseId,
+    callingPhaseStartTime,
+    callingTimerSeconds,
+    handleAutoPass,
     // Kong declarations
     concealedKongOptions,
     pungUpgradeOptions,

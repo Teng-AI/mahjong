@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useRoom } from '@/hooks/useRoom';
@@ -8,6 +8,7 @@ import { useGame } from '@/hooks/useGame';
 import { useBotRunner } from '@/hooks/useBotRunner';
 import { useSounds } from '@/hooks/useSounds';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useCallingTimer } from '@/hooks/useCallingTimer';
 import { getTileType, getTileDisplayText, isBonusTile, isGoldTile, sortTilesForDisplay } from '@/lib/tiles';
 import { calculateSettlement, calculateNetPositions } from '@/lib/settle';
 import { SettingsModal } from '@/components/SettingsModal';
@@ -176,6 +177,8 @@ export default function GamePage() {
     room,
     loading: roomLoading,
     mySeat: actualSeat,
+    isHost,
+    setCallingTimerSeconds,
   } = useRoom({
     roomCode,
     userId: user?.uid || null,
@@ -207,6 +210,11 @@ export default function GamePage() {
     pungUpgradeOptions,
     handleConcealedKong,
     handlePungUpgrade,
+    // Calling phase timer
+    callingPhaseId,
+    callingPhaseStartTime,
+    callingTimerSeconds,
+    handleAutoPass,
   } = useGame({
     roomCode,
     mySeat,
@@ -223,6 +231,50 @@ export default function GamePage() {
 
   // Sound effects
   const { playSound, soundEnabled, toggleSound, volume, setVolume } = useSounds();
+
+  // Determine if player has already responded during calling phase
+  const hasRespondedToCalling = myPendingCall !== null && myPendingCall !== 'waiting';
+
+  // Calling phase timer
+  const onTimerExpire = useCallback(async (phaseId: number) => {
+    if (mySeat === null) return;
+    await handleAutoPass(phaseId);
+  }, [mySeat, handleAutoPass]);
+
+  const {
+    remainingSeconds: timerRemainingSeconds,
+    isWarning: timerIsWarning,
+  } = useCallingTimer({
+    startTime: callingPhaseStartTime,
+    totalSeconds: callingTimerSeconds,
+    phaseId: callingPhaseId,
+    isCallingPhase,
+    hasResponded: hasRespondedToCalling,
+    onExpire: onTimerExpire,
+  });
+
+  // Track if warning sound has been played for current phase
+  const warningSoundPlayedRef = useRef<number | null>(null);
+
+  // Play warning sound when timer enters warning zone (once per phase)
+  useEffect(() => {
+    if (
+      timerIsWarning &&
+      !hasRespondedToCalling &&
+      callingPhaseId !== undefined &&
+      warningSoundPlayedRef.current !== callingPhaseId
+    ) {
+      warningSoundPlayedRef.current = callingPhaseId;
+      playSound('timerWarning');
+    }
+  }, [timerIsWarning, hasRespondedToCalling, callingPhaseId, playSound]);
+
+  // Reset warning sound tracking when phase changes
+  useEffect(() => {
+    if (!isCallingPhase) {
+      warningSoundPlayedRef.current = null;
+    }
+  }, [isCallingPhase]);
 
   // Keyboard shortcuts
   const { shortcuts, setShortcut, resetToDefaults } = useKeyboardShortcuts();
@@ -636,7 +688,7 @@ export default function GamePage() {
       }
 
       // Calling phase shortcuts
-      if (!isCallingPhase || myPendingCall !== null || chowSelectionMode) return;
+      if (!isCallingPhase || myPendingCall !== 'waiting' || chowSelectionMode) return;
 
       if (key === shortcuts.win && myValidCalls?.canWin) {
         e.preventDefault();
@@ -815,7 +867,7 @@ export default function GamePage() {
   useEffect(() => {
     const justEnteredCalling = isCallingPhase && !prevCallingPhaseRef.current;
 
-    if (justEnteredCalling && myPendingCall === null) {
+    if (justEnteredCalling && myPendingCall === 'waiting') {
       playSound('callAlert');
       setShowTurnFlash(true);
       setTimeout(() => setShowTurnFlash(false), 1500);
@@ -1703,14 +1755,26 @@ export default function GamePage() {
             }`}>{gameState.wall?.length ?? 0}</span>
           </div>
         </div>
-        {/* Phase indicator - right side */}
-        <div className={`px-1.5 sm:px-3 py-0.5 sm:py-1 rounded-md text-xs sm:text-lg font-medium ${
-          isCallingPhase ? 'bg-orange-500/40 text-orange-200' :
-          isMyTurn ? 'bg-emerald-500/40 text-emerald-200' : 'bg-slate-600/60 text-slate-300'
-        }`}>
-          {isCallingPhase ? (chowSelectionMode ? 'Select Chow tiles' : 'Calling...') :
-           isMyTurn ? (shouldDraw ? '▶ Draw a tile' : '▶ Discard a tile') :
-           `${getPlayerName(room, gameState.currentPlayerSeat)}'s turn`}
+        {/* Phase indicator with timer - right side */}
+        <div className="flex items-center gap-2">
+          <div className={`px-1.5 sm:px-3 py-0.5 sm:py-1 rounded-md text-xs sm:text-lg font-medium ${
+            isCallingPhase ? 'bg-orange-500/40 text-orange-200' :
+            isMyTurn ? 'bg-emerald-500/40 text-emerald-200' : 'bg-slate-600/60 text-slate-300'
+          }`}>
+            {isCallingPhase ? (chowSelectionMode ? 'Select Chow tiles' : 'Calling...') :
+             isMyTurn ? (shouldDraw ? '▶ Draw a tile' : '▶ Discard a tile') :
+             `${getPlayerName(room, gameState.currentPlayerSeat)}'s turn`}
+          </div>
+          {/* Timer countdown (only during calling phase with timer enabled) */}
+          {isCallingPhase && timerRemainingSeconds !== null && (
+            <div className={`px-2 py-0.5 sm:py-1 rounded-md text-xs sm:text-lg font-mono font-bold ${
+              timerIsWarning
+                ? 'bg-red-500/60 text-red-100 animate-pulse'
+                : 'bg-slate-600/60 text-slate-200'
+            }`}>
+              {Math.ceil(timerRemainingSeconds)}s
+            </div>
+          )}
         </div>
       </div>
 
@@ -1852,7 +1916,7 @@ export default function GamePage() {
         {/* Fixed height container to prevent layout shifts */}
         <div className="mt-2 sm:mt-4 hidden md:flex flex-wrap justify-center items-center gap-2 sm:gap-3 min-h-[52px]">
           {/* Call buttons during calling phase - ordered left-to-right: PASS (lowest) to WIN (highest priority) */}
-          {isCallingPhase && myPendingCall === null && !chowSelectionMode && (
+          {isCallingPhase && myPendingCall === 'waiting' && !chowSelectionMode && (
             <>
               <button
                 onClick={() => onCallResponse('pass')}
@@ -1920,8 +1984,8 @@ export default function GamePage() {
             </>
           )}
 
-          {/* Waiting status */}
-          {isCallingPhase && myPendingCall !== null && myPendingCall !== 'discarder' && (
+          {/* Waiting status - only show after player has actually responded */}
+          {isCallingPhase && myPendingCall !== null && myPendingCall !== 'discarder' && myPendingCall !== 'waiting' && (
             <div className="px-3 sm:px-4 py-2 bg-slate-600/50 rounded-lg text-sm sm:text-lg">
               <span className="text-slate-300">You chose </span>
               <span className="text-white font-bold uppercase">{myPendingCall}</span>
@@ -2295,7 +2359,7 @@ export default function GamePage() {
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 border-t border-slate-700 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] z-40">
         <div className="flex gap-2">
           {/* Calling phase buttons - ordered left-to-right: PASS (lowest) to WIN (highest priority) */}
-          {isCallingPhase && myPendingCall === null && !chowSelectionMode && (
+          {isCallingPhase && myPendingCall === 'waiting' && !chowSelectionMode && (
             <>
               <button
                 onClick={() => onCallResponse('pass')}
@@ -2637,6 +2701,9 @@ export default function GamePage() {
         toggleSound={toggleSound}
         volume={volume}
         setVolume={setVolume}
+        isHost={isHost}
+        callingTimerSeconds={callingTimerSeconds}
+        setCallingTimerSeconds={setCallingTimerSeconds}
       />
     </div>
   );

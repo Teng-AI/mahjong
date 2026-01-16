@@ -1,4 +1,4 @@
-import { ref, set, get, update, runTransaction } from 'firebase/database';
+import { ref, set, get, update, runTransaction, serverTimestamp } from 'firebase/database';
 import { db } from '@/firebase/config';
 import {
   TileId,
@@ -12,6 +12,7 @@ import {
   Meld,
   GameRound,
   SessionScores,
+  RoomSettings,
 } from '@/types';
 import {
   generateAllTiles,
@@ -1129,20 +1130,36 @@ export async function discardTile(
   // Add to discard pile
   const discardPile = [...(gameState.discardPile || []), tileId];
 
-  // Initialize pending calls - discarder is marked, others are null (waiting)
-  const pendingCalls = {
-    seat0: seat === 0 ? 'discarder' : null,
-    seat1: seat === 1 ? 'discarder' : null,
-    seat2: seat === 2 ? 'discarder' : null,
-    seat3: seat === 3 ? 'discarder' : null,
+  // Get room settings to copy timer value to this calling phase
+  const settingsSnapshot = await get(ref(db, `rooms/${roomCode}/settings`));
+  const settings = settingsSnapshot.val() as RoomSettings | null;
+  const callingTimerSeconds = settings?.callingTimerSeconds ?? null;
+
+  // Initialize pending calls - discarder is marked, others are 'waiting'
+  // IMPORTANT: Use 'waiting' instead of null because Firebase doesn't store null values,
+  // which would cause stale data from previous phases to persist
+  const pendingCalls: PendingCalls = {
+    seat0: seat === 0 ? 'discarder' : 'waiting',
+    seat1: seat === 1 ? 'discarder' : 'waiting',
+    seat2: seat === 2 ? 'discarder' : 'waiting',
+    seat3: seat === 3 ? 'discarder' : 'waiting',
   };
+
+  // Use set() for pendingCalls to atomically replace (not merge) the object
+  // This prevents stale data from previous calling phases
+  await set(ref(db, `rooms/${roomCode}/game/pendingCalls`), pendingCalls);
 
   // Update game state - enter calling phase
   // Save current lastAction as previousAction (e.g., draw or call before discard)
   const updateData: Record<string, unknown> = {
     discardPile,
     phase: 'calling',
-    pendingCalls,
+    // Increment callingPhaseId to detect stale responses
+    callingPhaseId: (gameState.callingPhaseId || 0) + 1,
+    // Server timestamp for timer calculation (survives disconnects)
+    callingPhaseStartTime: serverTimestamp(),
+    // Copy timer setting to this phase (won't change if host changes setting mid-phase)
+    callingTimerSeconds,
     lastAction: {
       type: 'discard',
       playerSeat: seat,
@@ -1218,9 +1235,9 @@ export async function submitCallResponse(
   }
 
   // Verify this player hasn't already responded
-  // Firebase doesn't store null values, so undefined means no response yet
+  // 'waiting' means no response yet, any other value means already responded
   const currentCall = gameState.pendingCalls?.[`seat${seat}` as keyof PendingCalls];
-  if (currentCall) {
+  if (currentCall && currentCall !== 'waiting') {
     return { success: false, error: 'Already responded' };
   }
 
@@ -1287,10 +1304,10 @@ export async function submitCallResponse(
     // Update with our response
     currentCalls[`seat${seat}`] = action;
 
-    // Check if all have responded
+    // Check if all have responded ('waiting' means not yet responded)
     const allResponded = ([0, 1, 2, 3] as SeatIndex[]).every(s => {
       const call = currentCalls[`seat${s}`];
-      return !!call;
+      return call && call !== 'waiting';
     });
 
     if (allResponded) {
@@ -2296,4 +2313,46 @@ export async function upgradePungToKong(
   await addToLog(roomCode, `${SEAT_NAMES[seat]} upgraded Pung to Kong (${tileName})`);
 
   return { success: true };
+}
+
+// ============================================
+// CALLING PHASE TIMER
+// ============================================
+
+/**
+ * Auto-pass a player when the calling phase timer expires
+ * Called by any client that detects the timer has expired for a player
+ * Uses phase ID validation to prevent duplicate passes or stale responses
+ */
+export async function autoPassExpiredTimer(
+  roomCode: string,
+  seat: SeatIndex,
+  expectedPhaseId: number
+): Promise<{ success: boolean; error?: string }> {
+  // Get current game state
+  const gameSnapshot = await get(ref(db, `rooms/${roomCode}/game`));
+  if (!gameSnapshot.exists()) {
+    return { success: false, error: 'Game not found' };
+  }
+
+  const gameState = gameSnapshot.val() as GameState;
+
+  // Validate we're still in the same calling phase
+  if (gameState.callingPhaseId !== expectedPhaseId) {
+    return { success: false, error: 'Phase already resolved' };
+  }
+
+  // Validate we're still in calling phase
+  if (gameState.phase !== 'calling') {
+    return { success: false, error: 'Not in calling phase' };
+  }
+
+  // Validate player hasn't already responded
+  const currentCall = gameState.pendingCalls?.[`seat${seat}` as keyof PendingCalls];
+  if (currentCall && currentCall !== 'waiting') {
+    return { success: false, error: 'Already responded' };
+  }
+
+  // Submit pass for this player
+  return submitCallResponse(roomCode, seat, 'pass');
 }

@@ -786,8 +786,8 @@ export function useBotRunner({
     const myCall = pendingCalls[`seat${seat}` as keyof typeof pendingCalls];
     if (DEBUG_BOT) console.log(`[Bot ${seat}] My current call status: ${myCall}`);
 
-    // Already responded or is discarder
-    if (myCall !== null && myCall !== undefined) {
+    // Already responded or is discarder ('waiting' means still need to respond)
+    if (myCall && myCall !== 'waiting') {
       if (DEBUG_BOT) console.log(`[Bot ${seat}] Already responded with: ${myCall}, skipping`);
       return;
     }
@@ -894,7 +894,7 @@ export function useBotRunner({
 
       const botsNeedingResponse = bots.filter(seat => {
         const callStatus = pendingCalls[`seat${seat}` as keyof typeof pendingCalls];
-        return callStatus === null || callStatus === undefined;
+        return callStatus === 'waiting'; // 'waiting' means still need to respond
       });
 
       if (botsNeedingResponse.length === 0) {
@@ -906,8 +906,8 @@ export function useBotRunner({
       const humanSeats = ([0, 1, 2, 3] as SeatIndex[]).filter(seat => !isBotSeat(seat));
       const humansNeedingResponse = humanSeats.filter(seat => {
         const callStatus = pendingCalls[`seat${seat}` as keyof typeof pendingCalls];
-        // null/undefined means waiting, 'discarder' means they can't call
-        return callStatus === null || callStatus === undefined;
+        // 'waiting' means still need to respond, 'discarder' means they can't call
+        return callStatus === 'waiting';
       });
 
       // If any human still needs to respond, wait for them
@@ -937,7 +937,7 @@ export function useBotRunner({
           // Check how many bots still need to respond
           const botsStillWaiting = bots.filter(seat => {
             const callStatus = pendingCalls[`seat${seat}` as keyof typeof pendingCalls];
-            return callStatus === null || callStatus === undefined;
+            return callStatus === 'waiting'; // 'waiting' means still need to respond
           });
 
           // Only apply the full delay if ALL bots are still waiting (first run after human responded)

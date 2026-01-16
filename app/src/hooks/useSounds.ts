@@ -14,7 +14,8 @@ export type SoundType =
   | 'yourTurn'
   | 'callAlert'
   | 'gameStart'
-  | 'pass';
+  | 'pass'
+  | 'timerWarning';
 
 interface UseSoundsReturn {
   playSound: (type: SoundType) => void;
@@ -167,6 +168,15 @@ const soundDefinitions: Record<SoundType, (ctx: AudioContext, volumeMultiplier: 
   pass: (ctx, vol) => {
     // Subtle pass
     createOscillatorSound(ctx, 250, 0.05, 'sine', 0.15 * vol);
+  },
+
+  timerWarning: (ctx, vol) => {
+    // Urgent warning beeps for low time on calling phase timer
+    playNoteSequence(ctx, [
+      { freq: 800, duration: 0.1, delay: 0 },       // First beep
+      { freq: 800, duration: 0.1, delay: 0.15 },    // Second beep
+      { freq: 1000, duration: 0.15, delay: 0.3 },   // Higher urgent beep
+    ], 'square', 0.3 * vol);
   },
 };
 

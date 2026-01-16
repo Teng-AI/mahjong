@@ -1,12 +1,144 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useRoom } from '@/hooks/useRoom';
 import { joinRoom, findUserSeat, fillWithBots, addBotPlayer, removePlayer } from '@/lib/rooms';
 import { initializeGame } from '@/lib/game';
 import { SeatIndex, RoomPlayer, BotDifficulty } from '@/types';
+
+// ============================================
+// TIMER SETTINGS COMPONENT
+// ============================================
+
+interface TimerSettingsProps {
+  currentValue: number | null;
+  onChange: (seconds: number | null) => void;
+}
+
+function TimerSettings({ currentValue, onChange }: TimerSettingsProps) {
+  const [enabled, setEnabled] = useState(currentValue !== null);
+  const [inputValue, setInputValue] = useState(String(currentValue ?? 30));
+  const previousValueRef = useRef<string>(String(currentValue ?? 30));
+
+  // Update internal state when prop changes
+  useEffect(() => {
+    setEnabled(currentValue !== null);
+    if (currentValue !== null) {
+      setInputValue(String(currentValue));
+      previousValueRef.current = String(currentValue);
+    }
+  }, [currentValue]);
+
+  const handleToggle = () => {
+    const newEnabled = !enabled;
+    setEnabled(newEnabled);
+    if (newEnabled) {
+      // Enable timer with current input value
+      const seconds = parseInt(inputValue);
+      if (!isNaN(seconds)) {
+        onChange(Math.min(120, Math.max(10, seconds)));
+      } else {
+        onChange(30);
+        setInputValue('30');
+      }
+    } else {
+      // Disable timer
+      onChange(null);
+    }
+  };
+
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value);
+    setInputValue(String(value));
+    previousValueRef.current = String(value);
+    onChange(value);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value);
+  };
+
+  const handleInputBlur = () => {
+    const num = parseInt(inputValue);
+    if (isNaN(num)) {
+      // Reset to previous valid value
+      setInputValue(previousValueRef.current);
+    } else if (num < 10) {
+      setInputValue('10');
+      previousValueRef.current = '10';
+      onChange(10);
+    } else if (num > 120) {
+      setInputValue('120');
+      previousValueRef.current = '120';
+      onChange(120);
+    } else {
+      setInputValue(String(num));
+      previousValueRef.current = String(num);
+      onChange(num);
+    }
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.currentTarget.blur();
+    }
+  };
+
+  return (
+    <div className="bg-green-800/30 rounded-lg p-4">
+      <div className="flex items-center justify-between mb-3">
+        <span className="font-medium">Calling Phase Timer</span>
+        <button
+          onClick={handleToggle}
+          className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+            enabled
+              ? 'bg-yellow-500 text-black'
+              : 'bg-green-900/50 text-green-300 border border-green-600'
+          }`}
+        >
+          {enabled ? 'ON' : 'OFF'}
+        </button>
+      </div>
+
+      {enabled && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min={10}
+              max={120}
+              value={parseInt(inputValue) || 30}
+              onChange={handleSliderChange}
+              className="flex-1 h-2 bg-green-900 rounded-lg appearance-none cursor-pointer accent-yellow-500"
+            />
+            <div className="flex items-center gap-1">
+              <input
+                type="text"
+                value={inputValue}
+                onChange={handleInputChange}
+                onBlur={handleInputBlur}
+                onKeyDown={handleInputKeyDown}
+                className="w-14 px-2 py-1 bg-green-900/50 border border-green-600 rounded text-center text-white font-mono"
+              />
+              <span className="text-green-300 text-sm">sec</span>
+            </div>
+          </div>
+          <p className="text-xs text-green-400">
+            Auto-pass after timeout • 10-120 seconds
+          </p>
+        </div>
+      )}
+
+      {!enabled && (
+        <p className="text-xs text-green-400">
+          No time limit during calling phase
+        </p>
+      )}
+    </div>
+  );
+}
 
 // Debug logging - only enabled in development
 const DEBUG_ROOM = process.env.NODE_ENV === 'development';
@@ -170,7 +302,9 @@ export default function RoomPage() {
     isHost,
     playerCount,
     isFull,
+    callingTimerSeconds,
     setDealerSeat,
+    setCallingTimerSeconds,
     kickPlayer,
   } = useRoom({
     roomCode,
@@ -534,6 +668,16 @@ export default function RoomPage() {
               <span>🤖</span>
               {addingBot ? 'Adding Bots...' : `Fill Empty Seats with ${botDifficulty.charAt(0).toUpperCase() + botDifficulty.slice(1)} Bots`}
             </button>
+          </div>
+        )}
+
+        {/* Timer Settings (host only) */}
+        {isHost && (
+          <div className="max-w-md mx-auto mb-6">
+            <TimerSettings
+              currentValue={callingTimerSeconds}
+              onChange={setCallingTimerSeconds}
+            />
           </div>
         )}
 

@@ -65,6 +65,7 @@ export async function createRoom(hostId: string, hostName: string): Promise<stri
     },
     settings: {
       dealerSeat: 0,
+      callingTimerSeconds: null, // No timer by default
     },
   };
 
@@ -285,6 +286,26 @@ export async function setDealer(
 ): Promise<void> {
   await update(ref(db, `rooms/${roomCode}/settings`), {
     dealerSeat,
+  });
+}
+
+/**
+ * Set calling phase timer (host only)
+ * @param seconds - Timer in seconds (10-120), or null for no timer
+ */
+export async function setCallingTimer(
+  roomCode: string,
+  seconds: number | null
+): Promise<void> {
+  // Validate range if not null
+  let validatedSeconds = seconds;
+  if (seconds !== null) {
+    if (seconds < 10) validatedSeconds = 10;
+    else if (seconds > 120) validatedSeconds = 120;
+  }
+
+  await update(ref(db, `rooms/${roomCode}/settings`), {
+    callingTimerSeconds: validatedSeconds,
   });
 }
 
