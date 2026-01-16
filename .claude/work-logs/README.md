@@ -26,6 +26,18 @@ Sessions are organized by year-month, with individual session files named by dat
 
 ## Recent Sessions
 
+### 2026-01-16
+
+- **[Session 01](2026-01/2026-01-16_session-01.md)** - Turn Timer Implementation & Scoring Rebalance
+  - Added turn timer to room lobby (side-by-side with calling timer)
+  - Auto-play on timer expiration (auto-draw, auto-discard, auto-win detection)
+  - Fixed type error in game.ts (exposed melds path access)
+  - Comprehensive special bonus scoring rebalance: No Bonus/Kong +15, Three Golds +30, Robbing Gold +30, Golden Pair +50, All One Suit +100
+  - Updated scoring in game.ts (4 locations), rules modal, and documentation
+  - Reordered bonus table by point value (ascending)
+  - Merged feature/calling-phase-timer branch into main (zero conflicts)
+  - All 123 tests pass, build succeeds
+
 ### 2026-01-12
 
 - **[Session 01](2026-01/2026-01-12_session-01.md)** - Turn Indicator & Layout Improvements
@@ -150,6 +162,6 @@ When documenting a new session:
 
 ---
 
-**Last updated**: 2026-01-12
+**Last updated**: 2026-01-16
 **MVP Status**: ✅ Complete - Fully playable game with all core features
-**Current Focus**: UX improvements, test coverage, and feature refinement
+**Current Focus**: Timer features complete, scoring balanced, ready for production deployment
