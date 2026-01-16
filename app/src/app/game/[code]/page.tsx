@@ -2708,11 +2708,11 @@ export default function GamePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td className="py-0.5 text-white">Three Golds</td><td className="text-emerald-400">+20</td><td>Hold all 3 → instant win</td></tr>
-                  <tr><td className="py-0.5 text-white">Robbing the Gold</td><td className="text-emerald-400">+20</td><td>Claim revealed Gold to win</td></tr>
-                  <tr><td className="py-0.5 text-white">Golden Pair</td><td className="text-emerald-400">+30</td><td>Pair is 2 Gold tiles</td></tr>
-                  <tr><td className="py-0.5 text-white">All One Suit</td><td className="text-emerald-400">+60</td><td>Entire hand one suit</td></tr>
-                  <tr><td className="py-0.5 text-white">No Bonus/Kong</td><td className="text-emerald-400">+10</td><td>No bonus tiles &amp; no kongs</td></tr>
+                  <tr><td className="py-0.5 text-white">No Bonus/Kong</td><td className="text-emerald-400">+15</td><td>No bonus tiles &amp; no kongs</td></tr>
+                  <tr><td className="py-0.5 text-white">Three Golds</td><td className="text-emerald-400">+30</td><td>Hold all 3 → instant win</td></tr>
+                  <tr><td className="py-0.5 text-white">Robbing the Gold</td><td className="text-emerald-400">+30</td><td>Claim revealed Gold to win</td></tr>
+                  <tr><td className="py-0.5 text-white">Golden Pair</td><td className="text-emerald-400">+50</td><td>Pair is 2 Gold tiles</td></tr>
+                  <tr><td className="py-0.5 text-white">All One Suit</td><td className="text-emerald-400">+100</td><td>Entire hand one suit</td></tr>
                   <tr><td className="py-0.5 text-white">Self-Draw</td><td className="text-emerald-400">×2</td><td>Win by drawing yourself</td></tr>
                 </tbody>
               </table>

@@ -56,7 +56,7 @@ Winds (16) and Red Dragons (4) are bonus tiles. When drawn:
 **Gold tiles**:
 - Can substitute for any tile in sets or pairs
 - Each Gold in your winning hand counts as **+1 point**
-- Two Golds as your pair = **Golden Pair (+30 bonus)**
+- Two Golds as your pair = **Golden Pair (+50 bonus)**
 - **Cannot be used for calling** (Chow/Pung/Kong) - only for completing your hand
 
 **Winning is optional**: You are never forced to win.
@@ -72,7 +72,7 @@ These trigger immediately without needing a complete hand:
 - Collect all 3 Gold tiles in your hand → **instant win**
 - Can happen anytime during the game (including during replacement draws)
 - Counts as **self-draw** (×2 multiplier applies)
-- Worth **+20 points** special bonus
+- Worth **+30 points** special bonus
 
 #### Robbing the Gold (抢金)
 When the Gold tile is revealed at game start, players may claim it to win:
@@ -83,7 +83,7 @@ When the Gold tile is revealed at game start, players may claim it to win:
 
 **Scoring**:
 - Counts as **self-draw** (×2 multiplier applies)
-- Worth **+20 points** special bonus
+- Worth **+30 points** special bonus
 - The revealed Gold tile becomes part of the winner's hand
 
 ---
@@ -178,16 +178,16 @@ Special bonuses are added **after** the multiplier is applied. However, having A
 
 | Hand | Points | Condition |
 |------|--------|-----------|
-| **No Bonus/Kong (平胡)** | +10 | No exposed bonus tiles AND no kongs |
-| **Three Golds (三金)** | +20 | Instant win with all 3 Golds |
-| **Robbing the Gold (抢金)** | +20 | Win by claiming the revealed Gold tile |
-| **Golden Pair (金对)** | +30 | Pair is 2 Gold tiles |
-| **All One Suit (清一色)** | +60 | All tiles in hand are same suit (excluding Golds) |
+| **No Bonus/Kong (平胡)** | +15 | No exposed bonus tiles AND no kongs |
+| **Three Golds (三金)** | +30 | Instant win with all 3 Golds |
+| **Robbing the Gold (抢金)** | +30 | Win by claiming the revealed Gold tile |
+| **Golden Pair (金对)** | +50 | Pair is 2 Gold tiles |
+| **All One Suit (清一色)** | +100 | All tiles in hand are same suit (excluding Golds) |
 
 **Notes**:
 - You can have Gold tiles and still qualify for "No Bonus/Kong"
-- Special bonuses can stack (e.g., Golden Pair + No Bonus/Kong = +40)
-- Three Golds still counts +3 for the Golds in hand (total: 20 + 3 = 23 minimum)
+- Special bonuses can stack (e.g., Golden Pair + No Bonus/Kong = +65)
+- Three Golds still counts +3 for the Golds in hand (total: 30 + 3 = 33 minimum)
 - All special bonuses trigger the ×2 multiplier, even on discard wins
 
 ### Payment
@@ -206,8 +206,8 @@ Self-draw: Yes
 
 Non-Special: 1 (base) + 3 (bonus) + 2 (golds) = 6
 Multiplier:  6 × 2 = 12 (self-draw)
-Golden Pair: +30
-Total:       42 points (each loser pays 42)
+Golden Pair: +50
+Total:       62 points (each loser pays 62)
 ```
 
 **Example 2: Discard win with special bonus**
@@ -220,8 +220,8 @@ Self-draw: No (won from discard)
 
 Non-Special: 1 (base) + 2 (bonus) + 2 (golds) = 5
 Multiplier:  5 × 2 = 10 (special bonus triggers ×2)
-Golden Pair: +30
-Total:       40 points (each loser pays 40)
+Golden Pair: +50
+Total:       60 points (each loser pays 60)
 ```
 
 **Example 3: All One Suit flush**
@@ -234,8 +234,8 @@ Self-draw: No
 
 Non-Special: 1 (base) + 1 (bonus) + 1 (gold) + 2 (concealed kong) = 5
 Multiplier:  5 × 2 = 10 (All One Suit triggers ×2)
-All One Suit: +60
-Total:       70 points (each loser pays 70)
+All One Suit: +100
+Total:       110 points (each loser pays 110)
 ```
 
 ---
@@ -315,15 +315,15 @@ non_special = 1 + bonus_tiles + golds_in_hand + (concealed_kongs × 2) + (expose
 # Calculate special bonuses first
 special = 0
 if no_bonus_tiles and no_kongs:
-    special += 10
+    special += 15
 if golden_pair:
-    special += 30
+    special += 50
 if three_golds:
-    special += 20  # also gets +3 from golds_in_hand
+    special += 30  # also gets +3 from golds_in_hand
 if robbing_gold:
-    special += 20
+    special += 30
 if all_one_suit:
-    special += 60
+    special += 100
 
 # ×2 multiplier applies if self-draw OR any special bonus
 if self_draw or three_golds or robbing_gold or special > 0:
