@@ -127,7 +127,7 @@ export interface ScoreBreakdown {
   golds: number;
   concealedKongBonus: number; // +2 per concealed kong
   exposedKongBonus: number; // +1 per exposed kong
-  dealerStreakBonus: number; // +1 per consecutive dealer win (0 for first win)
+  dealerStreakBonus: number; // +1 per consecutive round as dealer (0 for first round)
   subtotal: number;
   multiplier: number;
   // Special bonuses (added after multiplier, don't stack with self-draw)
@@ -255,7 +255,7 @@ export interface SessionScores {
     seat2: number;
     seat3: number;
   };
-  dealerStreak: number; // Consecutive wins by current dealer (0 = no streak)
+  dealerStreak: number; // Consecutive rounds kept by current dealer (0 = no streak)
 }
 
 /** Settlement transaction */

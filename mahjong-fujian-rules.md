@@ -166,11 +166,11 @@ Total = Non-Special Points + Special Hand Bonuses
 | Per Gold tile in hand | +1 (physical Golds, regardless of how used) |
 | Per Concealed Kong | +2 |
 | Per Exposed Kong | +1 |
-| Dealer streak bonus | +N (where N = consecutive dealer wins) |
+| Dealer streak bonus | +N (where N = consecutive rounds as dealer) |
 
 **Self-draw (自摸)**: Multiply non-special points by **2**
 
-**Dealer Streak (连庄)**: When the dealer wins consecutive hands, they earn a streak bonus equal to their win count. For example, if the dealer wins 3 hands in a row, their 3rd win gets +3 bonus points (added before the self-draw multiplier).
+**Dealer Streak (连庄)**: When the dealer stays for consecutive rounds (by winning or drawing), they earn a streak bonus equal to their round count. For example, if the dealer stays for 3 rounds in a row, their 3rd round win gets +3 bonus points (added before the self-draw multiplier). Draw games count toward the streak but award no points.
 
 ### Special Hand Bonuses
 
@@ -281,7 +281,7 @@ Total:       110 points (each loser pays 110)
 - Bonus/Kong replacements: Draw from wall
 - You can delay winning to go for a bigger hand
 - Payment: All 3 losers pay winner
-- Dealer streak: Consecutive dealer wins add bonus points
+- Dealer streak: Consecutive rounds as dealer add bonus points (wins + draws count)
 
 ---
 

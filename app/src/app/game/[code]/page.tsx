@@ -11,13 +11,16 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useCallingTimer } from '@/hooks/useCallingTimer';
 import { useTurnTimer } from '@/hooks/useTurnTimer';
 import { getTileType, getTileDisplayText, isBonusTile, isGoldTile, sortTilesForDisplay } from '@/lib/tiles';
+import { needsToDraw } from '@/lib/game';
 import { calculateSettlement, calculateNetPositions } from '@/lib/settle';
 import { SettingsModal } from '@/components/SettingsModal';
 import { TurnIndicator } from '@/components/TurnIndicator';
-import { SeatIndex, TileId, TileType, CallAction, Room } from '@/types';
+import { SeatIndex, TileId, TileType, CallAction, Room, WinnerInfo, ScoreBreakdown } from '@/types';
+import { ref, update } from 'firebase/database';
+import { db } from '@/firebase/config';
 
 // Debug logging - only enabled in development
-const DEBUG_GAME = process.env.NODE_ENV === 'development';
+const DEBUG_GAME = false; // Set to true to enable debug panel and logging
 
 // Check if device has touch capabilities (likely mobile)
 function useIsTouchDevice() {
@@ -144,10 +147,26 @@ function getPlayerName(room: Room | null, seat: SeatIndex): string {
 }
 
 // Helper to transform action log entry, replacing direction names with player names
-function transformLogEntry(entry: string, room: Room | null): string {
+function transformLogEntry(entry: string, room: Room | null, mySeat: SeatIndex | null): string {
   if (!room) return entry;
 
   let transformed = entry;
+
+  // Handle private information (e.g., drawn tiles only visible to the player who drew)
+  // Format: "East drew a tile [PRIVATE:0:7竹]"
+  const privateMatch = transformed.match(/\[PRIVATE:(\d):([^\]]+)\]/);
+  if (privateMatch) {
+    const privateSeat = parseInt(privateMatch[1]) as SeatIndex;
+    const privateInfo = privateMatch[2];
+    if (mySeat === privateSeat) {
+      // Show the private info to the player who drew
+      transformed = transformed.replace(/ \[PRIVATE:\d:[^\]]+\]/, `: ${privateInfo}`);
+    } else {
+      // Hide the private info from other players
+      transformed = transformed.replace(/ \[PRIVATE:\d:[^\]]+\]/, '');
+    }
+  }
+
   // Replace direction names with player names
   SEAT_LABELS.forEach((direction, index) => {
     const playerName = getPlayerName(room, index as SeatIndex);
@@ -369,6 +388,37 @@ export default function GamePage() {
   // Settlement modal
   const [showSettleModal, setShowSettleModal] = useState(false);
 
+  // Debug: looping sound state
+  const [loopingSound, setLoopingSound] = useState<string | null>(null);
+  const loopIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const toggleLoopSound = (soundType: string) => {
+    // Stop current loop if any
+    if (loopIntervalRef.current) {
+      clearInterval(loopIntervalRef.current);
+      loopIntervalRef.current = null;
+    }
+
+    // If clicking same sound, just stop
+    if (loopingSound === soundType) {
+      setLoopingSound(null);
+      return;
+    }
+
+    // Start new loop
+    setLoopingSound(soundType);
+    playSound(soundType as Parameters<typeof playSound>[0]);
+    loopIntervalRef.current = setInterval(() => {
+      playSound(soundType as Parameters<typeof playSound>[0]);
+    }, 1500);
+  };
+
+  // Winner reveal suspense state
+  const [showWinnerSuspense, setShowWinnerSuspense] = useState(false);
+  const [winnerRevealed, setWinnerRevealed] = useState(false);
+  // Suspense animation phases: 'faceDown' -> 'flipping' -> 'flyIn' -> 'fading'
+  const [suspensePhase, setSuspensePhase] = useState<'faceDown' | 'flipping' | 'flyIn' | 'fading'>('faceDown');
+
   // Toast message for errors
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   useEffect(() => {
@@ -377,6 +427,14 @@ export default function GamePage() {
       return () => clearTimeout(timer);
     }
   }, [toastMessage]);
+
+  // Clear selected tile when it's no longer player's turn to discard
+  const isMyTurnToDiscard = isMyTurn && !shouldDraw && gameState?.phase === 'playing';
+  useEffect(() => {
+    if (!isMyTurnToDiscard) {
+      setSelectedTile(null);
+    }
+  }, [isMyTurnToDiscard]);
 
   // Track discarders for turn indicator
   // Green box = current actor (whose turn it is), Grey box = previous discarder
@@ -429,10 +487,55 @@ export default function GamePage() {
     prevPhaseRef.current = currentPhase ?? null;
   }, [gameState?.phase]);
 
+  // Trigger winner suspense when game ends with a winner
+  useEffect(() => {
+    if (gameState?.phase === 'ended' && gameState?.winner && !winnerRevealed) {
+      // Start suspense - phase 1: face down tiles
+      setShowWinnerSuspense(true);
+      setSuspensePhase('faceDown');
+      playSound('drumroll');
+
+      // Phase 2: flip tiles (after 700ms)
+      const flipTimer = setTimeout(() => {
+        setSuspensePhase('flipping');
+      }, 700);
+
+      // Phase 3: fly-in winning tile (after 1.7s)
+      const flyInTimer = setTimeout(() => {
+        setSuspensePhase('flyIn');
+      }, 1700);
+
+      // Phase 4: fade to winning page (after 2.7s)
+      const fadeTimer = setTimeout(() => {
+        setSuspensePhase('fading');
+      }, 2700);
+
+      // Complete reveal (after 3.2s)
+      const revealTimer = setTimeout(() => {
+        setShowWinnerSuspense(false);
+        setWinnerRevealed(true);
+      }, 3200);
+
+      return () => {
+        clearTimeout(flipTimer);
+        clearTimeout(flyInTimer);
+        clearTimeout(fadeTimer);
+        clearTimeout(revealTimer);
+      };
+    }
+    // Reset when game restarts
+    if (gameState?.phase !== 'ended') {
+      setWinnerRevealed(false);
+      setShowWinnerSuspense(false);
+      setSuspensePhase('faceDown');
+    }
+  }, [gameState?.phase, gameState?.winner, winnerRevealed, playSound]);
+
   // Play win sound on loop for the winner when game ends (only if sound enabled)
   useEffect(() => {
     if (!soundEnabled) return; // Don't play if sound is disabled
-    if (gameState?.phase === 'ended' && gameState?.winner && gameState.winner.seat === mySeat) {
+    // Only play after suspense is done
+    if (gameState?.phase === 'ended' && gameState?.winner && gameState.winner.seat === mySeat && winnerRevealed) {
       // Play immediately
       playSound('win');
       // Loop every 3 seconds (duration of the fanfare is ~2.5s)
@@ -441,7 +544,7 @@ export default function GamePage() {
       }, 3000);
       return () => clearInterval(interval);
     }
-  }, [gameState?.phase, gameState?.winner, mySeat, playSound, soundEnabled]);
+  }, [gameState?.phase, gameState?.winner, mySeat, playSound, soundEnabled, winnerRevealed]);
 
   // Handle drawing a tile
   const onDraw = async () => {
@@ -455,7 +558,7 @@ export default function GamePage() {
         if (DEBUG_GAME) console.log('Wall exhausted - game ends in draw');
       }
       if (result.threeGoldsWin) {
-        playSound('win');
+        // Win sound will play after suspense reveal
         if (DEBUG_GAME) console.log('Three Golds! You win!');
       }
     } catch (err) {
@@ -523,7 +626,7 @@ export default function GamePage() {
     try {
       const result = await handleSelfDrawWin();
       if (result.success) {
-        playSound('win');
+        // Win sound will play after suspense reveal
       } else {
         if (DEBUG_GAME) console.error('Win declaration failed:', result.error);
       }
@@ -543,8 +646,8 @@ export default function GamePage() {
       const result = await handleCallResponse(action);
       if (result.success) {
         // Play appropriate sound for the action
-        if (action === 'win') playSound('win');
-        else if (action === 'pung') playSound('pung');
+        // Win sound will play after suspense reveal
+        if (action === 'pung') playSound('pung');
         else if (action === 'pass') playSound('pass');
       } else {
         if (DEBUG_GAME) console.error('Call response failed:', result.error);
@@ -897,6 +1000,164 @@ export default function GamePage() {
     setFocusedKongIndex(0);
   };
 
+  // DEBUG: Trigger test wins (dev mode only)
+  const triggerTestWin = async (winType: 'normal' | 'threeGolds' | 'robbingGold' | 'selfDraw') => {
+    if (!DEBUG_GAME || !gameState || mySeat === null) return;
+
+    // Get the gold tile type from the current game
+    const goldType = gameState.goldTileType || 'dots_9';
+    const goldSuit = goldType.split('_')[0]; // 'dots', 'bamboo', or 'characters'
+    const goldNum = parseInt(goldType.split('_')[1]);
+
+    // Get two suits that are NOT the gold suit (to avoid conflicts)
+    const allSuits = ['dots', 'bamboo', 'characters'];
+    const safeSuits = allSuits.filter(s => s !== goldSuit);
+    const suit1 = safeSuits[0]; // First safe suit
+    const suit2 = safeSuits[1]; // Second safe suit
+
+    // Build unique 17-tile winning hands for each win type
+    // IMPORTANT: Only use tiles from suits that are NOT the gold suit
+    let fakeHand: TileId[];
+    let winningTile: TileId;
+    let goldCount = 0;
+
+    if (winType === 'normal') {
+      // Normal win: someone discarded the tile you needed
+      // Hand with 2 golds, winning tile is the called discard
+      fakeHand = [
+        // 2 gold tiles
+        `${goldSuit}_${goldNum}_0` as TileId,
+        `${goldSuit}_${goldNum}_1` as TileId,
+        // Pung (suit1)
+        `${suit1}_3_0` as TileId, `${suit1}_3_1` as TileId, `${suit1}_3_2` as TileId,
+        // Chow (suit2) 1-2-3
+        `${suit2}_1_0` as TileId, `${suit2}_2_0` as TileId, `${suit2}_3_0` as TileId,
+        // Pung (suit1)
+        `${suit1}_5_0` as TileId, `${suit1}_5_1` as TileId, `${suit1}_5_2` as TileId,
+        // Chow (suit2) 4-5-6
+        `${suit2}_4_0` as TileId, `${suit2}_5_0` as TileId, `${suit2}_6_0` as TileId,
+        // Pair waiting for pung (suit1)
+        `${suit1}_7_0` as TileId, `${suit1}_7_1` as TileId,
+        // Winning tile: the discarded tile that completed the pung
+        `${suit1}_7_2` as TileId,
+      ];
+      winningTile = `${suit1}_7_2` as TileId;
+      goldCount = 2;
+    } else if (winType === 'selfDraw') {
+      // Self-draw: you drew the winning tile yourself
+      // Hand with 2 golds, winning tile is the drawn tile
+      fakeHand = [
+        // 2 gold tiles
+        `${goldSuit}_${goldNum}_0` as TileId,
+        `${goldSuit}_${goldNum}_1` as TileId,
+        // Pung (suit1)
+        `${suit1}_1_0` as TileId, `${suit1}_1_1` as TileId, `${suit1}_1_2` as TileId,
+        // Chow (suit2) 4-5-6
+        `${suit2}_4_0` as TileId, `${suit2}_5_0` as TileId, `${suit2}_6_0` as TileId,
+        // Pung (suit1)
+        `${suit1}_2_0` as TileId, `${suit1}_2_1` as TileId, `${suit1}_2_2` as TileId,
+        // Chow (suit2) 7-8-9
+        `${suit2}_7_0` as TileId, `${suit2}_8_0` as TileId, `${suit2}_9_0` as TileId,
+        // Pair waiting for completion (suit1)
+        `${suit1}_9_0` as TileId, `${suit1}_9_1` as TileId,
+        // Winning tile: the self-drawn tile
+        `${suit1}_9_2` as TileId,
+      ];
+      winningTile = `${suit1}_9_2` as TileId;
+      goldCount = 2;
+    } else if (winType === 'threeGolds') {
+      // Three Golds: drew the third gold tile - instant win!
+      // Hand with exactly 3 golds (all highlighted)
+      fakeHand = [
+        // Pung (suit1)
+        `${suit1}_2_0` as TileId, `${suit1}_2_1` as TileId, `${suit1}_2_2` as TileId,
+        // Chow (suit2) 1-2-3
+        `${suit2}_1_0` as TileId, `${suit2}_2_0` as TileId, `${suit2}_3_0` as TileId,
+        // Pung (suit1)
+        `${suit1}_4_0` as TileId, `${suit1}_4_1` as TileId, `${suit1}_4_2` as TileId,
+        // Chow (suit2) 5-6-7
+        `${suit2}_5_0` as TileId, `${suit2}_6_0` as TileId, `${suit2}_7_0` as TileId,
+        // Pair (suit1)
+        `${suit1}_8_0` as TileId, `${suit1}_8_1` as TileId,
+        // 3 gold tiles (all special!)
+        `${goldSuit}_${goldNum}_0` as TileId,
+        `${goldSuit}_${goldNum}_1` as TileId,
+        `${goldSuit}_${goldNum}_2` as TileId,
+      ];
+      winningTile = `${goldSuit}_${goldNum}_2` as TileId; // Last gold drawn
+      goldCount = 3;
+    } else {
+      // Robbing the Gold: stole someone's gold tile when they tried to upgrade
+      // Hand with 1 gold (the robbed one), that gold is highlighted
+      fakeHand = [
+        // Pung (suit1)
+        `${suit1}_2_0` as TileId, `${suit1}_2_1` as TileId, `${suit1}_2_2` as TileId,
+        // Chow (suit2) 3-4-5
+        `${suit2}_3_0` as TileId, `${suit2}_4_0` as TileId, `${suit2}_5_0` as TileId,
+        // Pung (suit1)
+        `${suit1}_6_0` as TileId, `${suit1}_6_1` as TileId, `${suit1}_6_2` as TileId,
+        // Chow (suit2) 7-8-9
+        `${suit2}_7_0` as TileId, `${suit2}_8_0` as TileId, `${suit2}_9_0` as TileId,
+        // Pung (suit1)
+        `${suit1}_1_0` as TileId, `${suit1}_1_1` as TileId, `${suit1}_1_2` as TileId,
+        // Pair (suit2)
+        `${suit2}_1_0` as TileId, `${suit2}_1_1` as TileId,
+        // The robbed gold tile (completes hand as wildcard)
+        `${goldSuit}_${goldNum}_0` as TileId,
+      ];
+      winningTile = `${goldSuit}_${goldNum}_0` as TileId;
+      goldCount = 1;
+    }
+
+    const multiplier = winType === 'selfDraw' || winType === 'threeGolds' ? 2 : 1;
+    const subtotal = 2 + 3 + goldCount; // base + bonus tiles + golds
+    const threeGoldsBonus = winType === 'threeGolds' ? 30 : 0;
+    const robbingGoldBonus = winType === 'robbingGold' ? 30 : 0;
+    const total = subtotal * multiplier + threeGoldsBonus + robbingGoldBonus;
+
+    const fakeScore: ScoreBreakdown & Record<string, unknown> = {
+      base: 2,
+      bonusTiles: 3,
+      golds: goldCount,
+      concealedKongBonus: 0,
+      exposedKongBonus: 0,
+      dealerStreakBonus: 0,
+      subtotal,
+      multiplier,
+      total,
+    };
+    // Only add optional bonus fields if they have values (Firebase rejects undefined)
+    if (winType === 'threeGolds') {
+      fakeScore.threeGoldsBonus = 30;
+    }
+    if (winType === 'robbingGold') {
+      fakeScore.robbingGoldBonus = 30;
+    }
+
+    const fakeWinner: WinnerInfo & Record<string, unknown> = {
+      seat: mySeat,
+      isSelfDraw: winType === 'selfDraw' || winType === 'threeGolds',
+      isThreeGolds: winType === 'threeGolds',
+      isRobbingGold: winType === 'robbingGold',
+      hand: fakeHand,
+      winningTile: winningTile,
+      score: fakeScore,
+    };
+    // Only add discarder for non-self-draw wins
+    if (winType === 'normal' || winType === 'robbingGold') {
+      fakeWinner.discarderSeat = ((mySeat + 1) % 4) as SeatIndex;
+    }
+
+    try {
+      await update(ref(db, `rooms/${roomCode}/game`), {
+        phase: 'ended',
+        winner: fakeWinner,
+      });
+    } catch (err) {
+      console.error('Failed to trigger test win:', err);
+    }
+  };
+
   // Play sound and show indicator when it becomes my turn
   const prevTurnRef = useRef<SeatIndex | null>(null);
   const prevCallingPhaseRef = useRef<boolean>(false);
@@ -1028,7 +1289,7 @@ export default function GamePage() {
                 <div className="max-h-40 overflow-y-auto space-y-0.5">
                   {(gameState.actionLog || []).map((entry, index) => (
                     <div key={index} className="text-xs py-0.5 text-slate-400">
-                      {transformLogEntry(entry, room)}
+                      {transformLogEntry(entry, room, mySeat)}
                     </div>
                   ))}
                 </div>
@@ -1132,6 +1393,214 @@ export default function GamePage() {
     const discarderName = winner.discarderSeat !== undefined
       ? room.players[`seat${winner.discarderSeat}` as keyof typeof room.players]?.name || 'Unknown'
       : null;
+
+    // Suspense overlay before revealing winner
+    if (showWinnerSuspense) {
+      const sortedWinningHand = winner.hand ? sortTilesForDisplay(winner.hand, gameState.goldTileType) : [];
+      const winnerExposedMelds = gameState.exposedMelds?.[`seat${winner.seat}` as keyof typeof gameState.exposedMelds] || [];
+
+      // Determine which tiles are "special" (winning tiles that fly in)
+      const getIsSpecialTile = (tileId: string) => {
+        if (winner.isThreeGolds) {
+          return gameState.goldTileType && isGoldTile(tileId, gameState.goldTileType);
+        }
+        return tileId === winner.winningTile;
+      };
+
+      // Count gold tiles for stagger
+      const goldTileIndices: number[] = [];
+      if (winner.isThreeGolds) {
+        sortedWinningHand.forEach((tid, idx) => {
+          if (gameState.goldTileType && isGoldTile(tid, gameState.goldTileType)) {
+            goldTileIndices.push(idx);
+          }
+        });
+      }
+
+      return (
+        <div className={`min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-black text-white flex flex-col items-center justify-center relative overflow-hidden transition-opacity duration-500 ${suspensePhase === 'fading' ? 'opacity-0' : 'opacity-100'}`}>
+          {/* Pulsing background */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-amber-500/10 rounded-full blur-[100px] animate-pulse" />
+          </div>
+
+          {/* CSS for animations */}
+          <style jsx>{`
+            @keyframes revealTile {
+              0% {
+                transform: scale(1.1);
+                opacity: 0;
+              }
+              100% {
+                transform: scale(1);
+                opacity: 1;
+              }
+            }
+            @keyframes flyInFromTop {
+              0% {
+                transform: translateY(-200px) rotate(-10deg);
+                opacity: 0;
+              }
+              70% {
+                transform: translateY(10px) rotate(2deg);
+                opacity: 1;
+              }
+              100% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+              }
+            }
+            @keyframes winningGlow {
+              0%, 100% {
+                box-shadow: 0 0 10px #fbbf24, 0 0 20px #fbbf24, 0 0 30px #f59e0b;
+              }
+              50% {
+                box-shadow: 0 0 20px #fbbf24, 0 0 40px #fbbf24, 0 0 60px #f59e0b;
+              }
+            }
+          `}</style>
+
+          {/* Suspense content - no name revealed */}
+          <div className="text-center z-10 mb-8">
+            <div className="text-5xl mb-4">🀄</div>
+            <div className="text-2xl sm:text-3xl font-bold text-amber-400 animate-pulse">
+              The winner is...
+            </div>
+          </div>
+
+          {/* Hand Tiles - Face down then reveal */}
+          <div className="z-10 flex flex-wrap justify-center gap-1 px-4 max-w-4xl mb-4">
+            {sortedWinningHand.map((tileId, index) => {
+              const tileType = getTileType(tileId);
+              const isGold = gameState.goldTileType && isGoldTile(tileId, gameState.goldTileType);
+              const isSpecial = getIsSpecialTile(tileId);
+              const goldIndex = goldTileIndices.indexOf(index);
+              const goldStaggerDelay = goldIndex >= 0 ? goldIndex * 0.15 : 0;
+
+              // Calculate when this tile should reveal (staggered)
+              const revealDelay = index * 0.05;
+              const shouldBeRevealed = suspensePhase === 'flipping' || suspensePhase === 'flyIn' || suspensePhase === 'fading';
+
+              // Get suit-specific text color (matching gameplay)
+              const getSuitColor = (tt: string) => {
+                if (tt.startsWith('dots_')) return 'text-red-600';
+                if (tt.startsWith('bamboo_')) return 'text-blue-600';
+                if (tt.startsWith('characters_')) return 'text-green-600';
+                return 'text-slate-800';
+              };
+
+              // Special tiles: show green placeholder until fly-in
+              if (isSpecial) {
+                if (suspensePhase === 'flyIn' || suspensePhase === 'fading') {
+                  // Fly in the special tile
+                  return (
+                    <div
+                      key={`${tileId}-${index}`}
+                      className={`
+                        w-10 h-14 sm:w-12 sm:h-16 rounded-md border-2 flex items-center justify-center text-lg sm:text-xl font-bold
+                        ${isGold ? `bg-yellow-100 border-yellow-400 ${getSuitColor(tileType)}` : `bg-white border-gray-300 ${getSuitColor(tileType)}`}
+                        ring-2 ring-amber-400 shadow-lg
+                      `}
+                      style={{
+                        animation: `flyInFromTop 0.6s ease-out ${goldStaggerDelay}s both, winningGlow 1s ease-in-out ${0.6 + goldStaggerDelay}s infinite`,
+                      }}
+                    >
+                      {getTileDisplayText(tileType)}
+                    </div>
+                  );
+                }
+                // Before fly-in: show green placeholder (hidden during flipping phase)
+                return (
+                  <div
+                    key={`${tileId}-${index}`}
+                    className="w-10 h-14 sm:w-12 sm:h-16 rounded-md bg-emerald-700 border-2 border-emerald-600"
+                    style={{
+                      opacity: shouldBeRevealed ? 0 : 1,
+                      transition: `opacity 0.3s ease-out ${revealDelay}s`
+                    }}
+                  />
+                );
+              }
+
+              // Regular tiles: green -> white reveal
+              return (
+                <div
+                  key={`${tileId}-${index}`}
+                  className="w-10 h-14 sm:w-12 sm:h-16 rounded-md relative"
+                >
+                  {/* Green back (fades out) */}
+                  <div
+                    className="absolute inset-0 rounded-md bg-emerald-700 border-2 border-emerald-600"
+                    style={{
+                      opacity: shouldBeRevealed ? 0 : 1,
+                      transition: `opacity 0.2s ease-out ${revealDelay}s`,
+                    }}
+                  />
+                  {/* Tile face (fades in) */}
+                  <div
+                    className={`
+                      absolute inset-0 rounded-md border-2 flex items-center justify-center text-lg sm:text-xl font-bold
+                      ${isGold ? `bg-yellow-100 border-yellow-400 ${getSuitColor(tileType)}` : `bg-white border-gray-300 ${getSuitColor(tileType)}`}
+                    `}
+                    style={{
+                      opacity: shouldBeRevealed ? 1 : 0,
+                      transform: shouldBeRevealed ? 'scale(1)' : 'scale(0.9)',
+                      transition: `opacity 0.2s ease-out ${revealDelay}s, transform 0.2s ease-out ${revealDelay}s`,
+                    }}
+                  >
+                    {getTileDisplayText(tileType)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Exposed Melds - Always visible */}
+          {winnerExposedMelds.length > 0 && (
+            <div className="z-10 flex flex-wrap justify-center gap-2 px-4">
+              <span className="text-slate-400 text-sm mr-2 self-center">Melds:</span>
+              {winnerExposedMelds.map((meld, meldIdx) => {
+                // Helper for meld tile colors
+                const getMeldTileColor = (tt: string) => {
+                  if (tt.startsWith('dots_')) return 'text-red-600';
+                  if (tt.startsWith('bamboo_')) return 'text-blue-600';
+                  if (tt.startsWith('characters_')) return 'text-green-600';
+                  return 'text-slate-800';
+                };
+                return (
+                  <div key={meldIdx} className="flex gap-0.5 bg-slate-800/50 rounded p-1">
+                    {meld.tiles.map((tile, i) => {
+                      const meldTileType = getTileType(tile);
+                      return (
+                        <div
+                          key={i}
+                          className={`
+                            w-8 h-11 sm:w-10 sm:h-14 rounded border-2 flex items-center justify-center text-sm sm:text-base font-bold
+                            ${gameState.goldTileType && isGoldTile(tile, gameState.goldTileType)
+                              ? `bg-yellow-100 border-yellow-400 ${getMeldTileColor(meldTileType)}`
+                              : `bg-white border-gray-300 ${getMeldTileColor(meldTileType)}`
+                            }
+                          `}
+                        >
+                          {meld.isConcealed ? '' : getTileDisplayText(meldTileType)}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Loading dots */}
+          <div className="mt-8 flex justify-center gap-2 z-10">
+            <div className="w-2 h-2 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
+            <div className="w-2 h-2 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
+            <div className="w-2 h-2 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-white p-4 relative overflow-hidden">
@@ -1371,17 +1840,23 @@ export default function GamePage() {
           <div className="text-center mb-3 lg:mb-4">
             {/* Animated title row */}
             <div className="flex items-center justify-center gap-3 mb-2">
-              <div className="text-4xl sm:text-5xl animate-bounce" style={{ animationDuration: '1s', animationIterationCount: '3' }}>
-                {winner.isThreeGolds ? '🀄🀄🀄' : winner.isRobbingGold ? '💰💰💰' : '🏆'}
+              <div className={`text-4xl sm:text-5xl ${winner.seat === mySeat ? 'animate-bounce' : ''}`} style={{ animationDuration: '1s', animationIterationCount: '3' }}>
+                {winner.seat === mySeat
+                  ? (winner.isThreeGolds ? '🀄🀄🀄' : winner.isRobbingGold ? '💰💰💰' : '🏆')
+                  : '😔'}
               </div>
               <div className={`text-2xl sm:text-4xl font-bold ${
-                winner.isThreeGolds
-                  ? 'text-yellow-300 animate-pulse'
-                  : winner.isRobbingGold
-                    ? 'text-amber-300 animate-pulse'
-                    : 'text-amber-400'
+                winner.seat !== mySeat
+                  ? 'text-slate-400'
+                  : winner.isThreeGolds
+                    ? 'text-yellow-300 animate-pulse'
+                    : winner.isRobbingGold
+                      ? 'text-amber-300 animate-pulse'
+                      : 'text-amber-400'
               }`}>
-                {winner.isThreeGolds ? 'THREE GOLDS!' : winner.isRobbingGold ? 'ROBBING THE GOLD!' : 'WINNER!'}
+                {winner.seat !== mySeat
+                  ? 'So Close...'
+                  : winner.isThreeGolds ? 'THREE GOLDS!' : winner.isRobbingGold ? 'ROBBING THE GOLD!' : 'WINNER!'}
               </div>
             </div>
             <div className="text-2xl sm:text-3xl font-bold text-white drop-shadow-lg">{winnerName}</div>
@@ -1396,7 +1871,7 @@ export default function GamePage() {
               {winner.seat === gameState.dealerSeat && (
                 <span className="text-orange-400 ml-2">
                   {sessionScores?.dealerStreak && sessionScores.dealerStreak > 1
-                    ? `🔥 ${sessionScores.dealerStreak}-win streak!`
+                    ? `🔥 ${sessionScores.dealerStreak}-round streak!`
                     : ' 🔥 Dealer wins!'}
                 </span>
               )}
@@ -1419,9 +1894,14 @@ export default function GamePage() {
                     {(() => {
                       const sortedHand = sortTilesForDisplay(winner.hand, gameState.goldTileType);
                       return sortedHand.map((tileId: string, index: number) => {
-                        const isWinningTile = tileId === winner.winningTile;
+                        // For Three Golds: highlight all gold tiles
+                        // For other wins: highlight only the winning tile
+                        const isGold = gameState.goldTileType && isGoldTile(tileId, gameState.goldTileType);
+                        const isHighlighted = winner.isThreeGolds
+                          ? isGold
+                          : tileId === winner.winningTile;
                         return (
-                          <div key={`hand-${index}`} className={`relative ${isWinningTile ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-700 rounded-md' : ''}`}>
+                          <div key={`hand-${index}`} className={`relative ${isHighlighted ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-700 rounded-md' : ''}`}>
                             <Tile
                               tileId={tileId}
                               goldTileType={gameState.goldTileType}
@@ -1629,7 +2109,7 @@ export default function GamePage() {
                 <div className="max-h-16 lg:max-h-20 overflow-y-auto space-y-0.5 lg:space-y-1">
                   {(gameState.actionLog || []).map((entry, index) => (
                     <div key={index} className="text-xs lg:text-sm py-0.5 text-slate-300">
-                      {transformLogEntry(entry, room)}
+                      {transformLogEntry(entry, room, mySeat)}
                     </div>
                   ))}
                 </div>
@@ -2261,13 +2741,13 @@ export default function GamePage() {
             const isDealer = gameState.dealerSeat === seat;
             const exposedMelds = gameState.exposedMelds?.[`seat${seat}` as keyof typeof gameState.exposedMelds] || [];
             const bonusTiles = gameState.bonusTiles?.[`seat${seat}` as keyof typeof gameState.bonusTiles] || [];
-            const baseTileCount = isDealer ? 17 : 16;
-            // Calculate tiles removed from hand: 2 for most melds, 3 for concealed kong (4 removed, +1 replacement draw)
-            const tilesRemovedFromHand = exposedMelds.reduce((sum, meld) => {
-              return sum + (meld.type === 'kong' && meld.isConcealed ? 3 : 2);
-            }, 0);
-            const tileCount = baseTileCount - tilesRemovedFromHand;
             const isCurrentTurn = gameState.currentPlayerSeat === seat;
+            // Total tiles = 16 base + 1 per kong (replacement draw) + 1 if needs to discard
+            const kongCount = exposedMelds.filter(m => m.type === 'kong').length;
+            const needsDiscard = isCurrentTurn && !needsToDraw(gameState);
+            const totalTiles = 16 + kongCount + (needsDiscard ? 1 : 0);
+            const tilesInMelds = exposedMelds.reduce((sum, meld) => sum + meld.tiles.length, 0);
+            const tileCount = totalTiles - tilesInMelds;
 
             // Narrow cell for current player (first column)
             if (isMe) {
@@ -2396,7 +2876,7 @@ export default function GamePage() {
               key={index}
               className={`text-xs sm:text-lg py-0.5 ${index === arr.length - 1 ? 'text-white font-medium' : 'text-slate-300'}`}
             >
-              {transformLogEntry(entry, room)}
+              {transformLogEntry(entry, room, mySeat)}
             </div>
           ))}
         </div>
@@ -2411,7 +2891,7 @@ export default function GamePage() {
               key={index}
               className={`text-xs py-0.5 ${index === arr.length - 1 ? 'text-white font-medium' : 'text-slate-300'}`}
             >
-              {transformLogEntry(entry, room)}
+              {transformLogEntry(entry, room, mySeat)}
             </div>
           ))}
         </div>
@@ -2769,6 +3249,85 @@ export default function GamePage() {
         turnTimerSeconds={roomTurnTimerSeconds}
         setTurnTimerSeconds={setTurnTimerSeconds}
       />
+
+      {/* Debug Panel - Dev Mode Only */}
+      {DEBUG_GAME && gameState?.phase === 'playing' && (
+        <div className="fixed bottom-4 right-4 bg-red-900/90 border border-red-500 rounded-lg p-3 z-50 max-h-[80vh] overflow-y-auto">
+          <div className="text-red-300 text-xs font-bold mb-2">🛠 DEBUG</div>
+          <div className="flex flex-col gap-1">
+            <div className="text-red-400 text-xs mt-1 mb-1">Test Wins:</div>
+            <button
+              onClick={() => triggerTestWin('normal')}
+              className="px-2 py-1 bg-red-700 hover:bg-red-600 text-white text-xs rounded"
+            >
+              Win (Normal)
+            </button>
+            <button
+              onClick={() => triggerTestWin('selfDraw')}
+              className="px-2 py-1 bg-red-700 hover:bg-red-600 text-white text-xs rounded"
+            >
+              Win (Self-Draw)
+            </button>
+            <button
+              onClick={() => triggerTestWin('threeGolds')}
+              className="px-2 py-1 bg-yellow-700 hover:bg-yellow-600 text-white text-xs rounded"
+            >
+              Win (3 Golds)
+            </button>
+            <button
+              onClick={() => triggerTestWin('robbingGold')}
+              className="px-2 py-1 bg-amber-700 hover:bg-amber-600 text-white text-xs rounded"
+            >
+              Win (Rob Gold)
+            </button>
+            <div className="text-red-400 text-xs mt-2 mb-1">Win Sounds (click to loop):</div>
+            {loopingSound && (
+              <button
+                onClick={() => toggleLoopSound(loopingSound)}
+                className="px-2 py-1 bg-red-600 hover:bg-red-500 text-white text-xs rounded mb-1"
+              >
+                ⏹ Stop
+              </button>
+            )}
+            <button
+              onClick={() => toggleLoopSound('win')}
+              className={`px-2 py-1 ${loopingSound === 'win' ? 'bg-green-600' : 'bg-purple-700 hover:bg-purple-600'} text-white text-xs rounded`}
+            >
+              {loopingSound === 'win' ? '🔊 ' : ''}Current
+            </button>
+            <button
+              onClick={() => toggleLoopSound('winA')}
+              className={`px-2 py-1 ${loopingSound === 'winA' ? 'bg-green-600' : 'bg-blue-700 hover:bg-blue-600'} text-white text-xs rounded`}
+            >
+              {loopingSound === 'winA' ? '🔊 ' : ''}A: Chime
+            </button>
+            <button
+              onClick={() => toggleLoopSound('winB')}
+              className={`px-2 py-1 ${loopingSound === 'winB' ? 'bg-green-600' : 'bg-blue-700 hover:bg-blue-600'} text-white text-xs rounded`}
+            >
+              {loopingSound === 'winB' ? '🔊 ' : ''}B: Gong
+            </button>
+            <button
+              onClick={() => toggleLoopSound('winC')}
+              className={`px-2 py-1 ${loopingSound === 'winC' ? 'bg-green-600' : 'bg-blue-700 hover:bg-blue-600'} text-white text-xs rounded`}
+            >
+              {loopingSound === 'winC' ? '🔊 ' : ''}C: Sparkle
+            </button>
+            <button
+              onClick={() => toggleLoopSound('winD')}
+              className={`px-2 py-1 ${loopingSound === 'winD' ? 'bg-green-600' : 'bg-blue-700 hover:bg-blue-600'} text-white text-xs rounded`}
+            >
+              {loopingSound === 'winD' ? '🔊 ' : ''}D: Victory
+            </button>
+            <button
+              onClick={() => toggleLoopSound('winE')}
+              className={`px-2 py-1 ${loopingSound === 'winE' ? 'bg-green-600' : 'bg-blue-700 hover:bg-blue-600'} text-white text-xs rounded`}
+            >
+              {loopingSound === 'winE' ? '🔊 ' : ''}E: Bell
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

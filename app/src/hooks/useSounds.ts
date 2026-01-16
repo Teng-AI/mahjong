@@ -11,11 +11,17 @@ export type SoundType =
   | 'pung'
   | 'chow'
   | 'win'
+  | 'winA'  // Simple chime
+  | 'winB'  // Soft gong
+  | 'winC'  // Rising sparkle
+  | 'winD'  // Short victory
+  | 'winE'  // Bell tone
   | 'yourTurn'
   | 'callAlert'
   | 'gameStart'
   | 'pass'
-  | 'timerWarning';
+  | 'timerWarning'
+  | 'drumroll';
 
 interface UseSoundsReturn {
   playSound: (type: SoundType) => void;
@@ -105,35 +111,78 @@ const soundDefinitions: Record<SoundType, (ctx: AudioContext, volumeMultiplier: 
   },
 
   win: (ctx, vol) => {
-    // Celebratory victory fanfare - longer triumphant melody
-    // First phrase - ascending fanfare
+    // Short Victory - punchy 3-note triumph
     playNoteSequence(ctx, [
-      { freq: 523, duration: 0.12, delay: 0 },       // C5
-      { freq: 659, duration: 0.12, delay: 0.1 },     // E5
-      { freq: 784, duration: 0.12, delay: 0.2 },     // G5
-      { freq: 1047, duration: 0.3, delay: 0.3 },     // C6 (hold)
-    ], 'sine', 0.45 * vol);
-    // Second phrase - triumphant resolution
-    playNoteSequence(ctx, [
-      { freq: 880, duration: 0.15, delay: 0.7 },     // A5
-      { freq: 988, duration: 0.15, delay: 0.85 },    // B5
-      { freq: 1047, duration: 0.2, delay: 1.0 },     // C6
-      { freq: 1319, duration: 0.4, delay: 1.2 },     // E6 (high)
-    ], 'sine', 0.4 * vol);
-    // Third phrase - celebratory flourish
-    playNoteSequence(ctx, [
-      { freq: 1047, duration: 0.1, delay: 1.7 },     // C6
-      { freq: 1175, duration: 0.1, delay: 1.8 },     // D6
-      { freq: 1319, duration: 0.1, delay: 1.9 },     // E6
-      { freq: 1568, duration: 0.5, delay: 2.0 },     // G6 (finale)
+      { freq: 392, duration: 0.1, delay: 0 },       // G4
+      { freq: 523, duration: 0.1, delay: 0.1 },     // C5
+      { freq: 659, duration: 0.35, delay: 0.2 },    // E5 (hold)
     ], 'sine', 0.5 * vol);
-    // Bass accompaniment
+    // Bass punch
+    createOscillatorSound(ctx, 131, 0.2, 'sine', 0.3 * vol);  // C3
+  },
+
+  // Option A: Simple Chime - clean two-note chime
+  winA: (ctx, vol) => {
     playNoteSequence(ctx, [
-      { freq: 262, duration: 0.3, delay: 0 },        // C4
-      { freq: 330, duration: 0.3, delay: 0.7 },      // E4
-      { freq: 392, duration: 0.3, delay: 1.2 },      // G4
-      { freq: 523, duration: 0.6, delay: 1.7 },      // C5
-    ], 'sine', 0.25 * vol);
+      { freq: 880, duration: 0.15, delay: 0 },       // A5
+      { freq: 1320, duration: 0.3, delay: 0.12 },    // E6
+    ], 'sine', 0.5 * vol);
+    // Subtle harmonic
+    playNoteSequence(ctx, [
+      { freq: 1760, duration: 0.2, delay: 0.1 },     // A6 (octave shimmer)
+    ], 'sine', 0.15 * vol);
+  },
+
+  // Option B: Soft Gong - low resonant tone with shimmer
+  winB: (ctx, vol) => {
+    // Deep gong hit
+    createOscillatorSound(ctx, 110, 1.0, 'sine', 0.4 * vol);  // A2
+    createOscillatorSound(ctx, 220, 0.8, 'sine', 0.25 * vol); // A3 harmonic
+    // Shimmer overtones
+    playNoteSequence(ctx, [
+      { freq: 440, duration: 0.4, delay: 0.05 },    // A4
+      { freq: 660, duration: 0.3, delay: 0.1 },     // E5
+      { freq: 880, duration: 0.2, delay: 0.15 },    // A5
+    ], 'sine', 0.12 * vol);
+  },
+
+  // Option C: Rising Sparkle - quick ascending with shimmer
+  winC: (ctx, vol) => {
+    playNoteSequence(ctx, [
+      { freq: 523, duration: 0.08, delay: 0 },      // C5
+      { freq: 659, duration: 0.08, delay: 0.07 },   // E5
+      { freq: 784, duration: 0.08, delay: 0.14 },   // G5
+      { freq: 1047, duration: 0.08, delay: 0.21 },  // C6
+      { freq: 1319, duration: 0.25, delay: 0.28 },  // E6 (hold)
+    ], 'sine', 0.4 * vol);
+    // Sparkle layer
+    playNoteSequence(ctx, [
+      { freq: 2093, duration: 0.1, delay: 0.35 },   // C7
+      { freq: 2637, duration: 0.15, delay: 0.42 },  // E7
+    ], 'sine', 0.15 * vol);
+  },
+
+  // Option D: Short Victory - punchy 3-note triumph
+  winD: (ctx, vol) => {
+    playNoteSequence(ctx, [
+      { freq: 392, duration: 0.1, delay: 0 },       // G4
+      { freq: 523, duration: 0.1, delay: 0.1 },     // C5
+      { freq: 659, duration: 0.35, delay: 0.2 },    // E5 (hold)
+    ], 'sine', 0.5 * vol);
+    // Bass punch
+    createOscillatorSound(ctx, 131, 0.2, 'sine', 0.3 * vol);  // C3
+  },
+
+  // Option E: Bell Tone - single rich bell with harmonics
+  winE: (ctx, vol) => {
+    // Fundamental
+    createOscillatorSound(ctx, 440, 0.8, 'sine', 0.4 * vol);   // A4
+    // Harmonics for richness
+    createOscillatorSound(ctx, 880, 0.6, 'sine', 0.2 * vol);   // A5
+    createOscillatorSound(ctx, 1320, 0.4, 'sine', 0.1 * vol);  // E6
+    createOscillatorSound(ctx, 1760, 0.3, 'sine', 0.05 * vol); // A6
+    // Slight detune for bell character
+    createOscillatorSound(ctx, 445, 0.7, 'sine', 0.15 * vol);
   },
 
   yourTurn: (ctx, vol) => {
@@ -177,6 +226,31 @@ const soundDefinitions: Record<SoundType, (ctx: AudioContext, volumeMultiplier: 
       { freq: 800, duration: 0.1, delay: 0.15 },    // Second beep
       { freq: 1000, duration: 0.15, delay: 0.3 },   // Higher urgent beep
     ], 'square', 0.3 * vol);
+  },
+
+  drumroll: (ctx, vol) => {
+    // Building suspense drumroll - rapid hits that build in intensity
+    const hits: { freq: number; duration: number; delay: number }[] = [];
+    // Start slow, get faster
+    const totalDuration = 2.0;
+    let time = 0;
+    let interval = 0.15; // Start with slower hits
+    while (time < totalDuration) {
+      // Alternate between two low frequencies for drum effect
+      const freq = time % 0.3 < 0.15 ? 100 : 120;
+      hits.push({ freq, duration: 0.08, delay: time });
+      time += interval;
+      // Gradually speed up
+      interval = Math.max(0.04, interval * 0.92);
+    }
+    playNoteSequence(ctx, hits, 'triangle', 0.4 * vol);
+    // Add a rising tone underneath for tension
+    playNoteSequence(ctx, [
+      { freq: 150, duration: 0.5, delay: 0 },
+      { freq: 180, duration: 0.5, delay: 0.5 },
+      { freq: 220, duration: 0.5, delay: 1.0 },
+      { freq: 280, duration: 0.6, delay: 1.5 },
+    ], 'sine', 0.15 * vol);
   },
 };
 
