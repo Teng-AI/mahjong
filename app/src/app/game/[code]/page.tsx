@@ -1761,8 +1761,8 @@ export default function GamePage() {
       )}
 
       {/* ========== COMBINED HEADER + PHASE BAR ========== */}
-      <div className="flex flex-wrap items-center justify-between gap-1 sm:gap-2 mb-1.5 sm:mb-3 bg-slate-700/40 rounded-lg px-1.5 sm:px-3 py-1 sm:py-2">
-        <div className="flex items-center gap-1.5 sm:gap-4 flex-wrap">
+      <div className="flex flex-wrap items-center justify-between gap-0.5 sm:gap-2 mb-1.5 sm:mb-3 bg-slate-700/40 rounded-lg px-1 sm:px-3 py-1 sm:py-2">
+        <div className="flex items-center gap-1 sm:gap-4 flex-wrap">
           {/* Settings button */}
           <button
             onClick={() => setShowSettings(true)}
@@ -1806,13 +1806,13 @@ export default function GamePage() {
           </div>
         </div>
         {/* Phase indicator with timer - right side */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           <div className={`px-1.5 sm:px-3 py-0.5 sm:py-1 rounded-md text-xs sm:text-lg font-medium ${
             isCallingPhase ? 'bg-orange-500/40 text-orange-200' :
             isMyTurn ? 'bg-emerald-500/40 text-emerald-200' : 'bg-slate-600/60 text-slate-300'
           }`}>
-            {isCallingPhase ? (chowSelectionMode ? 'Select Chow tiles' : 'Calling...') :
-             isMyTurn ? (shouldDraw ? '▶ Draw a tile' : '▶ Discard a tile') :
+            {isCallingPhase ? (chowSelectionMode ? 'Select Chow' : 'Calling...') :
+             isMyTurn ? (shouldDraw ? '▶ Draw' : '▶ Discard') :
              `${getPlayerName(room, gameState.currentPlayerSeat)}'s turn`}
           </div>
           {/* Timer countdown (only during calling phase with timer enabled) */}
