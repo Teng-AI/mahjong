@@ -31,6 +31,7 @@ import {
   hasGoldenPair,
   isAllOneSuit,
   getWinningTiles,
+  selectSafeDiscard,
 } from './tiles';
 
 // Seat labels for log messages
@@ -43,6 +44,13 @@ const TEST_WINNING_HAND = false;
 // Dealer gets: 4 identical tiles (concealed kong), 3 matching tiles (for pung->upgrade)
 // Seat 1 gets: 3 identical tiles (ready to call kong on discard)
 const TEST_KONG_MODE = false;
+
+// TEST MODE: Set to true to test turn timer auto-win
+// Dealer gets: 2 gold tiles + near-winning hand (3 sequences + pair + isolated tiles)
+// Gold tile is forced to be dots_7
+// After drawing any tile, should auto-win when timer expires
+const TEST_TIMER_WIN_MODE = false;
+const DEBUG_AUTO_PLAY = false; // Set to true to debug auto-play on turn timer expire
 
 /**
  * Add an entry to the game action log
@@ -256,6 +264,85 @@ export async function initializeGame(roomCode: string, dealerSeat: SeatIndex): P
     // Wall is the remaining shuffled tiles
     shuffledTiles = shuffledTiles.slice(0);
     tileIndex = 0; // Reset for wall creation
+  } else if (TEST_TIMER_WIN_MODE) {
+    // TEST MODE: Set up hands for testing turn timer auto-win
+    // In this variant, winning hand = 5 melds + 1 pair = 17 tiles
+    // Dealer starts with 17, discards 1, then draws to 17 and wins
+
+    // Setup: 4 complete sequences + 1 pair + gold + 1 partial + 1 junk
+    // After discarding junk and drawing matching tile:
+    // 4 sequences + gold-assisted pung + pair = 5 melds + pair = WIN
+
+    // NOTE: Gold tile is forced to dots_7 below
+    // Hand requires gold to win - won't trigger "rob the gold"
+    const dealerHand: TileId[] = [
+      // 1 GOLD TILE (dots_7)
+      'dots_7_0',
+      // Sequence 1: 1-2-3萬
+      'characters_1_0', 'characters_2_0', 'characters_3_0',
+      // Sequence 2: 4-5-6萬
+      'characters_4_0', 'characters_5_0', 'characters_6_0',
+      // Sequence 3: 7-8-9萬
+      'characters_7_0', 'characters_8_0', 'characters_9_0',
+      // Pair (eyes): 5|| 5||
+      'bamboo_5_0', 'bamboo_5_1',
+      // Isolated circles (can't form meld)
+      'dots_3_0', 'dots_6_0',
+      // Partial pung: 3|| 3|| (needs drawn tile bamboo_3_2)
+      'bamboo_3_0', 'bamboo_3_1',
+      // Junk tile to discard
+      'bamboo_6_0',
+    ]; // 17 tiles - 3 seq + partial pung + pair + 2 isolated + gold + junk
+    // This hand WON'T auto-win (dots_3 + dots_6 can't form meld with gold)
+    // Test verifies: no rob-the-gold, auto-discard works
+
+    const seat1Hand: TileId[] = [
+      'characters_1_1', 'characters_2_1', 'characters_3_1',
+      'characters_4_1', 'characters_5_1', 'characters_6_1',
+      'characters_7_1', 'characters_8_1', 'characters_9_1',
+      'dots_1_0', 'dots_4_0', 'dots_5_0', 'dots_6_0',
+      'bamboo_2_0', 'bamboo_4_0', 'bamboo_5_0',
+    ];
+
+    const seat2Hand: TileId[] = [
+      'characters_1_2', 'characters_2_2', 'characters_3_2',
+      'characters_4_2', 'characters_5_2', 'characters_6_2',
+      'characters_7_2', 'characters_8_2', 'characters_9_2',
+      'dots_1_1', 'dots_4_1', 'dots_5_1', 'dots_6_1',
+      'bamboo_2_1', 'bamboo_4_1', 'bamboo_5_1',
+    ];
+
+    const seat3Hand: TileId[] = [
+      'characters_1_3', 'characters_2_3', 'characters_3_3',
+      'characters_4_3', 'characters_5_3', 'characters_6_3',
+      'characters_7_3', 'characters_8_3', 'characters_9_3',
+      'dots_1_2', 'dots_4_2', 'dots_5_2', 'dots_6_2',
+      'bamboo_2_2', 'bamboo_4_2', 'bamboo_5_2',
+    ];
+
+    // Remove test tiles from shuffled deck
+    const usedTiles = new Set([...dealerHand, ...seat1Hand, ...seat2Hand, ...seat3Hand]);
+    shuffledTiles = shuffledTiles.filter(t => !usedTiles.has(t));
+
+    // Put winning tile at position 3 in wall (4th tile)
+    // After dealer's discard, bots draw 3 tiles, then dealer draws the 4th
+    // bamboo_3_2 completes dealer's bamboo_3_0 + bamboo_3_1 into a pung
+    // Then gold completes dots_1_0 + dots_1_1 into another pung -> 5 melds + pair = WIN
+    const winningTile = 'bamboo_3_2' as TileId;
+    const winIndex = shuffledTiles.indexOf(winningTile);
+    if (winIndex !== -1 && winIndex !== 3) {
+      shuffledTiles.splice(winIndex, 1);
+      // Insert at position 3
+      shuffledTiles.splice(3, 0, winningTile);
+    }
+
+    // Assign hands based on dealer position
+    hands[dealerSeat] = dealerHand;
+    hands[((dealerSeat + 1) % 4) as SeatIndex] = seat1Hand;
+    hands[((dealerSeat + 2) % 4) as SeatIndex] = seat2Hand;
+    hands[((dealerSeat + 3) % 4) as SeatIndex] = seat3Hand;
+
+    tileIndex = 0; // Reset for wall creation
   } else {
     // Normal dealing
     // Deal 16 tiles to each player
@@ -270,12 +357,12 @@ export async function initializeGame(roomCode: string, dealerSeat: SeatIndex): P
   }
 
   // Remaining tiles form the wall
-  let wall = (TEST_WINNING_HAND || TEST_KONG_MODE)
+  let wall = (TEST_WINNING_HAND || TEST_KONG_MODE || TEST_TIMER_WIN_MODE)
     ? shuffledTiles // Already set up correctly in test modes
     : shuffledTiles.slice(tileIndex);
 
   // Remove 16 tiles as dead wall (unplayable, per Fujian Mahjong rules)
-  if (!TEST_WINNING_HAND && !TEST_KONG_MODE) {
+  if (!TEST_WINNING_HAND && !TEST_KONG_MODE && !TEST_TIMER_WIN_MODE) {
     wall = wall.slice(0, -16);
   }
 
@@ -318,13 +405,27 @@ export async function initializeGame(roomCode: string, dealerSeat: SeatIndex): P
   }
 
   // Reveal Gold tile (handle bonus tiles going to dealer)
-  let exposedGold = wall.shift()!;
-  while (isBonusTile(exposedGold) && wall.length > 0) {
-    // Bonus tile goes to dealer
-    bonusTiles[dealerSeat].push(exposedGold);
-    const bonusName = getTileDisplayText(getTileType(exposedGold));
-    actionLog.push(`Dealer received bonus from Gold reveal: ${bonusName}`);
+  let exposedGold: TileId;
+
+  if (TEST_TIMER_WIN_MODE) {
+    // Force gold tile to be dots_7 for testing
+    // Find dots_7_2 or dots_7_3 in wall (0 and 1 are in dealer's hand)
+    const goldIndex = wall.findIndex(t => t.startsWith('dots_7_'));
+    if (goldIndex !== -1) {
+      exposedGold = wall[goldIndex];
+      wall.splice(goldIndex, 1);
+    } else {
+      exposedGold = 'dots_7_2' as TileId; // Fallback
+    }
+  } else {
     exposedGold = wall.shift()!;
+    while (isBonusTile(exposedGold) && wall.length > 0) {
+      // Bonus tile goes to dealer
+      bonusTiles[dealerSeat].push(exposedGold);
+      const bonusName = getTileDisplayText(getTileType(exposedGold));
+      actionLog.push(`Dealer received bonus from Gold reveal: ${bonusName}`);
+      exposedGold = wall.shift()!;
+    }
   }
 
   const goldTileType = getTileType(exposedGold);
@@ -334,6 +435,11 @@ export async function initializeGame(roomCode: string, dealerSeat: SeatIndex): P
   for (let seat = 0; seat < 4; seat++) {
     hands[seat] = sortTilesForDisplay(hands[seat], goldTileType);
   }
+
+  // Get room settings for turn timer
+  const settingsSnapshot = await get(ref(db, `rooms/${roomCode}/settings`));
+  const settings = settingsSnapshot.val() as RoomSettings | null;
+  const turnTimerSeconds = settings?.turnTimerSeconds ?? null;
 
   // Create initial game state (Gold revealed, ready to play)
   const gameState: GameState = {
@@ -361,6 +467,9 @@ export async function initializeGame(roomCode: string, dealerSeat: SeatIndex): P
     pendingCalls: null,
     winner: null,
     actionLog,
+    // Turn timer settings
+    turnStartTime: Date.now(), // Dealer's turn starts now
+    turnTimerSeconds,
   };
 
   // Write game state to Firebase
@@ -1405,11 +1514,19 @@ function getTurnOrderFromDiscarder(discarderSeat: SeatIndex): SeatIndex[] {
 async function advanceToNextPlayer(roomCode: string, discarderSeat: SeatIndex): Promise<void> {
   const nextSeat = getNextSeat(discarderSeat);
 
+  // Get room settings for turn timer
+  const settingsSnapshot = await get(ref(db, `rooms/${roomCode}/settings`));
+  const settings = settingsSnapshot.val() as RoomSettings | null;
+  const turnTimerSeconds = settings?.turnTimerSeconds ?? null;
+
   await update(ref(db, `rooms/${roomCode}/game`), {
     phase: 'playing',
     currentPlayerSeat: nextSeat,
     pendingCalls: null,
     pendingChowOption: null,
+    // Reset turn timer for next player
+    turnStartTime: serverTimestamp(),
+    turnTimerSeconds,
   });
 
   await addToLog(roomCode, 'All players passed');
@@ -1483,6 +1600,11 @@ async function executePungCall(
   // Get existing melds
   const existingMelds = gameState.exposedMelds?.[`seat${callerSeat}` as keyof typeof gameState.exposedMelds] || [];
 
+  // Get room settings for turn timer
+  const settingsSnapshot = await get(ref(db, `rooms/${roomCode}/settings`));
+  const settings = settingsSnapshot.val() as RoomSettings | null;
+  const turnTimerSeconds = settings?.turnTimerSeconds ?? null;
+
   // Update game state
   await update(ref(db, `rooms/${roomCode}/game`), {
     phase: 'playing',
@@ -1497,6 +1619,9 @@ async function executePungCall(
       tile: discardTile,
       timestamp: Date.now(),
     },
+    // Start turn timer for caller (they need to discard)
+    turnStartTime: serverTimestamp(),
+    turnTimerSeconds,
   });
 
   // Update caller's hand (sorted)
@@ -1580,6 +1705,11 @@ async function executeKongCall(
   const existingMelds = gameState.exposedMelds?.[`seat${callerSeat}` as keyof typeof gameState.exposedMelds] || [];
   const existingBonusTiles = gameState.bonusTiles?.[`seat${callerSeat}` as keyof typeof gameState.bonusTiles] || [];
 
+  // Get room settings for turn timer
+  const settingsSnapshot = await get(ref(db, `rooms/${roomCode}/settings`));
+  const settings = settingsSnapshot.val() as RoomSettings | null;
+  const turnTimerSeconds = settings?.turnTimerSeconds ?? null;
+
   // Update game state
   await update(ref(db, `rooms/${roomCode}/game`), {
     phase: 'playing',
@@ -1599,6 +1729,9 @@ async function executeKongCall(
       replacementTile: replacementTile, // For highlighting the drawn tile
       timestamp: Date.now(),
     },
+    // Start turn timer for caller (they need to discard)
+    turnStartTime: serverTimestamp(),
+    turnTimerSeconds,
   });
 
   // Update caller's hand (sorted)
@@ -1662,6 +1795,11 @@ async function executeChowCall(
   // Get existing melds
   const existingMelds = gameState.exposedMelds?.[`seat${callerSeat}` as keyof typeof gameState.exposedMelds] || [];
 
+  // Get room settings for turn timer
+  const settingsSnapshot = await get(ref(db, `rooms/${roomCode}/settings`));
+  const settings = settingsSnapshot.val() as RoomSettings | null;
+  const turnTimerSeconds = settings?.turnTimerSeconds ?? null;
+
   // Update game state
   await update(ref(db, `rooms/${roomCode}/game`), {
     phase: 'playing',
@@ -1676,6 +1814,9 @@ async function executeChowCall(
       tile: discardTile,
       timestamp: Date.now(),
     },
+    // Start turn timer for caller (they need to discard)
+    turnStartTime: serverTimestamp(),
+    turnTimerSeconds,
   });
 
   // Update caller's hand (sorted)
@@ -2152,6 +2293,8 @@ export async function declareConcealedKong(
       isConcealed: true, // Flag to identify concealed kong in UI
       timestamp: Date.now(),
     },
+    // Reset turn timer after kong (player still needs to discard)
+    turnStartTime: serverTimestamp(),
   });
 
   // Update player's hand (sorted)
@@ -2301,6 +2444,8 @@ export async function upgradePungToKong(
       replacementTile: replacementTile, // For highlighting the drawn tile
       timestamp: Date.now(),
     },
+    // Reset turn timer after kong (player still needs to discard)
+    turnStartTime: serverTimestamp(),
   });
 
   // Update player's hand (sorted)
@@ -2311,6 +2456,174 @@ export async function upgradePungToKong(
 
   const tileName = getTileDisplayText(pungType);
   await addToLog(roomCode, `${SEAT_NAMES[seat]} upgraded Pung to Kong (${tileName})`);
+
+  return { success: true };
+}
+
+// ============================================
+// TURN TIMER
+// ============================================
+
+/**
+ * Auto-play a turn when the turn timer expires
+ * Called by any client that detects the timer has expired for the current player
+ *
+ * This function handles:
+ * 1. Drawing a tile (if needed)
+ * 2. Selecting a safe tile to discard using selectSafeDiscard
+ * 3. Discarding that tile
+ *
+ * Uses turnStartTime validation to prevent duplicate actions or stale triggers
+ */
+export async function autoPlayExpiredTurn(
+  roomCode: string,
+  seat: SeatIndex,
+  expectedTurnStartTime: number
+): Promise<{ success: boolean; error?: string }> {
+  if (DEBUG_AUTO_PLAY) console.log('[autoPlayExpiredTurn] Starting', { roomCode, seat, expectedTurnStartTime });
+
+  // Get current game state
+  const gameSnapshot = await get(ref(db, `rooms/${roomCode}/game`));
+  if (!gameSnapshot.exists()) {
+    if (DEBUG_AUTO_PLAY) console.log('[autoPlayExpiredTurn] Game not found');
+    return { success: false, error: 'Game not found' };
+  }
+
+  const gameState = gameSnapshot.val() as GameState;
+  if (DEBUG_AUTO_PLAY) console.log('[autoPlayExpiredTurn] Game state', {
+    currentPlayerSeat: gameState.currentPlayerSeat,
+    phase: gameState.phase,
+    turnStartTime: gameState.turnStartTime,
+  });
+
+  // Validate it's still this player's turn
+  if (gameState.currentPlayerSeat !== seat) {
+    if (DEBUG_AUTO_PLAY) console.log('[autoPlayExpiredTurn] Not this player\'s turn');
+    return { success: false, error: 'Not this player\'s turn' };
+  }
+
+  // Validate we're in playing phase
+  if (gameState.phase !== 'playing') {
+    if (DEBUG_AUTO_PLAY) console.log('[autoPlayExpiredTurn] Not in playing phase');
+    return { success: false, error: 'Not in playing phase' };
+  }
+
+  // Validate the turn hasn't changed (turnStartTime matches what we expected)
+  // Allow some tolerance for clock differences (within 1 second)
+  const timeDiff = Math.abs((gameState.turnStartTime || 0) - expectedTurnStartTime);
+  if (DEBUG_AUTO_PLAY) console.log('[autoPlayExpiredTurn] Time diff check', { timeDiff, expected: expectedTurnStartTime, actual: gameState.turnStartTime });
+  if (timeDiff > 1000) {
+    if (DEBUG_AUTO_PLAY) console.log('[autoPlayExpiredTurn] Turn already changed');
+    return { success: false, error: 'Turn already changed' };
+  }
+
+  // Get player's hand
+  const handSnapshot = await get(ref(db, `rooms/${roomCode}/privateHands/seat${seat}`));
+  if (!handSnapshot.exists()) {
+    return { success: false, error: 'Hand not found' };
+  }
+
+  const hand = (handSnapshot.val() as PrivateHand).concealedTiles;
+
+  // Determine if player needs to draw first
+  // If lastAction is 'draw' or 'kong' or 'pung' or 'chow' by this player, they have a tile and need to discard
+  // Otherwise, they need to draw first
+  const lastAction = gameState.lastAction;
+  const needsDraw = !lastAction ||
+    lastAction.playerSeat !== seat ||
+    !['draw', 'kong', 'pung', 'chow'].includes(lastAction.type);
+
+  // Get player's exposed melds for win checking
+  // Exposed melds are stored at gameState.exposedMelds.seatN, not gameState.players.seatN.exposedMelds
+  const exposedMelds = gameState.exposedMelds?.[`seat${seat}` as keyof typeof gameState.exposedMelds] || [];
+
+  if (DEBUG_AUTO_PLAY) console.log('[autoPlayExpiredTurn] needsDraw:', needsDraw, 'lastAction:', lastAction);
+
+  if (needsDraw) {
+    // Draw a tile first
+    if (DEBUG_AUTO_PLAY) console.log('[autoPlayExpiredTurn] Drawing tile...');
+    const drawResult = await drawTile(roomCode, seat);
+    if (DEBUG_AUTO_PLAY) console.log('[autoPlayExpiredTurn] Draw result:', drawResult);
+    if (!drawResult.success) {
+      return { success: false, error: 'Failed to draw' };
+    }
+
+    // If draw resulted in game end (wall empty, three golds, etc.), we're done
+    if (drawResult.wallEmpty || drawResult.threeGoldsWin) {
+      return { success: true };
+    }
+
+    // Re-fetch game state and hand after draw (bonus tiles may have changed exposed melds)
+    const [newGameSnapshot, newHandSnapshot] = await Promise.all([
+      get(ref(db, `rooms/${roomCode}/game`)),
+      get(ref(db, `rooms/${roomCode}/privateHands/seat${seat}`)),
+    ]);
+
+    if (newHandSnapshot.exists() && newGameSnapshot.exists()) {
+      const newGameState = newGameSnapshot.val() as GameState;
+      const newHand = (newHandSnapshot.val() as PrivateHand).concealedTiles;
+      // Exposed melds are stored at gameState.exposedMelds.seatN, not gameState.players.seatN.exposedMelds
+      const newExposedMelds = newGameState.exposedMelds?.[`seat${seat}` as keyof typeof newGameState.exposedMelds] || [];
+
+      if (DEBUG_AUTO_PLAY) console.log('[autoPlayExpiredTurn] After draw - checking for win', {
+        hand: newHand,
+        handSize: newHand.length,
+        exposedMelds: newExposedMelds,
+        exposedMeldsCount: newExposedMelds.length,
+        goldTileType: newGameState.goldTileType,
+      });
+
+      // Check if player has a winning hand - auto-declare win
+      // canFormWinningHand(tiles, goldTileType, exposedMeldCount)
+      const canWin = canFormWinningHand(newHand, newGameState.goldTileType, newExposedMelds.length);
+      if (DEBUG_AUTO_PLAY) console.log('[autoPlayExpiredTurn] canFormWinningHand result:', canWin, 'for hand:', newHand.join(', '));
+
+      if (canWin) {
+        if (DEBUG_AUTO_PLAY) console.log('[autoPlayExpiredTurn] AUTO-WIN! Declaring self-draw win');
+        await declareSelfDrawWin(roomCode, seat);
+        return { success: true };
+      }
+
+      // Select a safe tile to discard
+      const tileToDiscard = selectSafeDiscard(newHand, newGameState.goldTileType, newGameState.discardPile);
+      if (DEBUG_AUTO_PLAY) console.log('[autoPlayExpiredTurn] Auto-discarding:', tileToDiscard);
+      if (tileToDiscard) {
+        await discardTile(roomCode, seat, tileToDiscard);
+      }
+    }
+  } else {
+    // Player has already drawn - re-fetch current game state for accurate data
+    const currentGameSnapshot = await get(ref(db, `rooms/${roomCode}/game`));
+    if (currentGameSnapshot.exists()) {
+      const currentGameState = currentGameSnapshot.val() as GameState;
+      // Exposed melds are stored at gameState.exposedMelds.seatN, not gameState.players.seatN.exposedMelds
+      const currentExposedMelds = currentGameState.exposedMelds?.[`seat${seat}` as keyof typeof currentGameState.exposedMelds] || [];
+
+      if (DEBUG_AUTO_PLAY) console.log('[autoPlayExpiredTurn] Already drew - checking for win', {
+        handSize: hand.length,
+        exposedMeldsCount: currentExposedMelds.length,
+        goldTileType: currentGameState.goldTileType,
+      });
+
+      // Check if they can win
+      // canFormWinningHand(tiles, goldTileType, exposedMeldCount)
+      const canWin = canFormWinningHand(hand, currentGameState.goldTileType, currentExposedMelds.length);
+      if (DEBUG_AUTO_PLAY) console.log('[autoPlayExpiredTurn] canFormWinningHand result:', canWin);
+
+      if (canWin) {
+        if (DEBUG_AUTO_PLAY) console.log('[autoPlayExpiredTurn] AUTO-WIN! Declaring self-draw win');
+        await declareSelfDrawWin(roomCode, seat);
+        return { success: true };
+      }
+
+      // Otherwise just discard
+      const tileToDiscard = selectSafeDiscard(hand, currentGameState.goldTileType, currentGameState.discardPile);
+      if (DEBUG_AUTO_PLAY) console.log('[autoPlayExpiredTurn] Auto-discarding:', tileToDiscard);
+      if (tileToDiscard) {
+        await discardTile(roomCode, seat, tileToDiscard);
+      }
+    }
+  }
 
   return { success: true };
 }

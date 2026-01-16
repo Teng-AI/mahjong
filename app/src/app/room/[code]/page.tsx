@@ -15,12 +15,27 @@ import { SeatIndex, RoomPlayer, BotDifficulty } from '@/types';
 interface TimerSettingsProps {
   currentValue: number | null;
   onChange: (seconds: number | null) => void;
+  title: string;
+  description: string;
+  disabledText: string;
+  minValue?: number;
+  maxValue?: number;
+  defaultValue?: number;
 }
 
-function TimerSettings({ currentValue, onChange }: TimerSettingsProps) {
+function TimerSettings({
+  currentValue,
+  onChange,
+  title,
+  description,
+  disabledText,
+  minValue = 10,
+  maxValue = 120,
+  defaultValue = 30,
+}: TimerSettingsProps) {
   const [enabled, setEnabled] = useState(currentValue !== null);
-  const [inputValue, setInputValue] = useState(String(currentValue ?? 30));
-  const previousValueRef = useRef<string>(String(currentValue ?? 30));
+  const [inputValue, setInputValue] = useState(String(currentValue ?? defaultValue));
+  const previousValueRef = useRef<string>(String(currentValue ?? defaultValue));
 
   // Update internal state when prop changes
   useEffect(() => {
@@ -38,10 +53,10 @@ function TimerSettings({ currentValue, onChange }: TimerSettingsProps) {
       // Enable timer with current input value
       const seconds = parseInt(inputValue);
       if (!isNaN(seconds)) {
-        onChange(Math.min(120, Math.max(10, seconds)));
+        onChange(Math.min(maxValue, Math.max(minValue, seconds)));
       } else {
-        onChange(30);
-        setInputValue('30');
+        onChange(defaultValue);
+        setInputValue(String(defaultValue));
       }
     } else {
       // Disable timer
@@ -65,14 +80,14 @@ function TimerSettings({ currentValue, onChange }: TimerSettingsProps) {
     if (isNaN(num)) {
       // Reset to previous valid value
       setInputValue(previousValueRef.current);
-    } else if (num < 10) {
-      setInputValue('10');
-      previousValueRef.current = '10';
-      onChange(10);
-    } else if (num > 120) {
-      setInputValue('120');
-      previousValueRef.current = '120';
-      onChange(120);
+    } else if (num < minValue) {
+      setInputValue(String(minValue));
+      previousValueRef.current = String(minValue);
+      onChange(minValue);
+    } else if (num > maxValue) {
+      setInputValue(String(maxValue));
+      previousValueRef.current = String(maxValue);
+      onChange(maxValue);
     } else {
       setInputValue(String(num));
       previousValueRef.current = String(num);
@@ -89,7 +104,7 @@ function TimerSettings({ currentValue, onChange }: TimerSettingsProps) {
   return (
     <div className="bg-green-800/30 rounded-lg p-4">
       <div className="flex items-center justify-between mb-3">
-        <span className="font-medium">Calling Phase Timer</span>
+        <span className="font-medium">{title}</span>
         <button
           onClick={handleToggle}
           className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
@@ -107,9 +122,9 @@ function TimerSettings({ currentValue, onChange }: TimerSettingsProps) {
           <div className="flex items-center gap-3">
             <input
               type="range"
-              min={10}
-              max={120}
-              value={parseInt(inputValue) || 30}
+              min={minValue}
+              max={maxValue}
+              value={parseInt(inputValue) || defaultValue}
               onChange={handleSliderChange}
               className="flex-1 h-2 bg-green-900 rounded-lg appearance-none cursor-pointer accent-yellow-500"
             />
@@ -126,14 +141,14 @@ function TimerSettings({ currentValue, onChange }: TimerSettingsProps) {
             </div>
           </div>
           <p className="text-xs text-green-400">
-            Auto-pass after timeout • 10-120 seconds
+            {description} • {minValue}-{maxValue} seconds
           </p>
         </div>
       )}
 
       {!enabled && (
         <p className="text-xs text-green-400">
-          No time limit during calling phase
+          {disabledText}
         </p>
       )}
     </div>
@@ -303,8 +318,10 @@ export default function RoomPage() {
     playerCount,
     isFull,
     callingTimerSeconds,
+    turnTimerSeconds,
     setDealerSeat,
     setCallingTimerSeconds,
+    setTurnTimerSeconds,
     kickPlayer,
   } = useRoom({
     roomCode,
@@ -673,11 +690,23 @@ export default function RoomPage() {
 
         {/* Timer Settings (host only) */}
         {isHost && (
-          <div className="max-w-md mx-auto mb-6">
-            <TimerSettings
-              currentValue={callingTimerSeconds}
-              onChange={setCallingTimerSeconds}
-            />
+          <div className="max-w-2xl mx-auto mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <TimerSettings
+                currentValue={callingTimerSeconds}
+                onChange={setCallingTimerSeconds}
+                title="Calling Phase Timer"
+                description="Auto-pass after timeout"
+                disabledText="No time limit during calling phase"
+              />
+              <TimerSettings
+                currentValue={turnTimerSeconds}
+                onChange={setTurnTimerSeconds}
+                title="Turn Timer"
+                description="Auto-discard after timeout"
+                disabledText="No time limit for player turns"
+              />
+            </div>
           </div>
         )}
 

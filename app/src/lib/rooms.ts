@@ -310,6 +310,26 @@ export async function setCallingTimer(
 }
 
 /**
+ * Set turn timer (host only)
+ * @param seconds - Timer in seconds (10-300), or null for no timer
+ */
+export async function setTurnTimer(
+  roomCode: string,
+  seconds: number | null
+): Promise<void> {
+  // Validate range if not null
+  let validatedSeconds = seconds;
+  if (seconds !== null) {
+    if (seconds < 10) validatedSeconds = 10;
+    else if (seconds > 300) validatedSeconds = 300;
+  }
+
+  await update(ref(db, `rooms/${roomCode}/settings`), {
+    turnTimerSeconds: validatedSeconds,
+  });
+}
+
+/**
  * Update room status
  */
 export async function updateRoomStatus(

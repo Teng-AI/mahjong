@@ -186,6 +186,10 @@ export interface GameState {
   callingPhaseStartTime?: number;
   /** Timer seconds for this calling phase (null = no timer, copied from room settings) */
   callingTimerSeconds?: number | null;
+  /** Server timestamp when current player's turn started (for turn timer) */
+  turnStartTime?: number;
+  /** Timer seconds for turns (null = no timer, copied from room settings) */
+  turnTimerSeconds?: number | null;
   winner: WinnerInfo | null;
   actionLog: string[];
 }
@@ -207,6 +211,8 @@ export interface RoomSettings {
   dealerSeat: SeatIndex;
   /** Calling phase timer in seconds (null = no timer, 10-120 valid range) */
   callingTimerSeconds?: number | null;
+  /** Turn timer in seconds (null = no timer, 10-120 valid range) */
+  turnTimerSeconds?: number | null;
 }
 
 /** Room data structure */

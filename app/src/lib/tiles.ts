@@ -1097,6 +1097,119 @@ export function getTileDisplayText(tileType: TileType): string {
 }
 
 // ============================================
+// SAFE DISCARD SELECTION
+// ============================================
+
+/**
+ * Select a "safe" tile to discard when auto-playing
+ * Used by turn timer when a player times out
+ *
+ * Priority order:
+ * 1. Isolated tiles (no connection to other tiles in same suit)
+ * 2. Terminal tiles (1s and 9s - harder to form sequences)
+ * 3. Any non-gold tile
+ *
+ * Always avoids gold tiles (they're valuable wildcards)
+ *
+ * @param hand - The player's concealed hand
+ * @param goldTileType - The gold tile type to avoid
+ * @param discardPile - Optional discard pile to consider "dead" tiles
+ * @returns The tile ID to discard, or null if hand is empty
+ */
+export function selectSafeDiscard(
+  hand: TileId[],
+  goldTileType: TileType,
+  discardPile?: TileId[]
+): TileId | null {
+  if (hand.length === 0) return null;
+
+  // Filter out gold tiles - never discard these
+  const nonGoldTiles = hand.filter(t => !isGoldTile(t, goldTileType));
+
+  // If all tiles are gold, we have to discard one (shouldn't happen in practice)
+  if (nonGoldTiles.length === 0) {
+    return hand[0];
+  }
+
+  // Count tiles by type in hand
+  const typeCount = new Map<TileType, number>();
+  for (const tile of nonGoldTiles) {
+    const type = getTileType(tile);
+    typeCount.set(type, (typeCount.get(type) || 0) + 1);
+  }
+
+  // Count discarded tiles by type (to find "dead" tiles)
+  const discardCount = new Map<TileType, number>();
+  if (discardPile) {
+    for (const tile of discardPile) {
+      const type = getTileType(tile);
+      discardCount.set(type, (discardCount.get(type) || 0) + 1);
+    }
+  }
+
+  // Score each tile (lower = safer to discard)
+  const scoreTile = (tile: TileId): number => {
+    const type = getTileType(tile);
+    const parsed = parseTile(tile);
+    let score = 0;
+
+    // Tiles with pairs/triplets in hand are more valuable
+    const countInHand = typeCount.get(type) || 0;
+    score += countInHand * 10; // Each copy adds 10 points
+
+    // Check for connectivity (tiles that could form sequences)
+    if (parsed.category === 'suit' && typeof parsed.value === 'number') {
+      const suit = parsed.suit!;
+      const val = parsed.value;
+
+      // Check adjacent tiles (-2, -1, +1, +2) for potential sequences
+      for (const offset of [-2, -1, 1, 2]) {
+        const adjVal = val + offset;
+        if (adjVal >= 1 && adjVal <= 9) {
+          const adjType = `${suit}_${adjVal}` as TileType;
+          if (typeCount.has(adjType)) {
+            score += 5; // Each adjacent tile adds 5 points
+          }
+        }
+      }
+
+      // Terminal tiles (1s and 9s) are less valuable - they can only form 2 sequences
+      if (val === 1 || val === 9) {
+        score -= 3;
+      }
+      // Edge tiles (2s and 8s) can form 3 sequences
+      else if (val === 2 || val === 8) {
+        score -= 1;
+      }
+    }
+
+    // "Dead" tiles (3+ copies discarded) are safe to discard
+    const discarded = discardCount.get(type) || 0;
+    if (discarded >= 3) {
+      score -= 15; // Very safe - no one can use it
+    } else if (discarded >= 2) {
+      score -= 5; // Somewhat safe
+    }
+
+    return score;
+  };
+
+  // Find the tile with lowest score (safest to discard)
+  let safestTile = nonGoldTiles[0];
+  let lowestScore = scoreTile(safestTile);
+
+  for (const tile of nonGoldTiles) {
+    const score = scoreTile(tile);
+    if (score < lowestScore) {
+      lowestScore = score;
+      safestTile = tile;
+    }
+  }
+
+  return safestTile;
+}
+
+// ============================================
 // SPECIAL HAND DETECTION
 // ============================================
 

@@ -9,6 +9,7 @@ import { useBotRunner } from '@/hooks/useBotRunner';
 import { useSounds } from '@/hooks/useSounds';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useCallingTimer } from '@/hooks/useCallingTimer';
+import { useTurnTimer } from '@/hooks/useTurnTimer';
 import { getTileType, getTileDisplayText, isBonusTile, isGoldTile, sortTilesForDisplay } from '@/lib/tiles';
 import { calculateSettlement, calculateNetPositions } from '@/lib/settle';
 import { SettingsModal } from '@/components/SettingsModal';
@@ -178,7 +179,10 @@ export default function GamePage() {
     loading: roomLoading,
     mySeat: actualSeat,
     isHost,
+    callingTimerSeconds: roomCallingTimerSeconds,
     setCallingTimerSeconds,
+    turnTimerSeconds: roomTurnTimerSeconds,
+    setTurnTimerSeconds,
   } = useRoom({
     roomCode,
     userId: user?.uid || null,
@@ -215,6 +219,10 @@ export default function GamePage() {
     callingPhaseStartTime,
     callingTimerSeconds,
     handleAutoPass,
+    // Turn timer
+    turnStartTime,
+    turnTimerSeconds,
+    handleAutoPlayTurn,
   } = useGame({
     roomCode,
     mySeat,
@@ -275,6 +283,50 @@ export default function GamePage() {
       warningSoundPlayedRef.current = null;
     }
   }, [isCallingPhase]);
+
+  // Determine if it's my turn (for turn timer)
+  const isMyTurn = gameState?.phase === 'playing' && gameState?.currentPlayerSeat === mySeat;
+  const isPlayingPhase = gameState?.phase === 'playing';
+
+  // Turn timer callback
+  const onTurnTimerExpire = useCallback(async (turnStart: number) => {
+    if (mySeat === null) return;
+    await handleAutoPlayTurn(turnStart);
+  }, [mySeat, handleAutoPlayTurn]);
+
+  const {
+    remainingSeconds: turnTimerRemainingSeconds,
+    isWarning: turnTimerIsWarning,
+  } = useTurnTimer({
+    startTime: turnStartTime,
+    totalSeconds: turnTimerSeconds,
+    isMyTurn: !!isMyTurn,
+    isPlayingPhase: !!isPlayingPhase,
+    onExpire: onTurnTimerExpire,
+  });
+
+  // Track if turn warning sound has been played for current turn
+  const turnWarningSoundPlayedRef = useRef<number | null>(null);
+
+  // Play warning sound when turn timer enters warning zone (once per turn)
+  useEffect(() => {
+    if (
+      turnTimerIsWarning &&
+      isMyTurn &&
+      turnStartTime !== undefined &&
+      turnWarningSoundPlayedRef.current !== turnStartTime
+    ) {
+      turnWarningSoundPlayedRef.current = turnStartTime;
+      playSound('timerWarning');
+    }
+  }, [turnTimerIsWarning, isMyTurn, turnStartTime, playSound]);
+
+  // Reset turn warning sound tracking when turn changes
+  useEffect(() => {
+    if (!isMyTurn) {
+      turnWarningSoundPlayedRef.current = null;
+    }
+  }, [isMyTurn]);
 
   // Keyboard shortcuts
   const { shortcuts, setShortcut, resetToDefaults } = useKeyboardShortcuts();
@@ -1692,8 +1744,6 @@ export default function GamePage() {
     );
   }
 
-  const isMyTurn = gameState.currentPlayerSeat === mySeat;
-
   return (
     <div className={`min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-white p-2 sm:p-3 transition-all duration-300 ${showTurnFlash ? 'ring-4 ring-inset ring-emerald-400/70' : ''}`}>
       {/* Turn notification banner */}
@@ -1773,6 +1823,16 @@ export default function GamePage() {
                 : 'bg-slate-600/60 text-slate-200'
             }`}>
               {Math.ceil(timerRemainingSeconds)}s
+            </div>
+          )}
+          {/* Turn timer countdown (only during playing phase when it's my turn with timer enabled) */}
+          {isMyTurn && turnTimerRemainingSeconds !== null && (
+            <div className={`px-2 py-0.5 sm:py-1 rounded-md text-xs sm:text-lg font-mono font-bold ${
+              turnTimerIsWarning
+                ? 'bg-red-500/60 text-red-100 animate-pulse'
+                : 'bg-emerald-500/40 text-emerald-200'
+            }`}>
+              {Math.ceil(turnTimerRemainingSeconds)}s
             </div>
           )}
         </div>
@@ -2702,8 +2762,10 @@ export default function GamePage() {
         volume={volume}
         setVolume={setVolume}
         isHost={isHost}
-        callingTimerSeconds={callingTimerSeconds}
+        callingTimerSeconds={roomCallingTimerSeconds}
         setCallingTimerSeconds={setCallingTimerSeconds}
+        turnTimerSeconds={roomTurnTimerSeconds}
+        setTurnTimerSeconds={setTurnTimerSeconds}
       />
     </div>
   );

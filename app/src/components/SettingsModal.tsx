@@ -18,6 +18,8 @@ interface SettingsModalProps {
   isHost?: boolean;
   callingTimerSeconds?: number | null;
   setCallingTimerSeconds?: (seconds: number | null) => Promise<void>;
+  turnTimerSeconds?: number | null;
+  setTurnTimerSeconds?: (seconds: number | null) => Promise<void>;
 }
 
 // Check if device has touch capabilities (likely mobile)
@@ -54,12 +56,14 @@ export function SettingsModal({
   isHost,
   callingTimerSeconds,
   setCallingTimerSeconds,
+  turnTimerSeconds,
+  setTurnTimerSeconds,
 }: SettingsModalProps) {
   const [recordingFor, setRecordingFor] = useState<keyof KeyboardShortcuts | null>(null);
   const [error, setError] = useState<string | null>(null);
   const isTouchDevice = useIsTouchDevice();
 
-  // Timer input state (local until blur)
+  // Calling timer input state (local until blur)
   const [timerInputValue, setTimerInputValue] = useState<string>(
     callingTimerSeconds !== null && callingTimerSeconds !== undefined
       ? String(callingTimerSeconds)
@@ -69,12 +73,29 @@ export function SettingsModal({
     callingTimerSeconds !== null && callingTimerSeconds !== undefined
   );
 
-  // Sync local timer state when prop changes
+  // Turn timer input state (local until blur)
+  const [turnTimerInputValue, setTurnTimerInputValue] = useState<string>(
+    turnTimerSeconds !== null && turnTimerSeconds !== undefined
+      ? String(turnTimerSeconds)
+      : ''
+  );
+  const [turnTimerEnabled, setTurnTimerEnabled] = useState(
+    turnTimerSeconds !== null && turnTimerSeconds !== undefined
+  );
+
+  // Sync local calling timer state when prop changes
   useEffect(() => {
     const hasTimer = callingTimerSeconds !== null && callingTimerSeconds !== undefined;
     setTimerEnabled(hasTimer);
     setTimerInputValue(hasTimer ? String(callingTimerSeconds) : '30');
   }, [callingTimerSeconds]);
+
+  // Sync local turn timer state when prop changes
+  useEffect(() => {
+    const hasTimer = turnTimerSeconds !== null && turnTimerSeconds !== undefined;
+    setTurnTimerEnabled(hasTimer);
+    setTurnTimerInputValue(hasTimer ? String(turnTimerSeconds) : '60');
+  }, [turnTimerSeconds]);
 
   // Handle timer toggle
   const handleTimerToggle = async () => {
@@ -110,6 +131,43 @@ export function SettingsModal({
     } else {
       setTimerInputValue(String(parsed));
       await setCallingTimerSeconds(parsed);
+    }
+  };
+
+  // Handle turn timer toggle
+  const handleTurnTimerToggle = async () => {
+    if (!setTurnTimerSeconds) return;
+    if (turnTimerEnabled) {
+      await setTurnTimerSeconds(null);
+      setTurnTimerEnabled(false);
+    } else {
+      const defaultSeconds = 60;
+      await setTurnTimerSeconds(defaultSeconds);
+      setTurnTimerEnabled(true);
+      setTurnTimerInputValue(String(defaultSeconds));
+    }
+  };
+
+  // Handle turn timer slider change
+  const handleTurnTimerSliderChange = async (value: number) => {
+    if (!setTurnTimerSeconds) return;
+    setTurnTimerInputValue(String(value));
+    await setTurnTimerSeconds(value);
+  };
+
+  // Handle turn timer input blur (validate and save)
+  const handleTurnTimerInputBlur = async () => {
+    if (!setTurnTimerSeconds) return;
+    const parsed = parseInt(turnTimerInputValue, 10);
+    if (isNaN(parsed) || parsed < 10) {
+      setTurnTimerInputValue('10');
+      await setTurnTimerSeconds(10);
+    } else if (parsed > 300) {
+      setTurnTimerInputValue('300');
+      await setTurnTimerSeconds(300);
+    } else {
+      setTurnTimerInputValue(String(parsed));
+      await setTurnTimerSeconds(parsed);
     }
   };
 
@@ -286,6 +344,63 @@ export function SettingsModal({
                   </div>
                   <p className="text-xs text-slate-500">
                     Players who don&apos;t respond within the timer will auto-pass.
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Turn Timer Settings Section - Host only */}
+        {isHost && setTurnTimerSeconds && (
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wide mb-3">
+              Turn Timer
+            </h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-300">Enable Timer</span>
+                <button
+                  onClick={handleTurnTimerToggle}
+                  className={`w-12 h-7 rounded-full transition-colors ${
+                    turnTimerEnabled ? 'bg-emerald-500' : 'bg-slate-600'
+                  }`}
+                >
+                  <div
+                    className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                      turnTimerEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+              {turnTimerEnabled && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-300">Duration</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min="10"
+                        max="300"
+                        step="10"
+                        value={parseInt(turnTimerInputValue) || 60}
+                        onChange={(e) => handleTurnTimerSliderChange(parseInt(e.target.value))}
+                        className="w-24 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                      />
+                      <input
+                        type="number"
+                        min="10"
+                        max="300"
+                        value={turnTimerInputValue}
+                        onChange={(e) => setTurnTimerInputValue(e.target.value)}
+                        onBlur={handleTurnTimerInputBlur}
+                        className="w-16 px-2 py-1 text-sm text-center bg-slate-700 border border-slate-600 rounded text-white"
+                      />
+                      <span className="text-slate-400 text-sm">sec</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Players who don&apos;t act within the timer will auto-play (draw &amp; discard).
                   </p>
                 </>
               )}

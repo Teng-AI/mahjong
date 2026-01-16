@@ -16,6 +16,7 @@ import {
   declareConcealedKong,
   upgradePungToKong,
   autoPassExpiredTimer,
+  autoPlayExpiredTurn,
 } from '@/lib/game';
 import {
   getValidCalls,
@@ -57,6 +58,10 @@ interface UseGameReturn {
   callingPhaseStartTime: number | undefined;
   callingTimerSeconds: number | null | undefined;
   handleAutoPass: (expectedPhaseId: number) => Promise<{ success: boolean; error?: string }>;
+  // Turn timer
+  turnStartTime: number | undefined;
+  turnTimerSeconds: number | null | undefined;
+  handleAutoPlayTurn: (expectedTurnStartTime: number) => Promise<{ success: boolean; error?: string }>;
   // Kong declarations
   concealedKongOptions: TileType[];
   pungUpgradeOptions: { meldIndex: number; tileFromHand: TileId }[];
@@ -297,6 +302,26 @@ export function useGame({ roomCode, mySeat }: UseGameOptions): UseGameReturn {
     [roomCode, mySeat]
   );
 
+  // Turn timer fields
+  const turnStartTime = gameState?.turnStartTime;
+  const turnTimerSeconds = gameState?.turnTimerSeconds;
+
+  // Auto-play turn when turn timer expires
+  const handleAutoPlayTurn = useCallback(
+    async (expectedTurnStartTime: number) => {
+      if (mySeat === null) {
+        return { success: false, error: 'Not in game' };
+      }
+      try {
+        return await autoPlayExpiredTurn(roomCode, mySeat, expectedTurnStartTime);
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to auto-play turn';
+        return { success: false, error: errorMsg };
+      }
+    },
+    [roomCode, mySeat]
+  );
+
   // Phase 8: Check if I'm next in turn (for chow eligibility)
   const isNextInTurn = useMemo(() => {
     if (!gameState || mySeat === null || !gameState.lastAction) {
@@ -455,6 +480,10 @@ export function useGame({ roomCode, mySeat }: UseGameOptions): UseGameReturn {
     callingPhaseStartTime,
     callingTimerSeconds,
     handleAutoPass,
+    // Turn timer
+    turnStartTime,
+    turnTimerSeconds,
+    handleAutoPlayTurn,
     // Kong declarations
     concealedKongOptions,
     pungUpgradeOptions,
