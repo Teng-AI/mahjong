@@ -265,3 +265,5 @@
 - [x] Rules documentation sync (`mahjong-fujian-rules.md`)
 - [x] Calling phase timer (10-120s configurable, auto-pass on expire)
 - [x] Turn timer with auto-draw/discard and auto-win detection on expire
+- [x] Quick Play button on home page (one-click game vs 3 bots with difficulty selection)
+- [x] Kong replacement tile now auto-selected for discard (bug fix)

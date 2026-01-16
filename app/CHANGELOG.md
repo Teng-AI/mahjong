@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Quick Play** - One-click game start from home page
+  - Choose bot difficulty (Easy/Medium/Hard) and instantly start playing
+  - Creates room with 3 bots, 30s timers, player as dealer
+  - No name input needed (defaults to "ME")
 - **Calling phase timer** for time-limited calling decisions
   - Configurable 10-120 seconds or no limit
   - Auto-pass when timer expires
@@ -40,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Special bonus scoring rebalanced**: Three Golds +30, Robbing Gold +30, Golden Pair +50, All One Suit +100, No Bonus/Kong +15
 
 ### Fixed
+- **Kong replacement tile pre-selection** - tile drawn after Kong is now auto-selected for discard (was only working for normal draws)
 - Arrow keys now work correctly in kong selection mode (was blocked by tile selection)
 - Space bar no longer confirms kong (only Enter does)
 - **Mobile chow/kong UX restored** - keyboard focus indicators (yellow ring, tile lift) hidden on touch devices

@@ -471,11 +471,13 @@ export default function GamePage() {
       gameState?.currentPlayerSeat === mySeat &&
       !shouldDraw;
 
-    if (isMyTurnToDiscard && gameState?.lastAction?.type === 'draw' &&
-        gameState?.lastAction?.playerSeat === mySeat &&
-        gameState?.lastAction?.tile) {
+    const lastAction = gameState?.lastAction;
+    const isNormalDraw = lastAction?.type === 'draw' && lastAction?.tile;
+    const isKongReplacement = lastAction?.type === 'kong' && lastAction?.replacementTile;
+
+    if (isMyTurnToDiscard && lastAction?.playerSeat === mySeat && (isNormalDraw || isKongReplacement)) {
       // Don't auto-select gold tiles (can't be discarded)
-      const drawnTile = gameState.lastAction.tile;
+      const drawnTile = isKongReplacement ? lastAction.replacementTile! : lastAction.tile!;
       if (!gameState.goldTileType || !isGoldTile(drawnTile, gameState.goldTileType)) {
         setSelectedTile(drawnTile);
       }
