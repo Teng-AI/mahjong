@@ -15,6 +15,18 @@ const eslintConfig = defineConfig([
     // Development scripts
     "scripts/**",
   ]),
+  // Disable set-state-in-effect for timer hooks and settings (setState for state sync is intentional)
+  {
+    files: [
+      "src/hooks/useCallingTimer.ts",
+      "src/hooks/useTurnTimer.ts",
+      "src/components/SettingsModal.tsx",
+      "src/app/room/*/page.tsx",
+    ],
+    rules: {
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

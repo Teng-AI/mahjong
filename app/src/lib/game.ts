@@ -2533,10 +2533,6 @@ export async function autoPlayExpiredTurn(
     lastAction.playerSeat !== seat ||
     !['draw', 'kong', 'pung', 'chow'].includes(lastAction.type);
 
-  // Get player's exposed melds for win checking
-  // Exposed melds are stored at gameState.exposedMelds.seatN, not gameState.players.seatN.exposedMelds
-  const exposedMelds = gameState.exposedMelds?.[`seat${seat}` as keyof typeof gameState.exposedMelds] || [];
-
   if (DEBUG_AUTO_PLAY) console.log('[autoPlayExpiredTurn] needsDraw:', needsDraw, 'lastAction:', lastAction);
 
   if (needsDraw) {
