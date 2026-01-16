@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Consolidated all kong buttons into single unified KONG button
 - Settings modal now scrollable with max-height constraint
+- **Special bonus scoring rebalanced**: Three Golds +30, Robbing Gold +30, Golden Pair +50, All One Suit +100, No Bonus/Kong +15
 
 ### Fixed
 - Arrow keys now work correctly in kong selection mode (was blocked by tile selection)
@@ -39,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Comprehensive rules modal rewrite** with all game rules, scoring examples, and special bonuses
 - Rules modal color scheme simplified (amber headers, emerald points, slate body text)
-- Added All One Suit (+60), Robbing the Gold (+20) to rules modal
+- Added All One Suit (+100), Robbing the Gold (+30) to rules modal
 
 ### Added
 - **Turn Indicator** - Round table view showing N/E/S/W positions with player always at South
@@ -110,7 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Room creation and joining with 6-character codes
 - Pung and Chow calling system
 - Win detection with Gold tile wildcards
-- Golden Pair bonus scoring (+30 points)
+- Golden Pair bonus scoring (+50 points)
 - Three Golds instant win condition
 - Dealer streak tracking and bonus
 - Sound effects for game actions

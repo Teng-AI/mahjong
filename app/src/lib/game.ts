@@ -701,7 +701,7 @@ async function handleThreeGoldsWin(
   const goldCount = 3;
   const subtotal = base + bonusCount + goldCount + concealedKongBonus + exposedKongBonus + dealerStreakBonus;
   const multiplier = 2; // Self-draw (Three Golds always counts as self-draw)
-  const threeGoldsBonus = 20;
+  const threeGoldsBonus = 30;
   const total = subtotal * multiplier + threeGoldsBonus;
 
   await update(ref(db, `rooms/${roomCode}/game`), {
@@ -842,12 +842,12 @@ async function handleRobbingGoldWin(
   const base = 1;
   const subtotal = base + bonusCount + goldCount + dealerStreakBonus;
   const multiplier = 2; // Self-draw multiplier
-  const robbingGoldBonus = 20;
+  const robbingGoldBonus = 30;
 
   // Check for special bonuses
-  const goldenPairBonus = hasGoldenPair(hand, goldTileType, 0) ? 30 : 0;
-  // No Bonus/Kong: +10 for no bonus tiles AND no kongs (no kongs possible at game start)
-  const noBonusBonus = bonusCount === 0 ? 10 : 0;
+  const goldenPairBonus = hasGoldenPair(hand, goldTileType, 0) ? 50 : 0;
+  // No Bonus/Kong: +15 for no bonus tiles AND no kongs (no kongs possible at game start)
+  const noBonusBonus = bonusCount === 0 ? 15 : 0;
 
   const total = (subtotal * multiplier) + robbingGoldBonus + goldenPairBonus + noBonusBonus;
 
@@ -1778,14 +1778,14 @@ export async function declareSelfDrawWin(
 
   // Check for All One Suit bonus
   const isFlush = isAllOneSuit(hand, exposedMelds, gameState.goldTileType);
-  const allOneSuitBonus = isFlush ? 60 : 0;
+  const allOneSuitBonus = isFlush ? 100 : 0;
   const multiplier = 2; // Self-draw multiplier (stacks with All One Suit)
 
   // Special bonuses (added after multiplier)
-  const goldenPairBonus = hasGoldenPair(hand, gameState.goldTileType, exposedMeldCount) ? 30 : 0;
-  // No Bonus/Kong: +10 for no bonus tiles AND no kongs
+  const goldenPairBonus = hasGoldenPair(hand, gameState.goldTileType, exposedMeldCount) ? 50 : 0;
+  // No Bonus/Kong: +15 for no bonus tiles AND no kongs
   const hasNoKongs = kongBonuses.concealed === 0 && kongBonuses.exposed === 0;
-  const noBonusBonus = (bonusCount === 0 && hasNoKongs) ? 10 : 0;
+  const noBonusBonus = (bonusCount === 0 && hasNoKongs) ? 15 : 0;
 
   const total = (subtotal * multiplier) + goldenPairBonus + noBonusBonus + allOneSuitBonus;
 
@@ -1924,13 +1924,13 @@ export async function declareDiscardWin(
   const subtotal = base + bonusCount + goldCount + concealedKongBonus + exposedKongBonus + dealerStreakBonus;
 
   // Special bonuses (calculated first to determine multiplier)
-  const goldenPairBonus = hasGoldenPair(fullHand, gameState.goldTileType, exposedMeldCount) ? 30 : 0;
-  // No Bonus/Kong: +10 for no bonus tiles AND no kongs
+  const goldenPairBonus = hasGoldenPair(fullHand, gameState.goldTileType, exposedMeldCount) ? 50 : 0;
+  // No Bonus/Kong: +15 for no bonus tiles AND no kongs
   const hasNoKongs = kongBonuses.concealed === 0 && kongBonuses.exposed === 0;
-  const noBonusBonus = (bonusCount === 0 && hasNoKongs) ? 10 : 0;
+  const noBonusBonus = (bonusCount === 0 && hasNoKongs) ? 15 : 0;
   // All One Suit bonus
   const isFlush = isAllOneSuit(fullHand, exposedMelds, gameState.goldTileType);
-  const allOneSuitBonus = isFlush ? 60 : 0;
+  const allOneSuitBonus = isFlush ? 100 : 0;
 
   // Special bonuses trigger ×2 multiplier even on discard wins
   const hasSpecialBonus = goldenPairBonus > 0 || noBonusBonus > 0 || allOneSuitBonus > 0;
