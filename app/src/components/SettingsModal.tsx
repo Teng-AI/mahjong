@@ -94,7 +94,7 @@ export function SettingsModal({
   useEffect(() => {
     const hasTimer = turnTimerSeconds !== null && turnTimerSeconds !== undefined;
     setTurnTimerEnabled(hasTimer);
-    setTurnTimerInputValue(hasTimer ? String(turnTimerSeconds) : '60');
+    setTurnTimerInputValue(hasTimer ? String(turnTimerSeconds) : '30');
   }, [turnTimerSeconds]);
 
   // Handle timer toggle
@@ -141,7 +141,7 @@ export function SettingsModal({
       await setTurnTimerSeconds(null);
       setTurnTimerEnabled(false);
     } else {
-      const defaultSeconds = 60;
+      const defaultSeconds = 30;
       await setTurnTimerSeconds(defaultSeconds);
       setTurnTimerEnabled(true);
       setTurnTimerInputValue(String(defaultSeconds));
@@ -383,7 +383,7 @@ export function SettingsModal({
                         min="10"
                         max="300"
                         step="10"
-                        value={parseInt(turnTimerInputValue) || 60}
+                        value={parseInt(turnTimerInputValue) || 30}
                         onChange={(e) => handleTurnTimerSliderChange(parseInt(e.target.value))}
                         className="w-24 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-emerald-500"
                       />
