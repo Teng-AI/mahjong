@@ -41,12 +41,18 @@
   - ~~Calling status in bottom bar (flips with action buttons)~~ ✅ Done
   - ~~Collapse other players into compact view~~ (Decided not to implement)
 
-- [ ] **Calling phase timer** 🔴
-  - Configurable timer: 10s, 30s, 60s, 120s, or no limit
-  - Auto-pass when timer expires
-  - Visual countdown indicator
-  - Room setting configured by host
-  - *Note: Previously attempted, reverted due to Firebase sync issues*
+- [x] **Calling phase timer** 🔴 ✅
+  - ~~Configurable timer: 10s, 30s, 60s, 120s, or no limit~~ 10-120s configurable
+  - ~~Auto-pass when timer expires~~ ✅ Done
+  - ~~Visual countdown indicator~~ ✅ Done
+  - ~~Room setting configured by host~~ ✅ Done
+
+- [x] **Turn timer** 🔴 ✅
+  - Configurable timer: 10-120 seconds or no limit
+  - Auto-draw and auto-discard when timer expires
+  - Auto-win detection if player has winning hand after draw
+  - Visual countdown indicator with warning state
+  - Room setting configured by host (side-by-side with calling timer)
 
 - [x] **Dead wall implementation** 🟡 ✅
   - ~~Reserve 0-16 tiles as dead wall (unplayable)~~ 16 tiles removed at game start
@@ -257,3 +263,5 @@
 - [x] Comprehensive rules modal rewrite with all game nuances
 - [x] Scoring fix: special bonuses trigger ×2 multiplier on discard wins
 - [x] Rules documentation sync (`mahjong-fujian-rules.md`)
+- [x] Calling phase timer (10-120s configurable, auto-pass on expire)
+- [x] Turn timer with auto-draw/discard and auto-win detection on expire

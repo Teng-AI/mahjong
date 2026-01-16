@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Calling phase timer** for time-limited calling decisions
+  - Configurable 10-120 seconds or no limit
+  - Auto-pass when timer expires
+  - Visual countdown with warning state (red when <5s)
+  - Room setting configured by host in lobby
+- **Turn timer** for time-limited player turns
+  - Configurable 10-120 seconds or no limit
+  - Auto-draw and auto-discard when timer expires
+  - Auto-win detection if player has winning hand after forced draw
+  - Visual countdown with warning state
+  - Room setting side-by-side with calling timer in lobby
 - **Full keyboard controls** for gameplay actions
   - Customizable shortcuts for Draw, Win, Kong, Pung, Chow, Pass
   - Arrow keys navigate tile selection during discard phase
