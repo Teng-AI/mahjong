@@ -11,8 +11,8 @@ export interface KeyboardShortcuts {
 
 // Note: Draw and Pass are hardcoded to Space (not customizable)
 const DEFAULT_SHORTCUTS: KeyboardShortcuts = {
-  win: 'W',
-  kong: 'K',
+  win: 'H',
+  kong: 'G',
   pung: 'P',
   chow: 'C',
 };

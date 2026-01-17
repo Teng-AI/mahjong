@@ -33,10 +33,10 @@ function useIsTouchDevice() {
 }
 
 const ACTION_LABELS: Record<keyof KeyboardShortcuts, string> = {
-  win: 'Hu',
-  kong: 'Gang',
-  pung: 'Peng',
-  chow: 'Chi',
+  win: 'Hu (胡)',
+  kong: 'Gang (杠)',
+  pung: 'Peng (碰)',
+  chow: 'Chi (吃)',
 };
 
 const ACTION_ORDER: (keyof KeyboardShortcuts)[] = ['win', 'kong', 'pung', 'chow'];
