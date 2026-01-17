@@ -75,23 +75,23 @@ function playNoteSequence(
 // Each sound has a base volume that gets multiplied by the user's volume setting
 const soundDefinitions: Record<SoundType, (ctx: AudioContext, volumeMultiplier: number) => void> = {
   tileClick: (ctx, vol) => {
-    // Short click
-    createOscillatorSound(ctx, 600, 0.03, 'sine', 0.25 * vol);
+    // Short click - subtle, happens constantly
+    createOscillatorSound(ctx, 600, 0.03, 'sine', 0.10 * vol);
   },
 
   tileSelect: (ctx, vol) => {
-    // Selection tone
-    createOscillatorSound(ctx, 500, 0.06, 'sine', 0.3 * vol);
+    // Selection tone - subtle ambient feedback
+    createOscillatorSound(ctx, 500, 0.06, 'sine', 0.15 * vol);
   },
 
   discard: (ctx, vol) => {
-    // Thud
-    createOscillatorSound(ctx, 150, 0.08, 'sine', 0.35 * vol);
+    // Thud - routine action feedback
+    createOscillatorSound(ctx, 150, 0.08, 'sine', 0.25 * vol);
   },
 
   draw: (ctx, vol) => {
-    // Pickup sound
-    createOscillatorSound(ctx, 400, 0.06, 'sine', 0.25 * vol);
+    // Pickup sound - routine action feedback
+    createOscillatorSound(ctx, 400, 0.06, 'sine', 0.20 * vol);
   },
 
   pung: (ctx, vol) => {
@@ -111,14 +111,14 @@ const soundDefinitions: Record<SoundType, (ctx: AudioContext, volumeMultiplier: 
   },
 
   win: (ctx, vol) => {
-    // Short Victory - punchy 3-note triumph
+    // Short Victory - punchy 3-note triumph (climax sound)
     playNoteSequence(ctx, [
       { freq: 392, duration: 0.1, delay: 0 },       // G4
       { freq: 523, duration: 0.1, delay: 0.1 },     // C5
       { freq: 659, duration: 0.35, delay: 0.2 },    // E5 (hold)
-    ], 'sine', 0.5 * vol);
+    ], 'sine', 0.55 * vol);
     // Bass punch
-    createOscillatorSound(ctx, 131, 0.2, 'sine', 0.3 * vol);  // C3
+    createOscillatorSound(ctx, 131, 0.2, 'sine', 0.33 * vol);  // C3
   },
 
   // Option A: Simple Chime - clean two-note chime
@@ -196,22 +196,22 @@ const soundDefinitions: Record<SoundType, (ctx: AudioContext, volumeMultiplier: 
   },
 
   callAlert: (ctx, vol) => {
-    // Urgent triple-beep alert for calling opportunities
+    // Urgent triple-beep alert for calling opportunities (important alert!)
     playNoteSequence(ctx, [
       { freq: 1000, duration: 0.08, delay: 0 },      // First beep
       { freq: 1000, duration: 0.08, delay: 0.12 },   // Second beep
       { freq: 1200, duration: 0.12, delay: 0.24 },   // Third beep (higher)
       { freq: 800, duration: 0.06, delay: 0.38 },    // Low accent
       { freq: 1200, duration: 0.15, delay: 0.46 },   // Final high
-    ], 'square', 0.1 * vol);
+    ], 'square', 0.45 * vol);
   },
 
   gameStart: (ctx, vol) => {
-    // Start tone
+    // Start tone - session start event
     playNoteSequence(ctx, [
       { freq: 400, duration: 0.1, delay: 0 },
       { freq: 500, duration: 0.15, delay: 0.08 },
-    ], 'sine', 0.3 * vol);
+    ], 'sine', 0.35 * vol);
   },
 
   pass: (ctx, vol) => {
@@ -220,16 +220,16 @@ const soundDefinitions: Record<SoundType, (ctx: AudioContext, volumeMultiplier: 
   },
 
   timerWarning: (ctx, vol) => {
-    // Urgent warning beeps for low time on calling phase timer
+    // Urgent warning beeps for low time - high priority alert!
     playNoteSequence(ctx, [
       { freq: 800, duration: 0.1, delay: 0 },       // First beep
       { freq: 800, duration: 0.1, delay: 0.15 },    // Second beep
       { freq: 1000, duration: 0.15, delay: 0.3 },   // Higher urgent beep
-    ], 'square', 0.3 * vol);
+    ], 'square', 0.50 * vol);
   },
 
   drumroll: (ctx, vol) => {
-    // Building suspense drumroll - rapid hits that build in intensity
+    // Building suspense drumroll - rapid hits that build in intensity (climax)
     const hits: { freq: number; duration: number; delay: number }[] = [];
     // Start slow, get faster
     const totalDuration = 2.0;
@@ -243,14 +243,14 @@ const soundDefinitions: Record<SoundType, (ctx: AudioContext, volumeMultiplier: 
       // Gradually speed up
       interval = Math.max(0.04, interval * 0.92);
     }
-    playNoteSequence(ctx, hits, 'triangle', 0.4 * vol);
+    playNoteSequence(ctx, hits, 'triangle', 1.0 * vol);
     // Add a rising tone underneath for tension
     playNoteSequence(ctx, [
       { freq: 150, duration: 0.5, delay: 0 },
       { freq: 180, duration: 0.5, delay: 0.5 },
       { freq: 220, duration: 0.5, delay: 1.0 },
       { freq: 280, duration: 0.6, delay: 1.5 },
-    ], 'sine', 0.15 * vol);
+    ], 'sine', 0.4 * vol);
   },
 };
 
@@ -296,7 +296,8 @@ export function useSounds(): UseSoundsReturn {
       const ctx = getAudioContext();
       const soundFn = soundDefinitions[type];
       if (soundFn) {
-        soundFn(ctx, volume);
+        // Apply 0.10 multiplier to all sounds for softer baseline
+        soundFn(ctx, volume * 0.10);
       }
     } catch (err) {
       console.warn('Sound playback failed:', err);
