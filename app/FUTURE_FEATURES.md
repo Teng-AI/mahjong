@@ -69,11 +69,11 @@
   - ~~Red highlight when < 5 tiles left~~ Red text + pulsing background
   - Helps players anticipate draw game
 
-- [ ] **Dramatic win announcement** 🟡
-  - Add delay before revealing winner (build suspense)
-  - Special sound effect / fanfare leading up to win
-  - Visual effect (screen flash, zoom, etc.)
-  - Makes winning moments more exciting
+- [x] **Dramatic win announcement** 🟡 ✅
+  - ~~Add delay before revealing winner (build suspense)~~ Face-down tiles with "The winner is..."
+  - ~~Special sound effect / fanfare leading up to win~~ Drumroll during suspense
+  - ~~Visual effect (screen flash, zoom, etc.)~~ Tile flip reveal + fly-in animation
+  - ~~Makes winning moments more exciting~~ ✅ Done
 
 - [ ] **Rename calling actions** 🟢
   - Make button labels more intuitive for new players
@@ -267,3 +267,11 @@
 - [x] Turn timer with auto-draw/discard and auto-win detection on expire
 - [x] Quick Play button on home page (one-click game vs 3 bots with difficulty selection)
 - [x] Kong replacement tile now auto-selected for discard (bug fix)
+- [x] Winner reveal suspense animation (face-down tiles → flip reveal → fly-in → fade)
+- [x] Drumroll sound during winner suspense
+- [x] Sound rebalancing with modern design hierarchy (ambient/feedback/event/alert/climax tiers)
+- [x] Private draw info in game log (only you see what you drew)
+- [x] Bug fix: Turn timer no longer auto-draws on dealer's first turn
+- [x] Bug fix: Other players' tile count correctly accounts for Kong replacement draws
+- [x] Bug fix: Selected tile clears when turn passes
+- [x] Bug fix: Dealer streak now counts draw games (UI shows "N-round streak")

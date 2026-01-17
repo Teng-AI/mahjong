@@ -46,6 +46,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Kong selection shortcuts documented in Settings modal
 
 ### Changed
+- **Sound design overhaul** - Rebalanced with modern hierarchy
+  - Ambient sounds (tileClick, tileSelect) much quieter to reduce fatigue
+  - Alert sounds (callAlert, timerWarning) boosted for attention
+  - Global baseline reduced to 10% for softer overall volume
 - Consolidated all kong buttons into single unified KONG button
 - Settings modal now scrollable with max-height constraint
 - **Special bonus scoring rebalanced**: Three Golds +30, Robbing Gold +30, Golden Pair +50, All One Suit +100, No Bonus/Kong +15
