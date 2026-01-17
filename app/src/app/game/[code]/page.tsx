@@ -681,8 +681,8 @@ export default function GamePage() {
       const isCurrentPlayersTurn = gameState?.currentPlayerSeat === mySeat;
       const isDiscardPhase = gameState?.phase === 'playing' && isCurrentPlayersTurn && !shouldDraw;
 
-      // Draw shortcut - during playing phase when it's my turn and I need to draw
-      if (key === shortcuts.draw && gameState?.phase === 'playing' && isCurrentPlayersTurn && shouldDraw) {
+      // Draw shortcut (Space) - during playing phase when it's my turn and I need to draw
+      if (e.key === ' ' && gameState?.phase === 'playing' && isCurrentPlayersTurn && shouldDraw) {
         e.preventDefault();
         onDraw();
         return;
@@ -859,7 +859,8 @@ export default function GamePage() {
       } else if (key === shortcuts.chow && myValidCalls?.canChow) {
         e.preventDefault();
         onChowClick();
-      } else if (key === shortcuts.pass) {
+      } else if (key === shortcuts.pass || e.key === ' ') {
+        // Space or P = Pass (Space is the "default action" key)
         e.preventDefault();
         onCallResponse('pass');
       }
@@ -2465,7 +2466,7 @@ export default function GamePage() {
                 disabled={processingAction}
                 className="px-4 sm:px-6 py-2 sm:py-3 bg-white hover:bg-gray-100 disabled:bg-gray-500 text-slate-800 disabled:text-white font-bold rounded-lg text-sm sm:text-base"
               >
-                PASS <span className="text-xs opacity-60 ml-1">({shortcuts.pass})</span>
+                PASS <span className="text-xs opacity-60 ml-1">(Space)</span>
               </button>
               {myValidCalls?.canChow && (
                 <button
@@ -2587,7 +2588,7 @@ export default function GamePage() {
                   disabled={processingAction}
                   className="px-6 sm:px-8 py-2 sm:py-3 bg-blue-500 hover:bg-blue-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
                 >
-                  {processingAction ? 'Drawing...' : <>Draw Tile <span className="text-xs opacity-60 ml-1">({shortcuts.draw})</span></>}
+                  {processingAction ? 'Drawing...' : <>Draw Tile <span className="text-xs opacity-60 ml-1">(Space)</span></>}
                 </button>
               ) : (
                 <button

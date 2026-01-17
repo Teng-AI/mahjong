@@ -33,7 +33,6 @@ function useIsTouchDevice() {
 }
 
 const ACTION_LABELS: Record<keyof KeyboardShortcuts, string> = {
-  draw: 'Draw',
   win: 'Win',
   kong: 'Kong',
   pung: 'Pung',
@@ -41,7 +40,7 @@ const ACTION_LABELS: Record<keyof KeyboardShortcuts, string> = {
   pass: 'Pass',
 };
 
-const ACTION_ORDER: (keyof KeyboardShortcuts)[] = ['draw', 'win', 'kong', 'pung', 'chow', 'pass'];
+const ACTION_ORDER: (keyof KeyboardShortcuts)[] = ['win', 'kong', 'pung', 'chow', 'pass'];
 
 export function SettingsModal({
   isOpen,
@@ -443,7 +442,8 @@ export function SettingsModal({
             </div>
 
             <p className="text-xs text-slate-500 mt-3">
-              Click a key to change it. Press Escape to cancel.
+              Click a key to change it. Press Escape to cancel.<br />
+              <span className="text-emerald-400">Tip: Space = Draw (your turn) or Pass (calling)</span>
             </p>
 
             {/* Reset Button */}
@@ -461,9 +461,13 @@ export function SettingsModal({
             {/* Fixed shortcuts for tile selection */}
             <div className="mt-6 pt-4 border-t border-slate-700">
               <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
-                Tile Selection (Discard)
+                Your Turn
               </h4>
               <div className="space-y-1 text-sm">
+                <div className="flex justify-between text-slate-400">
+                  <span>Draw tile</span>
+                  <span className="font-mono text-slate-300">Space</span>
+                </div>
                 <div className="flex justify-between text-slate-400">
                   <span>Navigate tiles</span>
                   <span className="font-mono text-slate-300">← →</span>
@@ -479,6 +483,19 @@ export function SettingsModal({
                 <div className="flex justify-between text-slate-400">
                   <span>Quick select (1st-10th)</span>
                   <span className="font-mono text-slate-300">1-9, 0</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Calling phase shortcuts */}
+            <div className="mt-4 pt-4 border-t border-slate-700">
+              <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+                Calling Phase
+              </h4>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between text-slate-400">
+                  <span>Pass</span>
+                  <span className="font-mono text-slate-300">Space</span>
                 </div>
               </div>
             </div>

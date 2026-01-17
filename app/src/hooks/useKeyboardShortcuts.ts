@@ -8,16 +8,15 @@ export interface KeyboardShortcuts {
   pung: string;
   kong: string;
   win: string;
-  draw: string;
 }
 
+// Note: Draw is hardcoded to Space (not customizable)
 const DEFAULT_SHORTCUTS: KeyboardShortcuts = {
   win: 'W',
   kong: 'K',
   pung: 'U',
   chow: 'C',
   pass: 'P',
-  draw: 'D',
 };
 
 const STORAGE_KEY = 'mahjong-keyboard-shortcuts';
