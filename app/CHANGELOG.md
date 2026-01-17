@@ -31,34 +31,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Visual countdown with warning state
   - Room setting side-by-side with calling timer in lobby
 - **Full keyboard controls** for gameplay actions
-  - Customizable shortcuts for Win, Kong, Pung, Chow (Pass removed)
+  - Customizable shortcuts for Hu, Gang, Peng, Chi (Pass removed)
   - Space bar as universal "default action" (Draw or Pass depending on phase)
   - Arrow keys navigate tile selection during discard phase
   - Number keys (1-9, 0) for quick tile selection
   - Enter to confirm, Escape to cancel
-- **Kong keyboard selection** with unified button
-  - Single KONG button for all kong types (concealed & pung upgrade)
-  - Arrow keys navigate between multiple kong options
+- **Gang keyboard selection** with unified button
+  - Single GANG button for all gang types (concealed & peng upgrade)
+  - Arrow keys navigate between multiple gang options
   - Visual highlighting groups all 4 tiles when focused
   - Enter to confirm selection
-- **Chow keyboard selection** for choosing which tiles to use
+- **Chi keyboard selection** for choosing which tiles to use
   - Arrow keys navigate valid tiles, Space to select, Enter to confirm
   - Green highlight for selected tiles, yellow for focused
-- Kong selection shortcuts documented in Settings modal
+- Gang selection shortcuts documented in Settings modal
 
 ### Changed
+- **Renamed calling actions to authentic Mahjong terms**
+  - Chow → Chi (吃), Pung → Peng (碰), Kong → Gang (杠), Win → Hu (胡)
+  - Chinese characters shown in rules modal for education
+  - Internal code unchanged (only UI labels updated)
 - **Simplified keyboard shortcuts** - Space bar is now universal "default action"
   - Your turn: Space = Draw
   - Calling phase: Space = Pass
-  - P now defaults to Pung (was U) since Pass uses Space
+  - P now defaults to Peng (was U) since Pass uses Space
   - Reduces cognitive load by using one key for common actions
 - **Sound design overhaul** - Rebalanced with modern hierarchy
   - Ambient sounds (tileClick, tileSelect) much quieter to reduce fatigue
   - Alert sounds (callAlert, timerWarning) boosted for attention
   - Global baseline reduced to 10% for softer overall volume
-- Consolidated all kong buttons into single unified KONG button
+- Consolidated all gang buttons into single unified GANG button
 - Settings modal now scrollable with max-height constraint
-- **Special bonus scoring rebalanced**: Three Golds +30, Robbing Gold +30, Golden Pair +50, All One Suit +100, No Bonus/Kong +15
+- **Special bonus scoring rebalanced**: Three Golds +30, Robbing Gold +30, Golden Pair +50, All One Suit +100, No Bonus/Gang +15
 
 ### Fixed
 - **Turn timer auto-draw on dealer's first turn** - dealer no longer auto-draws when they should only discard
@@ -72,7 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tile click precision** - lifted tiles now have proper z-index for correct click targeting
 - **Visual glitch in chow mode** - tile containers now have overflow-visible to prevent clipping artifacts
 - **Chow deselection logic** - clicking a selected tile now properly deselects it (was resetting to wrong tile)
-- **Scoring: special bonuses now trigger ×2 multiplier** even on discard wins (Golden Pair, No Bonus/Kong, All One Suit)
+- **Scoring: special bonuses now trigger ×2 multiplier** even on discard wins (Golden Pair, No Bonus/Gang, All One Suit)
 - **Mobile bottom bar call status** - now hides until player makes a choice (was showing prematurely)
 - **Turn timer default** - changed from 60s to 30s for faster games
 - **Mobile header overflow** - shortened text ("Draw a tile" → "Draw") and tightened spacing

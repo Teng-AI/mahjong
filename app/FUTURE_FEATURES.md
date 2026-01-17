@@ -75,10 +75,10 @@
   - ~~Visual effect (screen flash, zoom, etc.)~~ Tile flip reveal + fly-in animation
   - ~~Makes winning moments more exciting~~ ✅ Done
 
-- [ ] **Rename calling actions** 🟢
-  - Make button labels more intuitive for new players
-  - e.g., "Pung" → "Triple", "Chow" → "Sequence"
-  - Or add tooltips explaining each action
+- [x] **Rename calling actions** 🟢 ✅
+  - ~~Make button labels more intuitive for new players~~ Used authentic Mahjong terms
+  - Chow → Chi (吃), Pung → Peng (碰), Kong → Gang (杠), Win → Hu (胡)
+  - Chinese characters shown in rules modal for education
 
 - [x] **Show last action in discard box** 🟢 ✅
   - ~~Display what action just happened (e.g., "Player drew", "Player called Pung")~~ Added "Previous Action" box
@@ -275,3 +275,4 @@
 - [x] Bug fix: Other players' tile count correctly accounts for Kong replacement draws
 - [x] Bug fix: Selected tile clears when turn passes
 - [x] Bug fix: Dealer streak now counts draw games (UI shows "N-round streak")
+- [x] Renamed calling actions to authentic Mahjong terms (Chi, Peng, Gang, Hu)

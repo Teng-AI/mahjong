@@ -8,10 +8,10 @@ A real-time multiplayer Fujian Mahjong game built with Next.js and Firebase.
 - **Real-time Multiplayer**: 4-player games with Firebase Realtime Database sync
 - **Room System**: Create/join rooms with 6-character codes
 - **Bot Players**: Fill empty seats with AI bots from the room lobby
-- **Full Game Loop**: Deal, draw, discard, call (Pung/Chow), win
-- **Calling System**: Pung (triplet), Chow (sequence), and Kong (quad) with priority resolution
-- **Kong Support**: Concealed Kong, Kong from discard, and Pung upgrade with replacement draws
-- **Win Detection**: Validates winning hands (5 sets + 1 pair) with Gold tile wildcards
+- **Full Game Loop**: Deal, draw, discard, call (Peng/Chi), hu
+- **Calling System**: Peng (triplet), Chi (sequence), and Gang (quad) with priority resolution
+- **Gang Support**: Concealed Gang, Gang from discard, and Peng upgrade with replacement draws
+- **Hu Detection**: Validates winning hands (5 sets + 1 pair) with Gold tile wildcards
 - **Gold Tiles**: Random suit tile becomes wildcard each round
 - **Bonus Tile Exposure**: Winds and dragons exposed at start for bonus points
 - **Scoring System**: Base + bonus tiles + gold tiles, with self-draw multiplier
@@ -23,7 +23,7 @@ A real-time multiplayer Fujian Mahjong game built with Next.js and Firebase.
 - **128 tiles**: 108 suited (dots, bamboo, characters) + 16 winds + 4 red dragons
 - **No flowers/seasons**: Unlike other variants
 - **Gold tile**: One random suit tile type becomes wildcard each game
-- **Winning hand**: 5 sets (pungs or chows) + 1 pair = 17 tiles
+- **Winning hand**: 5 sets (pengs or chis) + 1 pair = 17 tiles
 - **Bonus tiles**: Winds and dragons are exposed and give bonus points
 
 ## Getting Started

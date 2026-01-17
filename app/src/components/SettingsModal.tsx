@@ -33,10 +33,10 @@ function useIsTouchDevice() {
 }
 
 const ACTION_LABELS: Record<keyof KeyboardShortcuts, string> = {
-  win: 'Win',
-  kong: 'Kong',
-  pung: 'Pung',
-  chow: 'Chow',
+  win: 'Hu',
+  kong: 'Gang',
+  pung: 'Peng',
+  chow: 'Chi',
 };
 
 const ACTION_ORDER: (keyof KeyboardShortcuts)[] = ['win', 'kong', 'pung', 'chow'];
@@ -499,10 +499,10 @@ export function SettingsModal({
               </div>
             </div>
 
-            {/* Chow selection shortcuts */}
+            {/* Chi selection shortcuts */}
             <div className="mt-4 pt-4 border-t border-slate-700">
               <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
-                Chow Selection
+                Chi Selection
               </h4>
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between text-slate-400">
@@ -514,20 +514,20 @@ export function SettingsModal({
                   <span className="font-mono text-slate-300">Space</span>
                 </div>
                 <div className="flex justify-between text-slate-400">
-                  <span>Confirm chow</span>
+                  <span>Confirm chi</span>
                   <span className="font-mono text-slate-300">Enter</span>
                 </div>
                 <div className="flex justify-between text-slate-400">
-                  <span>Cancel chow</span>
+                  <span>Cancel chi</span>
                   <span className="font-mono text-slate-300">Esc</span>
                 </div>
               </div>
             </div>
 
-            {/* Kong selection shortcuts */}
+            {/* Gang selection shortcuts */}
             <div className="mt-4 pt-4 border-t border-slate-700">
               <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
-                Kong Selection (Multiple Options)
+                Gang Selection (Multiple Options)
               </h4>
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between text-slate-400">
@@ -535,7 +535,7 @@ export function SettingsModal({
                   <span className="font-mono text-slate-300">← →</span>
                 </div>
                 <div className="flex justify-between text-slate-400">
-                  <span>Confirm kong</span>
+                  <span>Confirm gang</span>
                   <span className="font-mono text-slate-300">Space / Enter</span>
                 </div>
                 <div className="flex justify-between text-slate-400">

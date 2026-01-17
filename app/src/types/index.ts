@@ -284,3 +284,39 @@ export interface ParsedTile {
   value: number | WindDirection | string;
   instance: number;
 }
+
+// ============================================
+// DISPLAY NAMES (UI labels)
+// ============================================
+
+/** Display names for call actions (internal name → UI label) */
+export const CALL_DISPLAY_NAMES: Record<CallAction, string> = {
+  win: 'Hu',
+  kong: 'Gang',
+  pung: 'Peng',
+  chow: 'Chi',
+  pass: 'Pass',
+};
+
+/** Display names for meld types (internal name → UI label) */
+export const MELD_DISPLAY_NAMES: Record<MeldType, string> = {
+  kong: 'Gang',
+  pung: 'Peng',
+  chow: 'Chi',
+};
+
+/** Display names with Chinese characters (for rules/documentation) */
+export const CALL_DISPLAY_NAMES_WITH_CHINESE: Record<CallAction, string> = {
+  win: 'Hu (胡)',
+  kong: 'Gang (杠)',
+  pung: 'Peng (碰)',
+  chow: 'Chi (吃)',
+  pass: 'Pass',
+};
+
+/** Meld display names with Chinese characters */
+export const MELD_DISPLAY_NAMES_WITH_CHINESE: Record<MeldType, string> = {
+  kong: 'Gang (杠)',
+  pung: 'Peng (碰)',
+  chow: 'Chi (吃)',
+};

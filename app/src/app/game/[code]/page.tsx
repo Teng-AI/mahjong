@@ -15,7 +15,7 @@ import { needsToDraw } from '@/lib/game';
 import { calculateSettlement, calculateNetPositions } from '@/lib/settle';
 import { SettingsModal } from '@/components/SettingsModal';
 import { TurnIndicator } from '@/components/TurnIndicator';
-import { SeatIndex, TileId, TileType, CallAction, Room, WinnerInfo, ScoreBreakdown } from '@/types';
+import { SeatIndex, TileId, TileType, CallAction, Room, WinnerInfo, ScoreBreakdown, CALL_DISPLAY_NAMES } from '@/types';
 import { ref, update } from 'firebase/database';
 import { db } from '@/firebase/config';
 
@@ -1990,13 +1990,13 @@ export default function GamePage() {
                   </div>
                   {winner.score.concealedKongBonus > 0 && (
                     <div className="flex justify-between text-pink-400">
-                      <span>Concealed Kong:</span>
+                      <span>Concealed Gang:</span>
                       <span>+{winner.score.concealedKongBonus}</span>
                     </div>
                   )}
                   {winner.score.exposedKongBonus > 0 && (
                     <div className="flex justify-between text-pink-300">
-                      <span>Exposed Kong:</span>
+                      <span>Exposed Gang:</span>
                       <span>+{winner.score.exposedKongBonus}</span>
                     </div>
                   )}
@@ -2294,7 +2294,7 @@ export default function GamePage() {
             isCallingPhase ? 'bg-orange-500/40 text-orange-200' :
             isMyTurn ? 'bg-emerald-500/40 text-emerald-200' : 'bg-slate-600/60 text-slate-300'
           }`}>
-            {isCallingPhase ? (chowSelectionMode ? 'Select Chow' : 'Calling...') :
+            {isCallingPhase ? (chowSelectionMode ? 'Select Chi' : 'Calling...') :
              isMyTurn ? (shouldDraw ? '▶ Draw' : '▶ Discard') :
              `${getPlayerName(room, gameState.currentPlayerSeat)}'s turn`}
           </div>
@@ -2458,7 +2458,7 @@ export default function GamePage() {
         {/* Action Buttons - inside the hand section (desktop only) */}
         {/* Fixed height container to prevent layout shifts */}
         <div className="mt-2 sm:mt-4 hidden md:flex flex-wrap justify-center items-center gap-2 sm:gap-3 min-h-[52px]">
-          {/* Call buttons during calling phase - ordered left-to-right: PASS (lowest) to WIN (highest priority) */}
+          {/* Call buttons during calling phase - ordered left-to-right: PASS (lowest) to HU (highest priority) */}
           {isCallingPhase && myPendingCall === 'waiting' && !chowSelectionMode && (
             <>
               <button
@@ -2474,7 +2474,7 @@ export default function GamePage() {
                   disabled={processingAction}
                   className="px-4 sm:px-6 py-2 sm:py-3 bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
                 >
-                  CHOW <span className="text-xs opacity-60 ml-1">({shortcuts.chow})</span>
+                  CHI <span className="text-xs opacity-60 ml-1">({shortcuts.chow})</span>
                 </button>
               )}
               {myValidCalls?.canPung && (
@@ -2483,7 +2483,7 @@ export default function GamePage() {
                   disabled={processingAction}
                   className="px-4 sm:px-6 py-2 sm:py-3 bg-purple-500 hover:bg-purple-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
                 >
-                  PUNG <span className="text-xs opacity-60 ml-1">({shortcuts.pung})</span>
+                  PENG <span className="text-xs opacity-60 ml-1">({shortcuts.pung})</span>
                 </button>
               )}
               {myValidCalls?.canKong && (
@@ -2492,7 +2492,7 @@ export default function GamePage() {
                   disabled={processingAction}
                   className="px-4 sm:px-6 py-2 sm:py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
                 >
-                  KONG <span className="text-xs opacity-60 ml-1">({shortcuts.kong})</span>
+                  GANG <span className="text-xs opacity-60 ml-1">({shortcuts.kong})</span>
                 </button>
               )}
               {myValidCalls?.canWin && (
@@ -2501,13 +2501,13 @@ export default function GamePage() {
                   disabled={processingAction}
                   className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-sm sm:text-base"
                 >
-                  WIN! <span className="text-xs opacity-60 ml-1">({shortcuts.win})</span>
+                  HU! <span className="text-xs opacity-60 ml-1">({shortcuts.win})</span>
                 </button>
               )}
             </>
           )}
 
-          {/* Chow selection mode buttons - Cancel (left) to Confirm (right) */}
+          {/* Chi selection mode buttons - Cancel (left) to Confirm (right) */}
           {isCallingPhase && chowSelectionMode && (
             <>
               <button
@@ -2522,7 +2522,7 @@ export default function GamePage() {
                 disabled={selectedChowTiles.length !== 2 || processingAction}
                 className="px-4 sm:px-6 py-2 sm:py-3 bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
               >
-                Confirm Chow ({selectedChowTiles.length}/2)
+                Confirm Chi ({selectedChowTiles.length}/2)
               </button>
             </>
           )}
@@ -2531,12 +2531,12 @@ export default function GamePage() {
           {isCallingPhase && myPendingCall !== null && myPendingCall !== 'discarder' && myPendingCall !== 'waiting' && (
             <div className="px-3 sm:px-4 py-2 bg-slate-600/50 rounded-lg text-sm sm:text-lg">
               <span className="text-slate-300">You chose </span>
-              <span className="text-white font-bold uppercase">{myPendingCall}</span>
+              <span className="text-white font-bold uppercase">{CALL_DISPLAY_NAMES[myPendingCall as CallAction]}</span>
               <span className="text-slate-400 animate-pulse ml-2">waiting...</span>
             </div>
           )}
 
-          {/* Win buttons */}
+          {/* Hu buttons */}
 
           {gameState.phase === 'playing' && isMyTurn && !shouldDraw && canWinNow && (
             <button
@@ -2544,22 +2544,22 @@ export default function GamePage() {
               disabled={processingAction}
               className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-sm sm:text-base"
             >
-              🎉 WIN! <span className="hidden sm:inline text-xs opacity-70">({shortcuts.win})</span>
+              🎉 HU! <span className="hidden sm:inline text-xs opacity-70">({shortcuts.win})</span>
             </button>
           )}
 
-          {/* Kong button during playing phase (after drawing) - single unified button */}
+          {/* Gang button during playing phase (after drawing) - single unified button */}
           {gameState.phase === 'playing' && isMyTurn && !shouldDraw && !kongSelectionMode && combinedKongOptions.length > 0 && (
             <button
               onClick={onKongKeyPress}
               disabled={processingAction}
               className="px-4 sm:px-6 py-2 sm:py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
             >
-              KONG <span className="text-xs opacity-60 ml-1">({shortcuts.kong})</span>
+              GANG <span className="text-xs opacity-60 ml-1">({shortcuts.kong})</span>
             </button>
           )}
 
-          {/* Kong selection mode buttons */}
+          {/* Gang selection mode buttons */}
           {gameState.phase === 'playing' && isMyTurn && !shouldDraw && kongSelectionMode && (
             <>
               <button
@@ -2574,7 +2574,7 @@ export default function GamePage() {
                 disabled={processingAction}
                 className="px-4 sm:px-6 py-2 sm:py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm sm:text-base"
               >
-                Confirm Kong ({focusedKongIndex + 1}/{combinedKongOptions.length})
+                Confirm Gang ({focusedKongIndex + 1}/{combinedKongOptions.length})
               </button>
             </>
           )}
@@ -2633,9 +2633,9 @@ export default function GamePage() {
               <>
                 <span className="text-blue-300 text-xs sm:text-lg font-medium mb-1 sm:mb-2">
                   {gameState.previousAction.type === 'draw' ? 'Drew' :
-                   gameState.previousAction.type === 'pung' ? 'Pung' :
-                   gameState.previousAction.type === 'chow' ? 'Chow' :
-                   gameState.previousAction.type === 'kong' ? (gameState.previousAction.isConcealed ? 'Concealed Kong' : 'Kong') : 'Action'}
+                   gameState.previousAction.type === 'pung' ? 'Peng' :
+                   gameState.previousAction.type === 'chow' ? 'Chi' :
+                   gameState.previousAction.type === 'kong' ? (gameState.previousAction.isConcealed ? 'Concealed Gang' : 'Gang') : 'Action'}
                 </span>
                 {/* For concealed kong, show face-down tiles to hide tile identity */}
                 {gameState.previousAction.type === 'kong' && gameState.previousAction.isConcealed && (
@@ -2901,7 +2901,7 @@ export default function GamePage() {
       {/* Mobile Bottom Action Bar */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 border-t border-slate-700 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] z-40">
         <div className="flex gap-2">
-          {/* Calling phase buttons - ordered left-to-right: PASS (lowest) to WIN (highest priority) */}
+          {/* Calling phase buttons - ordered left-to-right: PASS (lowest) to HU (highest priority) */}
           {isCallingPhase && myPendingCall === 'waiting' && !chowSelectionMode && (
             <>
               <button
@@ -2917,7 +2917,7 @@ export default function GamePage() {
                   disabled={processingAction}
                   className="flex-1 py-3 bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
                 >
-                  CHOW
+                  CHI
                 </button>
               )}
               {myValidCalls?.canPung && (
@@ -2926,7 +2926,7 @@ export default function GamePage() {
                   disabled={processingAction}
                   className="flex-1 py-3 bg-purple-500 hover:bg-purple-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
                 >
-                  PUNG
+                  PENG
                 </button>
               )}
               {myValidCalls?.canKong && (
@@ -2935,7 +2935,7 @@ export default function GamePage() {
                   disabled={processingAction}
                   className="flex-1 py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
                 >
-                  KONG
+                  GANG
                 </button>
               )}
               {myValidCalls?.canWin && (
@@ -2944,7 +2944,7 @@ export default function GamePage() {
                   disabled={processingAction}
                   className="flex-1 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-sm"
                 >
-                  WIN!
+                  HU!
                 </button>
               )}
             </>
@@ -3012,28 +3012,28 @@ export default function GamePage() {
           {/* Playing phase - my turn */}
           {gameState.phase === 'playing' && isMyTurn && (
             <>
-              {/* Self-draw win button */}
+              {/* Self-draw hu button */}
               {!shouldDraw && canWinNow && (
                 <button
                   onClick={onDeclareWin}
                   disabled={processingAction}
                   className="flex-1 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-sm"
                 >
-                  WIN!
+                  HU!
                 </button>
               )}
 
-              {/* Kong button - unified */}
+              {/* Gang button - unified */}
               {!shouldDraw && !kongSelectionMode && combinedKongOptions.length > 0 && (
                 <button
                   onClick={onKongKeyPress}
                   disabled={processingAction}
                   className="flex-1 py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
                 >
-                  KONG
+                  GANG
                 </button>
               )}
-              {/* Kong selection mode */}
+              {/* Gang selection mode */}
               {!shouldDraw && kongSelectionMode && (
                 <>
                   <button
@@ -3048,7 +3048,7 @@ export default function GamePage() {
                     disabled={processingAction}
                     className="flex-1 py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
                   >
-                    Confirm Kong ({focusedKongIndex + 1}/{combinedKongOptions.length})
+                    Confirm Gang ({focusedKongIndex + 1}/{combinedKongOptions.length})
                   </button>
                 </>
               )}
@@ -3106,8 +3106,8 @@ export default function GamePage() {
             {/* Quick Start */}
             <div className="text-sm text-slate-300 space-y-1.5 mb-4">
               <p><strong className="text-white">Goal:</strong> Form <strong className="text-white">5 sets + 1 pair</strong> (17 tiles)</p>
-              <p><strong className="text-white">Sets:</strong> Pung (3 of a kind) or Chow (3 in sequence, same suit)</p>
-              <p><strong className="text-white">Your Turn:</strong> Draw (or Call) → Discard (or Win/Kong)</p>
+              <p><strong className="text-white">Sets:</strong> Peng (3 of a kind) or Chi (3 in sequence, same suit)</p>
+              <p><strong className="text-white">Your Turn:</strong> Draw (or Call) → Discard (or Hu/Gang)</p>
               <p><strong className="text-white">Calling:</strong> Claim a discard to form a set (skips your draw)</p>
             </div>
 
@@ -3157,24 +3157,24 @@ export default function GamePage() {
                   </tr>
                 </thead>
                 <tbody className="text-slate-300">
-                  <tr><td className="py-0.5"><strong className="text-white">Chow</strong></td><td>2 sequential</td><td className="text-slate-400">Left player only</td></tr>
-                  <tr><td className="py-0.5"><strong className="text-white">Pung</strong></td><td>2 matching</td><td>Anyone</td></tr>
-                  <tr><td className="py-0.5"><strong className="text-white">Kong</strong></td><td>3 matching</td><td>Anyone</td></tr>
-                  <tr><td className="py-0.5"><strong className="text-white">Win</strong></td><td>Completes hand</td><td>Anyone</td></tr>
+                  <tr><td className="py-0.5"><strong className="text-white">Chi (吃)</strong></td><td>2 sequential</td><td className="text-slate-400">Left player only</td></tr>
+                  <tr><td className="py-0.5"><strong className="text-white">Peng (碰)</strong></td><td>2 matching</td><td>Anyone</td></tr>
+                  <tr><td className="py-0.5"><strong className="text-white">Gang (杠)</strong></td><td>3 matching</td><td>Anyone</td></tr>
+                  <tr><td className="py-0.5"><strong className="text-white">Hu (胡)</strong></td><td>Completes hand</td><td>Anyone</td></tr>
                 </tbody>
               </table>
             </div>
-            <p className="text-sm text-slate-400 mb-4"><strong className="text-white">Priority:</strong> Win &gt; Pung/Kong &gt; Chow</p>
+            <p className="text-sm text-slate-400 mb-4"><strong className="text-white">Priority:</strong> Hu &gt; Peng/Gang &gt; Chi</p>
 
             <hr className="border-slate-600 my-3" />
 
-            {/* Kong */}
-            <h4 className="text-amber-400 font-bold text-base mb-2">Kong</h4>
+            {/* Gang */}
+            <h4 className="text-amber-400 font-bold text-base mb-2">Gang (杠)</h4>
             <div className="text-sm text-slate-300 space-y-1 mb-4">
               <p>• <strong className="text-white">Concealed:</strong> Draw all 4 yourself → <strong className="text-emerald-400">+2 pts</strong></p>
-              <p>• <strong className="text-white">Exposed:</strong> From discard or upgrade Pung → <strong className="text-emerald-400">+1 pt</strong></p>
-              <p>• After Kong, draw a replacement tile</p>
-              <p>• Concealed Kongs stay face-down (hidden)</p>
+              <p>• <strong className="text-white">Exposed:</strong> From discard or upgrade Peng → <strong className="text-emerald-400">+1 pt</strong></p>
+              <p>• After Gang, draw a replacement tile</p>
+              <p>• Concealed Gangs stay face-down (hidden)</p>
             </div>
 
             <hr className="border-slate-600 my-3" />
@@ -3191,7 +3191,7 @@ export default function GamePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td className="py-0.5 text-white">No Bonus/Kong</td><td className="text-emerald-400">+15</td><td>No bonus tiles &amp; no kongs</td></tr>
+                  <tr><td className="py-0.5 text-white">No Bonus/Gang</td><td className="text-emerald-400">+15</td><td>No bonus tiles &amp; no gangs</td></tr>
                   <tr><td className="py-0.5 text-white">Three Golds</td><td className="text-emerald-400">+30</td><td>Hold all 3 → instant win</td></tr>
                   <tr><td className="py-0.5 text-white">Robbing the Gold</td><td className="text-emerald-400">+30</td><td>Claim revealed Gold to win</td></tr>
                   <tr><td className="py-0.5 text-white">Golden Pair</td><td className="text-emerald-400">+50</td><td>Pair is 2 Gold tiles</td></tr>
@@ -3210,8 +3210,8 @@ export default function GamePage() {
               <p><span className="text-slate-300">Base</span> +1</p>
               <p><span className="text-slate-300">Bonus tiles</span> +1 each</p>
               <p><span className="text-slate-300">Gold tiles</span> +1 each</p>
-              <p><span className="text-slate-300">Concealed Kong</span> +2 each</p>
-              <p><span className="text-slate-300">Exposed Kong</span> +1 each</p>
+              <p><span className="text-slate-300">Concealed Gang</span> +2 each</p>
+              <p><span className="text-slate-300">Exposed Gang</span> +1 each</p>
               <p><span className="text-slate-300">Dealer streak</span> +N</p>
               <p className="text-slate-600 text-xs pt-1">────────────────</p>
               <p><span className="text-slate-300">Self-draw</span> ×2</p>
