@@ -31,7 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Visual countdown with warning state
   - Room setting side-by-side with calling timer in lobby
 - **Full keyboard controls** for gameplay actions
-  - Customizable shortcuts for Draw, Win, Kong, Pung, Chow, Pass
+  - Customizable shortcuts for Win, Kong, Pung, Chow (Pass removed)
+  - Space bar as universal "default action" (Draw or Pass depending on phase)
   - Arrow keys navigate tile selection during discard phase
   - Number keys (1-9, 0) for quick tile selection
   - Enter to confirm, Escape to cancel
@@ -46,6 +47,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Kong selection shortcuts documented in Settings modal
 
 ### Changed
+- **Simplified keyboard shortcuts** - Space bar is now universal "default action"
+  - Your turn: Space = Draw
+  - Calling phase: Space = Pass
+  - Reduces cognitive load by using one key for common actions
 - **Sound design overhaul** - Rebalanced with modern hierarchy
   - Ambient sounds (tileClick, tileSelect) much quieter to reduce fatigue
   - Alert sounds (callAlert, timerWarning) boosted for attention
