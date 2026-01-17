@@ -86,11 +86,55 @@
   - ~~Use lastAction from gameState~~ Uses previousAction field
 
 - [ ] **Golden Dragon special bonus** 🟡
-  - New +100 bonus: 3 Gold tiles used as Peng (not wildcards)
-  - Remove Three Golds auto-win (player chooses when to declare)
-  - Three Golds (+30) only on own turn, Golden Dragon (+100) from self-draw or call
-  - Golden Pair (+50) only available with exactly 2 Golds (not 3)
-  - Only highest special bonus applies (no stacking)
+  - See detailed spec below
+
+### Golden Dragon (金龙) Specification
+
+**New Bonus: Golden Dragon +100**
+- Player has all 3 Gold tiles and uses them as a normal Peng set (triplet)
+- Rest of hand must win WITHOUT using any Gold as wildcard
+- Can be won from self-draw OR call (discard)
+- Triggers ×2 multiplier like other special bonuses
+
+**Changes to Three Golds (三金) +30**
+- No longer auto-wins — player sees HU button and decides
+- Can declare anytime during own turn when holding 3 Golds
+- Works as instant win (no complete hand needed)
+- Only available on own turn (not from calls)
+
+**Changes to Golden Pair (金对) +50**
+- Only available when player has exactly 2 Gold tiles
+- Having 3 Golds disqualifies Golden Pair
+
+**Win Scenarios with 3 Golds**
+
+| Scenario | Bonus |
+|----------|-------|
+| 3 Golds as Peng, complete hand (self-draw or call) | Golden Dragon +100 |
+| 3 Golds as wildcards, win on own turn | Three Golds +30 |
+| 3 Golds, no complete hand, declare on own turn | Three Golds +30 |
+| 3 Golds as wildcards, win from call | No special Gold bonus |
+| Robbing Gold results in 3 Golds | +30 only |
+
+**Bonus Hierarchy (highest only, no stacking)**
+1. All One Suit (+100) / Golden Dragon (+100) — if tied, +100 once
+2. Golden Pair (+50) — only with exactly 2 Golds
+3. Three Golds (+30) / Robbing Gold (+30)
+4. No Bonus/Gang (+15)
+
+**Scoring Formula (unchanged structure)**
+```
+Non-special = base + bonus tiles + golds (count) + gangs + dealer streak
+If self-draw OR any special bonus: ×2
+Total = non-special + highest special bonus
+```
+
+**Implementation Changes Required**
+1. Remove Three Golds auto-win trigger
+2. Add Golden Dragon detection (3 Golds as Peng, no wildcards in rest of hand)
+3. Update Golden Pair to require exactly 2 Golds
+4. Update scoring to pick highest special bonus only (no stacking)
+5. Update rules modal and documentation
 
 - [ ] **Bonus phase animation delays** 🟡
   - Add visual delays between: expose → replace → gold flip → auto-win check
