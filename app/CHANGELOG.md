@@ -49,8 +49,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Renamed calling actions to authentic Mahjong terms**
   - Chow → Chi (吃), Pung → Peng (碰), Kong → Gang (杠), Win → Hu (胡)
-  - Chinese characters shown in rules modal for education
+  - Chinese characters shown in rules modal and settings modal
+  - Game log updated to use new terminology
   - Internal code unchanged (only UI labels updated)
+- **Updated default keyboard shortcuts** to match new terminology
+  - Hu: H (was W), Gang: G (was K), Peng: P, Chi: C
 - **Simplified keyboard shortcuts** - Space bar is now universal "default action"
   - Your turn: Space = Draw
   - Calling phase: Space = Pass

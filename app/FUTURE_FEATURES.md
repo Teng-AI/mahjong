@@ -85,6 +85,13 @@
   - ~~Integrate with existing Last Discard section~~ Side-by-side layout
   - ~~Use lastAction from gameState~~ Uses previousAction field
 
+- [ ] **Golden Dragon special bonus** 🟡
+  - New +100 bonus: 3 Gold tiles used as Peng (not wildcards)
+  - Remove Three Golds auto-win (player chooses when to declare)
+  - Three Golds (+30) only on own turn, Golden Dragon (+100) from self-draw or call
+  - Golden Pair (+50) only available with exactly 2 Golds (not 3)
+  - Only highest special bonus applies (no stacking)
+
 - [ ] **Bonus phase animation delays** 🟡
   - Add visual delays between: expose → replace → gold flip → auto-win check
   - Currently happens too fast to follow
