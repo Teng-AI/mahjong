@@ -48,16 +48,16 @@ Winds (16) and Red Dragons (4) are bonus tiles. When drawn:
 
 | Set Type | Description | Example |
 |----------|-------------|---------|
-| **Chow (顺子)** | 3 consecutive tiles, same suit | 2-3-4 Bamboo |
-| **Pung (刻子)** | 3 identical tiles | 7-7-7 Dots |
-| **Kong (杠子)** | 4 identical tiles | 9-9-9-9 Characters |
+| **Chi (吃/顺子)** | 3 consecutive tiles, same suit | 2-3-4 Bamboo |
+| **Peng (碰/刻子)** | 3 identical tiles | 7-7-7 Dots |
+| **Gang (杠/杠子)** | 4 identical tiles | 9-9-9-9 Characters |
 | **Pair (眼)** | 2 identical tiles | 5-5 Characters |
 
 **Gold tiles**:
 - Can substitute for any tile in sets or pairs
 - Each Gold in your winning hand counts as **+1 point**
 - Two Golds as your pair = **Golden Pair (+50 bonus)**
-- **Cannot be used for calling** (Chow/Pung/Kong) - only for completing your hand
+- **Cannot be used for calling** (Chi/Peng/Gang) - only for completing your hand
 
 **Winning is optional**: You are never forced to win.
 - If someone discards a tile that completes your hand, you can choose NOT to call it
@@ -103,7 +103,7 @@ When the Gold tile is revealed at game start, players may claim it to win:
 
 ### Turn Order
 1. **Draw** from the wall (skip if you just took a discard)
-2. **Declare** kongs or expose bonus tiles (draw replacement from wall)
+2. **Declare** gangs or expose bonus tiles (draw replacement from wall)
 3. **Discard** one tile face-up, or **win** if hand is complete
 
 ### Calling Tiles
@@ -112,36 +112,36 @@ When a tile is discarded, other players may call it:
 
 | Action | Priority | Requirement |
 |--------|----------|-------------|
-| **Win (胡)** | Highest | Completes your hand |
-| **Pung (碰) / Kong (杠)** | High | Have 2 or 3 matching tiles |
-| **Chow (吃)** | Lowest | Have 2 sequential tiles |
+| **Hu (胡)** | Highest | Completes your hand |
+| **Peng (碰) / Gang (杠)** | High | Have 2 or 3 matching tiles |
+| **Chi (吃)** | Lowest | Have 2 sequential tiles |
 
 **Priority tie-breaker**: If multiple players call the same priority, the player **closest to the discarder** (counter-clockwise) wins. Other callers get nothing.
 
-**Chow restriction**: You can only Chow from the player sitting to your **left** (the previous player in turn order).
+**Chi restriction**: You can only Chi from the player sitting to your **left** (the previous player in turn order).
 
-**Turn interruption**: When you Pung or Kong, it becomes your turn and play continues counter-clockwise from you. Skipped players lose their turn.
+**Turn interruption**: When you Peng or Gang, it becomes your turn and play continues counter-clockwise from you. Skipped players lose their turn.
 
-**Winning after calling**: If your hand is complete after Chow/Pung/Kong (before discarding), you can **win immediately** — or choose to discard instead (winning is always optional).
+**Winning after calling**: If your hand is complete after Chi/Peng/Gang (before discarding), you can **win immediately** — or choose to discard instead (winning is always optional).
 
-### Kongs
+### Gangs
 
 | Type | How Formed | Points |
 |------|------------|--------|
-| **Concealed Kong** | Draw all 4 tiles yourself | +2 |
-| **Exposed Kong (from Pung)** | Have exposed Pung, self-draw 4th tile | +1 |
-| **Exposed Kong (from discard)** | Have 3 concealed tiles, Kong a discard | +1 |
+| **Concealed Gang** | Draw all 4 tiles yourself | +2 |
+| **Exposed Gang (from Peng)** | Have exposed Peng, self-draw 4th tile | +1 |
+| **Exposed Gang (from discard)** | Have 3 concealed tiles, Gang a discard | +1 |
 
-**Note**: You cannot Kong a discard to add to an existing exposed Pung — only self-draw works.
+**Note**: You cannot Gang a discard to add to an existing exposed Peng — only self-draw works.
 
-**Kong rules**:
-- After declaring a Kong, draw a replacement from the wall
+**Gang rules**:
+- After declaring a Gang, draw a replacement from the wall
 - If replacement completes your hand, you can **win immediately**
-- Three Golds check triggers on Kong replacement draws
-- Concealed Kong can be declared **anytime during your turn** (not just after drawing the 4th)
-- Concealed Kong stays **face-down** (not revealed to other players)
-- If someone discards a tile you have 3 of, you can **choose** to not Kong (keep them concealed)
-- Konging from a discard counts as Exposed (+1), not Concealed (+2)
+- Three Golds check triggers on Gang replacement draws
+- Concealed Gang can be declared **anytime during your turn** (not just after drawing the 4th)
+- Concealed Gang stays **face-down** (not revealed to other players)
+- If someone discards a tile you have 3 of, you can **choose** to not Gang (keep them concealed)
+- Ganging from a discard counts as Exposed (+1), not Concealed (+2)
 
 ---
 
@@ -150,7 +150,7 @@ When a tile is discarded, other players may call it:
 ### Formula
 
 ```
-Non-Special Points = Base + Bonus + Golds + Kongs
+Non-Special Points = Base + Bonus + Golds + Gangs
 
 If self-draw: Non-Special Points × 2
 
@@ -164,8 +164,8 @@ Total = Non-Special Points + Special Hand Bonuses
 | Base (winning) | +1 |
 | Per bonus tile (wind/dragon) | +1 |
 | Per Gold tile in hand | +1 (physical Golds, regardless of how used) |
-| Per Concealed Kong | +2 |
-| Per Exposed Kong | +1 |
+| Per Concealed Gang | +2 |
+| Per Exposed Gang | +1 |
 | Dealer streak bonus | +N (where N = consecutive rounds as dealer) |
 
 **Self-draw (自摸)**: Multiply non-special points by **2**
@@ -178,15 +178,15 @@ Special bonuses are added **after** the multiplier is applied. However, having A
 
 | Hand | Points | Condition |
 |------|--------|-----------|
-| **No Bonus/Kong (平胡)** | +15 | No exposed bonus tiles AND no kongs |
+| **No Bonus/Gang (平胡)** | +15 | No exposed bonus tiles AND no gangs |
 | **Three Golds (三金)** | +30 | Instant win with all 3 Golds |
 | **Robbing the Gold (抢金)** | +30 | Win by claiming the revealed Gold tile |
 | **Golden Pair (金对)** | +50 | Pair is 2 Gold tiles |
 | **All One Suit (清一色)** | +100 | All tiles in hand are same suit (excluding Golds) |
 
 **Notes**:
-- You can have Gold tiles and still qualify for "No Bonus/Kong"
-- Special bonuses can stack (e.g., Golden Pair + No Bonus/Kong = +65)
+- You can have Gold tiles and still qualify for "No Bonus/Gang"
+- Special bonuses can stack (e.g., Golden Pair + No Bonus/Gang = +65)
 - Three Golds still counts +3 for the Golds in hand (total: 30 + 3 = 33 minimum)
 - All special bonuses trigger the ×2 multiplier, even on discard wins
 
@@ -201,7 +201,7 @@ Special bonuses are added **after** the multiplier is applied. However, having A
 Hand: 5 sets + 1 pair (Golden Pair)
 Bonus tiles: 3 (wind_east, wind_south, dragon_red)
 Golds in hand: 2 (used as pair)
-Kongs: 0
+Gangs: 0
 Self-draw: Yes
 
 Non-Special: 1 (base) + 3 (bonus) + 2 (golds) = 6
@@ -215,7 +215,7 @@ Total:       62 points (each loser pays 62)
 Hand: 5 sets + 1 pair (Golden Pair)
 Bonus tiles: 2 (wind_east, wind_south)
 Golds in hand: 2 (used as pair)
-Kongs: 0
+Gangs: 0
 Self-draw: No (won from discard)
 
 Non-Special: 1 (base) + 2 (bonus) + 2 (golds) = 5
@@ -229,10 +229,10 @@ Total:       60 points (each loser pays 60)
 Hand: All bamboo tiles (5 sets + 1 pair)
 Bonus tiles: 1 (wind_north)
 Golds in hand: 1 (substituting in a set)
-Kongs: 1 concealed
+Gangs: 1 concealed
 Self-draw: No
 
-Non-Special: 1 (base) + 1 (bonus) + 1 (gold) + 2 (concealed kong) = 5
+Non-Special: 1 (base) + 1 (bonus) + 1 (gold) + 2 (concealed gang) = 5
 Multiplier:  5 × 2 = 10 (All One Suit triggers ×2)
 All One Suit: +100
 Total:       110 points (each loser pays 110)
@@ -277,8 +277,8 @@ Total:       110 points (each loser pays 110)
 
 ### Key Rules
 - Hand size: 16 tiles (17 after draw)
-- Chow: Only from player to your left
-- Bonus/Kong replacements: Draw from wall
+- Chi: Only from player to your left
+- Bonus/Gang replacements: Draw from wall
 - You can delay winning to go for a bigger hand
 - Payment: All 3 losers pay winner
 - Dealer streak: Consecutive rounds as dealer add bonus points (wins + draws count)
@@ -310,11 +310,11 @@ Gold:    Determined at game start (3 copies in play)
 
 ### Scoring Algorithm
 ```
-non_special = 1 + bonus_tiles + golds_in_hand + (concealed_kongs × 2) + (exposed_kongs × 1) + dealer_streak_bonus
+non_special = 1 + bonus_tiles + golds_in_hand + (concealed_gangs × 2) + (exposed_gangs × 1) + dealer_streak_bonus
 
 # Calculate special bonuses first
 special = 0
-if no_bonus_tiles and no_kongs:
+if no_bonus_tiles and no_gangs:
     special += 15
 if golden_pair:
     special += 50

@@ -1633,7 +1633,7 @@ async function executePungCall(
   });
 
   const tileName = getTileDisplayText(getTileType(discardTile));
-  await addToLog(roomCode, `${SEAT_NAMES[callerSeat]} called Pung on ${tileName}`);
+  await addToLog(roomCode, `${SEAT_NAMES[callerSeat]} called Peng on ${tileName}`);
 }
 
 /**
@@ -1743,7 +1743,7 @@ async function executeKongCall(
   });
 
   const tileName = getTileDisplayText(getTileType(discardTile));
-  await addToLog(roomCode, `${SEAT_NAMES[callerSeat]} called Kong on ${tileName}`);
+  await addToLog(roomCode, `${SEAT_NAMES[callerSeat]} called Gang on ${tileName}`);
 }
 
 /**
@@ -1828,7 +1828,7 @@ async function executeChowCall(
   });
 
   const tileName = getTileDisplayText(getTileType(discardTile));
-  await addToLog(roomCode, `${SEAT_NAMES[callerSeat]} called Chow on ${tileName}`);
+  await addToLog(roomCode, `${SEAT_NAMES[callerSeat]} called Chi on ${tileName}`);
 }
 
 // ============================================
@@ -2311,7 +2311,7 @@ export async function declareConcealedKong(
   });
 
   // Log message hides the specific tile to prevent info leak
-  await addToLog(roomCode, `${SEAT_NAMES[seat]} declared a concealed Kong`);
+  await addToLog(roomCode, `${SEAT_NAMES[seat]} declared a concealed Gang`);
 
   return { success: true };
 }
@@ -2462,7 +2462,7 @@ export async function upgradePungToKong(
   });
 
   const tileName = getTileDisplayText(pungType);
-  await addToLog(roomCode, `${SEAT_NAMES[seat]} upgraded Pung to Kong (${tileName})`);
+  await addToLog(roomCode, `${SEAT_NAMES[seat]} upgraded Peng to Gang (${tileName})`);
 
   return { success: true };
 }
