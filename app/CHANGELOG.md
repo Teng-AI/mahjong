@@ -45,6 +45,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Arrow keys navigate valid tiles, Space to select, Enter to confirm
   - Green highlight for selected tiles, yellow for focused
 - Gang selection shortcuts documented in Settings modal
+- **Error boundaries** for crash recovery
+  - Friendly error UI instead of white screen
+  - Page-level error catching (game, room, generic)
+  - "Try Again" and "Return Home" recovery options
+  - Error details shown in development mode only
 
 ### Changed
 - **Renamed calling actions to authentic Mahjong terms**

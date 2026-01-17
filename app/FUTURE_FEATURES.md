@@ -142,11 +142,11 @@ Total = non-special + highest special bonus
   - Use setTimeout or animation callbacks
   - Show each step clearly before proceeding
 
-- [ ] **Error boundaries** 🟡
-  - Wrap components in React error boundaries
-  - Show friendly error UI instead of white screen
-  - Log errors for debugging
-  - "Something went wrong" + retry button
+- [x] **Error boundaries** 🟡 ✅
+  - ~~Wrap components in React error boundaries~~ Next.js error.tsx convention
+  - ~~Show friendly error UI instead of white screen~~ Done
+  - ~~Log errors for debugging~~ console.error in dev
+  - ~~"Something went wrong" + retry button~~ Try Again + Return Home
 
 - [ ] **Loading skeletons** 🟡
   - Replace "Loading..." text with skeleton placeholders
