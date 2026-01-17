@@ -50,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Simplified keyboard shortcuts** - Space bar is now universal "default action"
   - Your turn: Space = Draw
   - Calling phase: Space = Pass
+  - P now defaults to Pung (was U) since Pass uses Space
   - Reduces cognitive load by using one key for common actions
 - **Sound design overhaul** - Rebalanced with modern hierarchy
   - Ambient sounds (tileClick, tileSelect) much quieter to reduce fatigue
