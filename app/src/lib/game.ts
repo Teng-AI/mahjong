@@ -71,7 +71,7 @@ async function addToLog(roomCode: string, message: string): Promise<void> {
 /**
  * Record a round result in the session scores
  * Called when a game ends (win or draw)
- * Updates dealer streak: increments if dealer won, resets to 0 otherwise
+ * Updates dealer streak: increments if dealer won OR draw (dealer stays), resets to 0 if dealer lost
  */
 export async function recordRoundResult(
   roomCode: string,
@@ -118,9 +118,9 @@ export async function recordRoundResult(
   }
 
   // Update dealer streak
-  // Increment if dealer won, reset to 0 if dealer lost or draw
+  // Increment if dealer won OR draw (dealer stays), reset to 0 if dealer lost
   const currentStreak = session.dealerStreak || 0;
-  const newStreak = (winnerSeat === dealerSeat) ? currentStreak + 1 : 0;
+  const newStreak = (winnerSeat === dealerSeat || winnerSeat === null) ? currentStreak + 1 : 0;
 
   // Save updated session
   await update(ref(db, `rooms/${roomCode}/session`), {
@@ -143,7 +143,7 @@ async function getPlayerName(roomCode: string, seat: SeatIndex): Promise<string>
 
 /**
  * Get the current dealer streak from session
- * Returns the number of consecutive wins by the current dealer (0 if none)
+ * Returns the number of consecutive rounds kept by the current dealer (0 if none)
  */
 export async function getDealerStreak(roomCode: string): Promise<number> {
   const sessionSnapshot = await get(ref(db, `rooms/${roomCode}/session`));
@@ -1168,7 +1168,9 @@ export async function drawTile(
   });
 
   // Log the draw action (drew first, then exposed bonus if any)
-  await addToLog(roomCode, `${SEAT_NAMES[seat]} drew a tile`);
+  // Format: "East drew a tile [PRIVATE:0:7竹]" - the [PRIVATE:seat:tile] part is only shown to that player
+  const drawnTileDisplay = getTileDisplayText(getTileType(drawnTile));
+  await addToLog(roomCode, `${SEAT_NAMES[seat]} drew a tile [PRIVATE:${seat}:${drawnTileDisplay}]`);
   if (bonusTilesExposed.length > 0) {
     const bonusNames = bonusTilesExposed.map(t => getTileDisplayText(getTileType(t))).join(', ');
     await addToLog(roomCode, `${SEAT_NAMES[seat]} exposed bonus: ${bonusNames}`);
@@ -1947,8 +1949,13 @@ export async function declareSelfDrawWin(
 
   const total = (subtotal * multiplier) + goldenPairBonus + noBonusBonus + allOneSuitBonus;
 
-  // Get the winning tile (the tile that was just drawn)
-  const winningTile = gameState.lastAction?.type === 'draw' ? gameState.lastAction.tile : undefined;
+  // Get the winning tile (the tile that was just drawn - either normal draw or kong replacement)
+  let winningTile: TileId | undefined;
+  if (gameState.lastAction?.type === 'draw' && gameState.lastAction.tile) {
+    winningTile = gameState.lastAction.tile;
+  } else if (gameState.lastAction?.type === 'kong' && gameState.lastAction.replacementTile) {
+    winningTile = gameState.lastAction.replacementTile;
+  }
 
   // Update game state
   await update(ref(db, `rooms/${roomCode}/game`), {
@@ -2525,15 +2532,11 @@ export async function autoPlayExpiredTurn(
 
   const hand = (handSnapshot.val() as PrivateHand).concealedTiles;
 
-  // Determine if player needs to draw first
-  // If lastAction is 'draw' or 'kong' or 'pung' or 'chow' by this player, they have a tile and need to discard
-  // Otherwise, they need to draw first
-  const lastAction = gameState.lastAction;
-  const needsDraw = !lastAction ||
-    lastAction.playerSeat !== seat ||
-    !['draw', 'kong', 'pung', 'chow'].includes(lastAction.type);
+  // Determine if player needs to draw first using the canonical needsToDraw function
+  // This properly handles: dealer's first turn, after calls, after draws, etc.
+  const needsDraw = needsToDraw(gameState);
 
-  if (DEBUG_AUTO_PLAY) console.log('[autoPlayExpiredTurn] needsDraw:', needsDraw, 'lastAction:', lastAction);
+  if (DEBUG_AUTO_PLAY) console.log('[autoPlayExpiredTurn] needsDraw:', needsDraw, 'lastAction:', gameState.lastAction);
 
   if (needsDraw) {
     // Draw a tile first

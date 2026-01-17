@@ -20,8 +20,8 @@ export default function Home() {
     setQuickPlayLoading(difficulty);
 
     try {
-      // Create room with name "ME"
-      const roomCode = await createRoom(user.uid, 'ME');
+      // Create room with name "You"
+      const roomCode = await createRoom(user.uid, 'You');
 
       // Set timers to 30 seconds
       await update(ref(db, `rooms/${roomCode}/settings`), {
