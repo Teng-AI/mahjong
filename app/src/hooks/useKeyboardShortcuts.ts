@@ -3,20 +3,18 @@
 import { useCallback, useState } from 'react';
 
 export interface KeyboardShortcuts {
-  pass: string;
   chow: string;
   pung: string;
   kong: string;
   win: string;
 }
 
-// Note: Draw is hardcoded to Space (not customizable)
+// Note: Draw and Pass are hardcoded to Space (not customizable)
 const DEFAULT_SHORTCUTS: KeyboardShortcuts = {
   win: 'W',
   kong: 'K',
-  pung: 'U',
+  pung: 'P',
   chow: 'C',
-  pass: 'P',
 };
 
 const STORAGE_KEY = 'mahjong-keyboard-shortcuts';

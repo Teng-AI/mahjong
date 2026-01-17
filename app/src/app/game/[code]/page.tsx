@@ -859,8 +859,8 @@ export default function GamePage() {
       } else if (key === shortcuts.chow && myValidCalls?.canChow) {
         e.preventDefault();
         onChowClick();
-      } else if (key === shortcuts.pass || e.key === ' ') {
-        // Space or P = Pass (Space is the "default action" key)
+      } else if (e.key === ' ') {
+        // Space = Pass (the "default action" key)
         e.preventDefault();
         onCallResponse('pass');
       }

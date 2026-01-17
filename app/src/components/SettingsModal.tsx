@@ -37,10 +37,9 @@ const ACTION_LABELS: Record<keyof KeyboardShortcuts, string> = {
   kong: 'Kong',
   pung: 'Pung',
   chow: 'Chow',
-  pass: 'Pass',
 };
 
-const ACTION_ORDER: (keyof KeyboardShortcuts)[] = ['win', 'kong', 'pung', 'chow', 'pass'];
+const ACTION_ORDER: (keyof KeyboardShortcuts)[] = ['win', 'kong', 'pung', 'chow'];
 
 export function SettingsModal({
   isOpen,
