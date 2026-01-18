@@ -73,6 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Special bonus scoring rebalanced**: Three Golds +30, Robbing Gold +30, Golden Pair +50, All One Suit +100, No Bonus/Gang +15
 
 ### Fixed
+- **Auto-discard now protects sets and pairs** - timer expiry discard logic ported from bot AI, no longer breaks up sequences (e.g., 1-2-3) or discards valuable tiles
 - **Turn timer auto-draw on dealer's first turn** - dealer no longer auto-draws when they should only discard
 - **Other players' tile count display** - now correctly accounts for Kong replacement draws
 - **Selected tile persists after turn** - tile selection now clears when turn passes
