@@ -163,6 +163,22 @@ export function isGoldTile(tileId: TileId, goldTileType: TileType): boolean {
 }
 
 /**
+ * Check if a tile is an honor tile (wind or dragon)
+ */
+export function isHonorTile(tileId: TileId): boolean {
+  const type = getTileType(tileId);
+  return type.startsWith('wind_') || type.startsWith('dragon_');
+}
+
+/**
+ * Check if a tile is a terminal (1 or 9 of any suit)
+ */
+export function isTerminalTile(tileId: TileId): boolean {
+  const parsed = parseTileType(getTileType(tileId));
+  return parsed.category === 'suit' && (parsed.value === 1 || parsed.value === 9);
+}
+
+/**
  * Count how many Gold tiles are in a list
  */
 export function countGoldTiles(tiles: TileId[], goldTileType: TileType): number {
@@ -1097,19 +1113,161 @@ export function getTileDisplayText(tileType: TileType): string {
 }
 
 // ============================================
+// HAND ANALYSIS
+// ============================================
+
+interface SequencePartial {
+  type: TileType;
+  kind: 'sequence' | 'gap';
+  tiles: [TileType, TileType];
+  needs?: TileType;
+}
+
+interface HandAnalysis {
+  tiles: TileId[];
+  goldTiles: TileId[];
+  regularTiles: TileId[];
+  typeCounts: Map<TileType, number>;
+  triplets: TileType[];
+  pairs: TileType[];
+  partials: SequencePartial[];
+  isolated: TileType[];
+  discardCounts: Map<TileType, number>;
+  goldCount: number;
+}
+
+/**
+ * Analyze a hand to find sets, pairs, partials, and isolated tiles
+ * Used for strategic discard selection
+ */
+function analyzeHand(
+  hand: TileId[],
+  goldTileType: TileType,
+  discardPile: TileId[] = []
+): HandAnalysis {
+  const tiles = [...hand];
+  const goldTiles = tiles.filter(t => isGoldTile(t, goldTileType));
+  const regularTiles = tiles.filter(t => !isGoldTile(t, goldTileType));
+
+  // Count tiles by type
+  const typeCounts = new Map<TileType, number>();
+  for (const tile of regularTiles) {
+    const type = getTileType(tile);
+    typeCounts.set(type, (typeCounts.get(type) || 0) + 1);
+  }
+
+  // Find complete sets (triplets)
+  const triplets: TileType[] = [];
+  for (const [type, count] of typeCounts) {
+    if (count >= 3) {
+      triplets.push(type);
+    }
+  }
+
+  // Find pairs
+  const pairs: TileType[] = [];
+  for (const [type, count] of typeCounts) {
+    if (count >= 2) {
+      pairs.push(type);
+    }
+  }
+
+  // Find partial sets (2 tiles that could become a set)
+  const partials: SequencePartial[] = [];
+  for (const [type] of typeCounts) {
+    // Check for sequence partials (suit tiles only)
+    const parsed = parseTileType(type);
+    if (parsed.category === 'suit' && typeof parsed.value === 'number') {
+      const suit = parsed.suit!;
+      const val = parsed.value;
+
+      // Adjacent tiles (e.g., 3 and 4)
+      if (val <= 8) {
+        const next = `${suit}_${val + 1}` as TileType;
+        if (typeCounts.has(next)) {
+          partials.push({ type, kind: 'sequence', tiles: [type, next] });
+        }
+      }
+
+      // Gap tiles (e.g., 3 and 5)
+      if (val <= 7) {
+        const skip = `${suit}_${val + 2}` as TileType;
+        if (typeCounts.has(skip)) {
+          partials.push({
+            type,
+            kind: 'gap',
+            tiles: [type, skip],
+            needs: `${suit}_${val + 1}` as TileType
+          });
+        }
+      }
+    }
+  }
+
+  // Find isolated tiles (not part of any combination)
+  const isolated: TileType[] = [];
+  for (const [type, count] of typeCounts) {
+    const parsed = parseTileType(type);
+    let hasConnection = false;
+
+    if (count >= 2) hasConnection = true; // pair
+    if (triplets.includes(type)) hasConnection = true;
+
+    if (parsed.category === 'suit' && typeof parsed.value === 'number') {
+      const suit = parsed.suit!;
+      const val = parsed.value;
+
+      // Check adjacent tiles
+      if (val > 1 && typeCounts.has(`${suit}_${val - 1}` as TileType)) hasConnection = true;
+      if (val < 9 && typeCounts.has(`${suit}_${val + 1}` as TileType)) hasConnection = true;
+      if (val > 2 && typeCounts.has(`${suit}_${val - 2}` as TileType)) hasConnection = true;
+      if (val < 8 && typeCounts.has(`${suit}_${val + 2}` as TileType)) hasConnection = true;
+    }
+
+    if (!hasConnection) {
+      isolated.push(type);
+    }
+  }
+
+  // Count discarded tiles for safety analysis
+  const discardCounts = new Map<TileType, number>();
+  for (const tile of discardPile) {
+    const type = getTileType(tile);
+    discardCounts.set(type, (discardCounts.get(type) || 0) + 1);
+  }
+
+  return {
+    tiles,
+    goldTiles,
+    regularTiles,
+    typeCounts,
+    triplets,
+    pairs,
+    partials,
+    isolated,
+    discardCounts,
+    goldCount: goldTiles.length
+  };
+}
+
+// ============================================
 // SAFE DISCARD SELECTION
 // ============================================
 
 /**
- * Select a "safe" tile to discard when auto-playing
+ * Select a strategic tile to discard when auto-playing
  * Used by turn timer when a player times out
  *
- * Priority order:
- * 1. Isolated tiles (no connection to other tiles in same suit)
- * 2. Terminal tiles (1s and 9s - harder to form sequences)
- * 3. Any non-gold tile
+ * Scoring system (lower score = better to discard):
+ * - Triplets: +100 (very protected)
+ * - Pairs: +30-60 (protected, especially if only pair)
+ * - Part of sequence partial: +40 (protected)
+ * - Isolated tiles: -30 (good discard candidates)
+ * - Isolated honors: -20 (good discard candidates)
+ * - Terminals: -10 (slightly less valuable)
+ * - Dead tiles (3+ discarded): -25 (safe to discard)
  *
- * Always avoids gold tiles (they're valuable wildcards)
+ * Never discards gold tiles (they're wildcards)
  *
  * @param hand - The player's concealed hand
  * @param goldTileType - The gold tile type to avoid
@@ -1123,90 +1281,87 @@ export function selectSafeDiscard(
 ): TileId | null {
   if (hand.length === 0) return null;
 
-  // Filter out gold tiles - never discard these
-  const nonGoldTiles = hand.filter(t => !isGoldTile(t, goldTileType));
+  const analysis = analyzeHand(hand, goldTileType, discardPile || []);
 
-  // If all tiles are gold, we have to discard one (shouldn't happen in practice)
-  if (nonGoldTiles.length === 0) {
+  // Never discard gold tiles
+  const candidates = analysis.regularTiles;
+
+  if (candidates.length === 0) {
+    // All tiles are gold - have to discard one (shouldn't happen in practice)
     return hand[0];
   }
 
-  // Count tiles by type in hand
-  const typeCount = new Map<TileType, number>();
-  for (const tile of nonGoldTiles) {
-    const type = getTileType(tile);
-    typeCount.set(type, (typeCount.get(type) || 0) + 1);
-  }
+  // Score each tile (lower score = better to discard)
+  const scores: { tile: TileId; type: TileType; score: number }[] = [];
 
-  // Count discarded tiles by type (to find "dead" tiles)
-  const discardCount = new Map<TileType, number>();
-  if (discardPile) {
-    for (const tile of discardPile) {
-      const type = getTileType(tile);
-      discardCount.set(type, (discardCount.get(type) || 0) + 1);
+  for (const tile of candidates) {
+    const type = getTileType(tile);
+    let score = 50; // base score
+
+    // Part of triplet: very valuable
+    if (analysis.triplets.includes(type)) {
+      score += 100;
     }
-  }
 
-  // Score each tile (lower = safer to discard)
-  const scoreTile = (tile: TileId): number => {
-    const type = getTileType(tile);
-    const parsed = parseTile(tile);
-    let score = 0;
+    // Part of pair (keep at least one pair for winning)
+    const count = analysis.typeCounts.get(type) || 0;
+    if (count >= 2) {
+      if (analysis.pairs.length <= 1) {
+        score += 60; // only pair, very valuable
+      } else {
+        score += 30; // multiple pairs, less critical
+      }
+    }
 
-    // Tiles with pairs/triplets in hand are more valuable
-    const countInHand = typeCount.get(type) || 0;
-    score += countInHand * 10; // Each copy adds 10 points
+    // Part of sequence partial
+    const inPartial = analysis.partials.some(p =>
+      p.tiles && p.tiles.includes(type)
+    );
+    if (inPartial) {
+      score += 40;
+    }
 
-    // Check for connectivity (tiles that could form sequences)
+    // Isolated tiles are good discard candidates
+    if (analysis.isolated.includes(type)) {
+      score -= 30;
+    }
+
+    // Honor tiles with no pair potential: discard early
+    if (isHonorTile(tile) && count === 1) {
+      score -= 20;
+    }
+
+    // Terminal tiles: slightly less valuable
+    if (isTerminalTile(tile) && count === 1) {
+      score -= 10;
+    }
+
+    // Safety: tiles discarded 3+ times are completely safe
+    const discardCount = analysis.discardCounts.get(type) || 0;
+    if (discardCount >= 3) {
+      score -= 25; // bonus for safety
+    } else if (discardCount >= 2) {
+      score -= 15;
+    }
+
+    // Middle tiles (4,5,6) are dangerous to others
+    const parsed = parseTileType(type);
     if (parsed.category === 'suit' && typeof parsed.value === 'number') {
-      const suit = parsed.suit!;
       const val = parsed.value;
-
-      // Check adjacent tiles (-2, -1, +1, +2) for potential sequences
-      for (const offset of [-2, -1, 1, 2]) {
-        const adjVal = val + offset;
-        if (adjVal >= 1 && adjVal <= 9) {
-          const adjType = `${suit}_${adjVal}` as TileType;
-          if (typeCount.has(adjType)) {
-            score += 5; // Each adjacent tile adds 5 points
-          }
+      if (val >= 4 && val <= 6) {
+        if (analysis.isolated.includes(type)) {
+          score += 10; // slightly penalize discarding dangerous tiles
         }
       }
-
-      // Terminal tiles (1s and 9s) are less valuable - they can only form 2 sequences
-      if (val === 1 || val === 9) {
-        score -= 3;
-      }
-      // Edge tiles (2s and 8s) can form 3 sequences
-      else if (val === 2 || val === 8) {
-        score -= 1;
-      }
     }
 
-    // "Dead" tiles (3+ copies discarded) are safe to discard
-    const discarded = discardCount.get(type) || 0;
-    if (discarded >= 3) {
-      score -= 15; // Very safe - no one can use it
-    } else if (discarded >= 2) {
-      score -= 5; // Somewhat safe
-    }
-
-    return score;
-  };
-
-  // Find the tile with lowest score (safest to discard)
-  let safestTile = nonGoldTiles[0];
-  let lowestScore = scoreTile(safestTile);
-
-  for (const tile of nonGoldTiles) {
-    const score = scoreTile(tile);
-    if (score < lowestScore) {
-      lowestScore = score;
-      safestTile = tile;
-    }
+    scores.push({ tile, type, score });
   }
 
-  return safestTile;
+  // Sort by score ascending (lowest = best to discard)
+  scores.sort((a, b) => a.score - b.score);
+
+  return scores[0].tile;
 }
 
 // ============================================
