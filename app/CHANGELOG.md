@@ -76,6 +76,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Logs archived when each round completes
   - Session Summary shows one line per round (e.g., "1. Alice +42 (self-draw)")
   - Host score adjustments now logged with player names and amounts
+- **Ready button visibility** - Pulsing amber glow when not ready, solid green when ready
+  - Makes it obvious when players need to click "Ready Up!"
+
+### Fixed
+- **Auto-discard set preservation** - Timer expiry now calculates max possible sets and won't discard tiles that would reduce set count (e.g., won't break 1-2-3 sequence when isolated tiles available)
+- **Ready button color bleeding on mobile** - Removed transition causing amber/green colors to blend
 
 ### Changed
 - **Last 4 tiles rule** - Calling disabled when wall has 4 or fewer tiles
