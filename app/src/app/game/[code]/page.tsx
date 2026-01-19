@@ -11,7 +11,7 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useCallingTimer } from '@/hooks/useCallingTimer';
 import { useTurnTimer } from '@/hooks/useTurnTimer';
 import { getTileType, getTileDisplayText, isBonusTile, isGoldTile, sortTilesForDisplay } from '@/lib/tiles';
-import { needsToDraw, adjustCumulativeScores } from '@/lib/game';
+import { needsToDraw, adjustCumulativeScores, abortGame, setReadyForNextRound, initializeReadyState } from '@/lib/game';
 import { calculateSettlement, calculateNetPositions } from '@/lib/settle';
 import { ScoreEditModal } from '@/components/ScoreEditModal';
 import { SettingsModal } from '@/components/SettingsModal';
@@ -548,6 +548,35 @@ export default function GamePage() {
       return () => clearInterval(interval);
     }
   }, [gameState?.phase, gameState?.winner, mySeat, playSound, soundEnabled, winnerRevealed]);
+
+  // Initialize ready state when game ends (host only, to avoid race conditions)
+  useEffect(() => {
+    if (gameState?.phase === 'ended' && isHost && !room?.readyForNextRound) {
+      initializeReadyState(roomCode);
+    }
+  }, [gameState?.phase, isHost, room?.readyForNextRound, roomCode]);
+
+  // Ready state for next round
+  const readyState = room?.readyForNextRound;
+  const myReadyState = mySeat !== null && readyState ? readyState[`seat${mySeat}` as keyof typeof readyState] : false;
+  const readyCount = readyState
+    ? ([0, 1, 2, 3] as SeatIndex[]).filter(seat => {
+        const player = room?.players?.[`seat${seat}` as keyof typeof room.players];
+        return player && readyState[`seat${seat}` as keyof typeof readyState];
+      }).length
+    : 0;
+  const totalPlayers = room?.players
+    ? ([0, 1, 2, 3] as SeatIndex[]).filter(seat =>
+        room.players[`seat${seat}` as keyof typeof room.players] !== null
+      ).length
+    : 0;
+  const allReady = readyCount === totalPlayers && totalPlayers > 0;
+
+  // Handle toggling ready state
+  const handleToggleReady = async () => {
+    if (mySeat === null) return;
+    await setReadyForNextRound(roomCode, mySeat, !myReadyState);
+  };
 
   // Handle drawing a tile
   const onDraw = async () => {
@@ -1323,6 +1352,14 @@ export default function GamePage() {
 
             {/* Action buttons */}
             <div className="flex flex-col items-center gap-3">
+              {/* Ready status */}
+              <p className="text-base text-slate-400">
+                {allReady ? (
+                  <span className="text-emerald-400">All players ready!</span>
+                ) : (
+                  <span>{readyCount}/{totalPlayers} players ready</span>
+                )}
+              </p>
               <div className="flex gap-3 justify-center flex-wrap">
                 {sessionScores && (
                   <button
@@ -1332,28 +1369,35 @@ export default function GamePage() {
                     Settle
                   </button>
                 )}
-                {room?.hostId === user?.uid ? (
+                {/* Ready toggle button */}
+                <button
+                  onClick={handleToggleReady}
+                  className={`px-8 py-3 font-semibold rounded-lg text-lg transition-colors ${
+                    myReadyState
+                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                      : 'bg-slate-600 hover:bg-slate-500 text-white'
+                  }`}
+                >
+                  {myReadyState ? '✓ Ready' : 'Ready'}
+                </button>
+                {/* Host start button - only enabled when all ready */}
+                {isHost && (
                   <button
                     onClick={async () => {
                       // On draw, dealer stays
                       await startGame(gameState.dealerSeat);
                     }}
-                    className="px-8 py-3 bg-amber-500 hover:bg-amber-400 text-black font-semibold rounded-lg text-lg"
-                  >
-                    Another Round (Dealer Stays)
-                  </button>
-                ) : (
-                  <button
-                    disabled
-                    className="px-8 py-3 bg-gray-600 text-gray-400 font-semibold rounded-lg cursor-not-allowed text-lg"
+                    disabled={!allReady}
+                    className={`px-8 py-3 font-semibold rounded-lg text-lg ${
+                      allReady
+                        ? 'bg-amber-500 hover:bg-amber-400 text-black'
+                        : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                    }`}
                   >
                     Another Round (Dealer Stays)
                   </button>
                 )}
               </div>
-              {room?.hostId !== user?.uid && (
-                <p className="text-base text-slate-400">Waiting for host to start next round...</p>
-              )}
             </div>
 
             {/* Settlement Modal */}
@@ -2191,6 +2235,14 @@ export default function GamePage() {
 
           {/* Action buttons - centered at bottom */}
           <div className="flex flex-col items-center gap-2 lg:gap-3 mt-auto pt-3">
+            {/* Ready status */}
+            <p className="text-sm lg:text-base text-slate-400">
+              {allReady ? (
+                <span className="text-emerald-400">All players ready!</span>
+              ) : (
+                <span>{readyCount}/{totalPlayers} players ready</span>
+              )}
+            </p>
             <div className="flex gap-2 lg:gap-3 justify-center flex-wrap">
               {sessionScores && (
                 <button
@@ -2200,7 +2252,19 @@ export default function GamePage() {
                   Settle
                 </button>
               )}
-              {room?.hostId === user?.uid ? (
+              {/* Ready toggle button */}
+              <button
+                onClick={handleToggleReady}
+                className={`px-6 py-2 lg:px-8 lg:py-2.5 font-semibold rounded-lg lg:text-lg transition-colors ${
+                  myReadyState
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                    : 'bg-slate-600 hover:bg-slate-500 text-white'
+                }`}
+              >
+                {myReadyState ? '✓ Ready' : 'Ready'}
+              </button>
+              {/* Host start button - only enabled when all ready */}
+              {isHost && (
                 <button
                   onClick={async () => {
                     // If dealer won, they stay as dealer (dealer streak)
@@ -2211,16 +2275,12 @@ export default function GamePage() {
                       : ((gameState.dealerSeat + 1) % 4) as SeatIndex;
                     await startGame(nextDealer);
                   }}
-                  className="px-6 py-2 lg:px-8 lg:py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-semibold rounded-lg lg:text-lg"
-                >
-                  {winner && winner.seat === gameState.dealerSeat
-                    ? 'Another Round (Dealer Stays)'
-                    : 'Another Round'}
-                </button>
-              ) : (
-                <button
-                  disabled
-                  className="px-6 py-2 lg:px-8 lg:py-2.5 bg-gray-600 text-gray-400 font-semibold rounded-lg cursor-not-allowed lg:text-lg"
+                  disabled={!allReady}
+                  className={`px-6 py-2 lg:px-8 lg:py-2.5 font-semibold rounded-lg lg:text-lg ${
+                    allReady
+                      ? 'bg-amber-500 hover:bg-amber-400 text-black'
+                      : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  }`}
                 >
                   {winner && winner.seat === gameState.dealerSeat
                     ? 'Another Round (Dealer Stays)'
@@ -2228,9 +2288,6 @@ export default function GamePage() {
                 </button>
               )}
             </div>
-            {room?.hostId !== user?.uid && (
-              <p className="text-sm lg:text-base text-slate-400">Waiting for host to start next round...</p>
-            )}
           </div>
 
           {/* Settlement Modal */}
@@ -2372,17 +2429,20 @@ export default function GamePage() {
             </div>
           )}
           <div className={`flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 py-0.5 rounded-md transition-colors ${
-            (gameState.wall?.length ?? 0) < 5 ? 'bg-red-500/30 animate-pulse' :
+            (gameState.wall?.length ?? 0) <= 4 ? 'bg-red-500/30 animate-pulse' :
             (gameState.wall?.length ?? 0) < 10 ? 'bg-yellow-500/20' : ''
           }`}>
             <span className={`text-xs sm:text-lg ${
-              (gameState.wall?.length ?? 0) < 5 ? 'text-red-400 font-semibold' :
+              (gameState.wall?.length ?? 0) <= 4 ? 'text-red-400 font-semibold' :
               (gameState.wall?.length ?? 0) < 10 ? 'text-yellow-400' : 'text-slate-400'
             }`}>Wall</span>
             <span className={`font-mono text-xs sm:text-base ${
-              (gameState.wall?.length ?? 0) < 5 ? 'text-red-300 font-bold' :
+              (gameState.wall?.length ?? 0) <= 4 ? 'text-red-300 font-bold' :
               (gameState.wall?.length ?? 0) < 10 ? 'text-yellow-300 font-semibold' : 'text-white'
             }`}>{gameState.wall?.length ?? 0}</span>
+            {(gameState.wall?.length ?? 0) <= 4 && (
+              <span className="text-red-300 text-xs ml-1 hidden sm:inline">(No calls)</span>
+            )}
           </div>
         </div>
         {/* Phase indicator with timer - right side */}
@@ -3202,6 +3262,13 @@ export default function GamePage() {
         setCallingTimerSeconds={setCallingTimerSeconds}
         turnTimerSeconds={roomTurnTimerSeconds}
         setTurnTimerSeconds={setTurnTimerSeconds}
+        isGameActive={gameState?.phase === 'playing' || gameState?.phase === 'calling'}
+        onAbort={async () => {
+          const result = await abortGame(roomCode);
+          if (!result.success) {
+            alert(result.error || 'Failed to abort game');
+          }
+        }}
       />
 
       {/* Score Edit Modal (Host Only) */}

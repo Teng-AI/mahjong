@@ -11,6 +11,7 @@ import {
   getNextSeat,
   declareConcealedKong,
   upgradePungToKong,
+  setReadyForNextRound,
 } from '@/lib/game';
 import {
   getTileType,
@@ -985,6 +986,36 @@ export function useBotRunner({
     handlePlayingPhase,
     handleCallingPhase,
   ]);
+
+  // Auto-ready bots when game ends (after 1-2 second delay)
+  useEffect(() => {
+    if (!enabled || !room || gameState?.phase !== 'ended') return;
+
+    const readyState = room.readyForNextRound;
+    if (!readyState) return; // Wait for host to initialize ready state
+
+    // Find bots that need to ready up
+    const botsToReady = botSeats().filter(seat => {
+      const isReady = readyState[`seat${seat}` as keyof typeof readyState];
+      return !isReady;
+    });
+
+    if (botsToReady.length === 0) return;
+
+    // Ready bots with staggered delays (1-2 seconds)
+    const timers: NodeJS.Timeout[] = [];
+    botsToReady.forEach((seat, index) => {
+      const delay = 1000 + Math.random() * 1000 + index * 300; // 1-2s + stagger
+      const timer = setTimeout(() => {
+        setReadyForNextRound(roomCode, seat, true);
+      }, delay);
+      timers.push(timer);
+    });
+
+    return () => {
+      timers.forEach(clearTimeout);
+    };
+  }, [enabled, room, gameState?.phase, botSeats, roomCode]);
 
   return {
     botSeats: botSeats(),

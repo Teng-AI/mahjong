@@ -59,8 +59,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enter +/- adjustments for each player
   - Adjustments stored separately and added to computed values
   - Available during draw games and after wins
+- **Host abort game** - Host can force-abort a stuck/bugged game
+  - "Abort Game" button in Settings modal (host only, during active game)
+  - Ends game without recording round result
+  - Session scores remain unchanged (as if game never happened)
+  - Same dealer continues for next round
+- **Ready up system** - All players must ready before next round starts
+  - "Ready" toggle button on winner/draw screens
+  - Shows ready count (e.g., "2/4 players ready")
+  - Host's "Another Round" button disabled until all ready
+  - Bots auto-ready after 1-2 second delay
+  - Ready state persists through page refresh
 
 ### Changed
+- **Last 4 tiles rule** - Calling disabled when wall has 4 or fewer tiles
+  - Each player gets one final draw attempt
+  - Only self-draw wins allowed in final rounds
+  - Prevents frozen game state edge cases
 - **Fujianese Style branding** - Added "Fujianese Style" subtitle on home page
 - **Renamed calling actions to authentic Mahjong terms**
   - Chow → Chi (吃), Pung → Peng (碰), Kong → Gang (杠), Win → Hu (胡)
@@ -83,6 +98,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Special bonus scoring rebalanced**: Three Golds +30, Robbing Gold +30, Golden Pair +50, All One Suit +100, No Bonus/Gang +15
 
 ### Fixed
+- **Frozen game state at wall exhaustion** - Game no longer freezes when wall runs out during calling phase; prevented by last 4 tiles rule
 - **Golden Pair detection** - Fixed bug where hands with high-value chows (7-8-9) would incorrectly fail Golden Pair detection due to Map insertion order
 - **Auto-discard now protects sets and pairs** - timer expiry discard logic ported from bot AI, no longer breaks up sequences (e.g., 1-2-3) or discards valuable tiles
 - **Turn timer auto-draw on dealer's first turn** - dealer no longer auto-draws when they should only discard
