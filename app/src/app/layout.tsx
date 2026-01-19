@@ -25,11 +25,20 @@ export const metadata: Metadata = {
     siteName: "Mahjong Vibes",
     type: "website",
     locale: "en_US",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Mahjong Vibes - Fujian Mahjong",
+      },
+    ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Mahjong Vibes",
     description: "Multiplayer Fujian Mahjong (Gold Rush Mahjong) game. Play with friends online!",
+    images: ["/og-image.png"],
   },
   appleWebApp: {
     capable: true,
