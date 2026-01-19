@@ -84,11 +84,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Ready button color bleeding on mobile** - Removed transition causing amber/green colors to blend
 
 ### Changed
+- **Rebranded to Fuzhou Mahjong (福州麻将)** - Consistent naming throughout
+  - Replaced "Fujian Mahjong" with "Fuzhou Mahjong (福州麻将)"
+  - Removed "Gold Rush Mahjong" (not a recognized search term)
+  - Renamed `mahjong-fujian-rules.md` → `mahjong-rules.md`
+- **Enhanced social sharing preview** - OG image with headline and CTA
+  - Added "MAHJONG VIBES" headline and "Play with Friends" CTA
+  - Optimized image to 111KB (was 8.4MB)
+  - Extended meta title to 56 chars, description to 155 chars
 - **Last 4 tiles rule** - Calling disabled when wall has 4 or fewer tiles
   - Each player gets one final draw attempt
   - Only self-draw wins allowed in final rounds
   - Prevents frozen game state edge cases
-- **福州麻将 branding** - Added "福州麻将" subtitle on home page
+- **福州麻将 branding** - Added "福州麻将 (Fuzhou Mahjong)" subtitle on home page
 - **Renamed calling actions to authentic Mahjong terms**
   - Chow → Chi (吃), Pung → Peng (碰), Kong → Gang (杠), Win → Hu (胡)
   - Chinese characters shown in rules modal and settings modal

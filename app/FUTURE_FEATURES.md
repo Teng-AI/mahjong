@@ -159,11 +159,11 @@ Total = non-special + highest special bonus
   - Auto-rejoin room/game on reconnect
   - Handle stale state after reconnect
 
-- [ ] **Preview image for sharing (og:image)** 🟡
-  - Create social preview image for link sharing
-  - Shows game branding when shared on social media
-  - Update meta tags in layout.tsx
-  - Design 1200x630 image
+- [x] **Preview image for sharing (og:image)** 🟡 ✅
+  - ~~Create social preview image for link sharing~~ ✅ Done
+  - ~~Shows game branding when shared on social media~~ ✅ "MAHJONG VIBES" + "Play with Friends"
+  - ~~Update meta tags in layout.tsx~~ ✅ Title, description, og:image
+  - ~~Design 1200x630 image~~ ✅ Optimized to 111KB
 
 ---
 
