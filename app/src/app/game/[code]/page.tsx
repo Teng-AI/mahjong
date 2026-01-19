@@ -10,136 +10,22 @@ import { useSounds } from '@/hooks/useSounds';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useCallingTimer } from '@/hooks/useCallingTimer';
 import { useTurnTimer } from '@/hooks/useTurnTimer';
-import { getTileType, getTileDisplayText, isBonusTile, isGoldTile, sortTilesForDisplay } from '@/lib/tiles';
+import { useIsTouchDevice } from '@/hooks/useIsTouchDevice';
+import { getTileType, getTileDisplayText, isGoldTile, sortTilesForDisplay } from '@/lib/tiles';
 import { needsToDraw, adjustCumulativeScores, abortGame, setReadyForNextRound, initializeReadyState } from '@/lib/game';
 import { calculateSettlement, calculateNetPositions } from '@/lib/settle';
 import { ScoreEditModal } from '@/components/ScoreEditModal';
 import { SettingsModal } from '@/components/SettingsModal';
 import { TurnIndicator } from '@/components/TurnIndicator';
 import { RulesModal } from '@/components/RulesModal';
+import { Tile, Hand } from '@/components/tiles';
+import { GameHeader, GameLog } from '@/components/game';
 import { SeatIndex, TileId, TileType, CallAction, Room, WinnerInfo, ScoreBreakdown, CALL_DISPLAY_NAMES } from '@/types';
 import { ref, update } from 'firebase/database';
 import { db } from '@/firebase/config';
 
 // Debug logging - only enabled in development
 const DEBUG_GAME = false; // Set to true to enable debug panel and logging
-
-// Check if device has touch capabilities (likely mobile)
-function useIsTouchDevice() {
-  const [isTouch] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  });
-  return isTouch;
-}
-
-// ============================================
-// TILE COMPONENT
-// ============================================
-
-interface TileProps {
-  tileId: TileId;
-  goldTileType?: TileType;
-  onClick?: () => void;
-  selected?: boolean;
-  isJustDrawn?: boolean;
-  isChowValid?: boolean; // Valid for chow selection
-  isChowSelected?: boolean; // Selected for chow
-  isFocused?: boolean; // Keyboard focus for chow selection
-  disabled?: boolean;
-  size?: 'sm' | 'md' | 'lg';
-  faceDown?: boolean; // Show tile back (for concealed kongs from other players)
-}
-
-function Tile({ tileId, goldTileType, onClick, selected, isJustDrawn, isChowValid, isChowSelected, isFocused, disabled, size = 'md', faceDown = false }: TileProps) {
-  const tileType = getTileType(tileId);
-  const displayText = faceDown ? '🀫' : getTileDisplayText(tileType);
-  const isGold = !faceDown && goldTileType && tileType === goldTileType;
-  const isBonus = !faceDown && isBonusTile(tileId);
-
-  // Get suit-specific text color
-  const getSuitTextColor = () => {
-    if (isBonus) return 'text-gray-800'; // Bonus tiles stay black
-    if (tileType.startsWith('dots_')) return 'text-red-600';
-    if (tileType.startsWith('bamboo_')) return 'text-blue-600';
-    if (tileType.startsWith('characters_')) return 'text-green-600';
-    return 'text-gray-800'; // Honors (winds/dragons) stay black
-  };
-
-  // Responsive tile sizes: smaller on mobile (< 640px)
-  const sizeClasses = {
-    sm: 'w-7 h-9 text-xs sm:w-9 sm:h-11 sm:text-lg',             // Melds, bonus tiles (tighter text on mobile)
-    md: 'w-10 h-12 text-xl sm:w-14 sm:h-[72px] sm:text-2xl',     // Last action, discarded sections
-    lg: 'w-12 h-14 text-2xl sm:w-16 sm:h-20 sm:text-3xl md:w-20 md:h-24 md:text-4xl',  // Player's hand
-  };
-
-  return (
-    <button
-      onClick={onClick}
-      disabled={!onClick || disabled}
-      className={`
-        ${sizeClasses[size]}
-        rounded-md border-2 font-bold
-        flex items-center justify-center
-        transition-all
-        ${faceDown
-          ? 'bg-blue-900 border-blue-700 text-blue-300'
-          : isGold
-            ? 'bg-yellow-100 border-yellow-400'
-            : 'bg-white border-gray-300'
-        }
-        ${!faceDown && getSuitTextColor()}
-        ${selected ? 'ring-2 ring-blue-500 -translate-y-2 relative z-10' : ''}
-        ${isJustDrawn ? 'ring-2 ring-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]' : ''}
-        ${isChowValid ? 'ring-2 ring-cyan-400' : ''}
-        ${isChowSelected ? 'ring-2 ring-green-500 -translate-y-2 bg-green-100 relative z-10' : ''}
-        ${isFocused && !isChowSelected ? 'ring-4 ring-yellow-400 ring-offset-2 ring-offset-slate-800 -translate-y-1 relative z-10' : ''}
-        ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
-        ${onClick && !disabled ? 'hover:brightness-95 cursor-pointer' : 'cursor-default'}
-      `}
-    >
-      {displayText}
-    </button>
-  );
-}
-
-// ============================================
-// HAND COMPONENT
-// ============================================
-
-interface HandProps {
-  tiles: TileId[];
-  goldTileType?: TileType;
-  onTileClick?: (tile: TileId) => void;
-  selectedTile?: TileId | null;
-  justDrawnTile?: TileId | null;
-  size?: 'sm' | 'md' | 'lg';
-}
-
-function Hand({ tiles, goldTileType, onTileClick, selectedTile, justDrawnTile, size = 'lg' }: HandProps) {
-  return (
-    <div className="flex gap-1 flex-wrap justify-center overflow-visible pt-2">
-      {tiles.map((tile, index) => {
-        // Gold tiles cannot be discarded - disable click when in discard mode
-        const isGold = goldTileType ? isGoldTile(tile, goldTileType) : false;
-        const canClick = onTileClick && !isGold;
-
-        return (
-          <Tile
-            key={`${tile}-${index}`}
-            tileId={tile}
-            goldTileType={goldTileType}
-            size={size}
-            onClick={canClick ? () => onTileClick(tile) : undefined}
-            selected={selectedTile === tile}
-            isJustDrawn={justDrawnTile === tile}
-            disabled={!!onTileClick && isGold}
-          />
-        );
-      })}
-    </div>
-  );
-}
 
 const SEAT_LABELS = ['East', 'South', 'West', 'North'] as const;
 
@@ -471,18 +357,6 @@ export default function GamePage() {
   const previousActor = gameState?.phase === 'calling'
     ? previousDiscarder
     : lastDiscarder;
-
-  // Game log auto-scroll (desktop and mobile)
-  const logRef = useRef<HTMLDivElement>(null);
-  const mobileLogRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight;
-    }
-    if (mobileLogRef.current) {
-      mobileLogRef.current.scrollTop = mobileLogRef.current.scrollHeight;
-    }
-  }, [gameState?.actionLog?.length]);
 
   // Scroll to top when new round starts (phase changes from 'ended')
   const prevPhaseRef = useRef<string | null>(null);
@@ -2683,85 +2557,25 @@ export default function GamePage() {
       )}
 
       {/* ========== COMBINED HEADER + PHASE BAR ========== */}
-      <div className="flex flex-wrap items-center justify-between gap-0.5 sm:gap-2 mb-1.5 sm:mb-3 bg-slate-700/40 rounded-lg px-1 sm:px-3 py-1 sm:py-2">
-        <div className="flex items-center gap-1 sm:gap-4 flex-wrap">
-          {/* Settings button */}
-          <button
-            onClick={() => setShowSettings(true)}
-            className="w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-slate-600 hover:bg-slate-500 text-slate-300 hover:text-white flex items-center justify-center"
-            title="Settings"
-          >
-            <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
-          {/* Rules button */}
-          <button
-            onClick={() => setShowRules(true)}
-            className="w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-slate-600 hover:bg-slate-500 text-slate-300 hover:text-white text-xs sm:text-lg font-bold flex items-center justify-center"
-          >
-            ?
-          </button>
-          <div className="flex items-center gap-0.5 sm:gap-2">
-            <span className="text-slate-400 text-xs sm:text-lg">Room</span>
-            <span className="font-mono text-amber-400 font-bold text-xs sm:text-base">{roomCode}</span>
-          </div>
-          {gameState.goldTileType && gameState.exposedGold && (
-            <div className="flex items-center gap-0.5">
-              <span className="text-slate-400 text-xs sm:text-lg hidden sm:inline">Gold</span>
-              <Tile tileId={gameState.exposedGold} goldTileType={gameState.goldTileType} size="sm" />
-            </div>
-          )}
-          <div className={`flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 py-0.5 rounded-md transition-colors ${
-            (gameState.wall?.length ?? 0) <= 4 ? 'bg-red-500/30 animate-pulse' :
-            (gameState.wall?.length ?? 0) < 10 ? 'bg-yellow-500/20' : ''
-          }`}>
-            <span className={`text-xs sm:text-lg ${
-              (gameState.wall?.length ?? 0) <= 4 ? 'text-red-400 font-semibold' :
-              (gameState.wall?.length ?? 0) < 10 ? 'text-yellow-400' : 'text-slate-400'
-            }`}>Wall</span>
-            <span className={`font-mono text-xs sm:text-base ${
-              (gameState.wall?.length ?? 0) <= 4 ? 'text-red-300 font-bold' :
-              (gameState.wall?.length ?? 0) < 10 ? 'text-yellow-300 font-semibold' : 'text-white'
-            }`}>{gameState.wall?.length ?? 0}</span>
-            {(gameState.wall?.length ?? 0) <= 4 && (
-              <span className="text-red-300 text-xs ml-1 hidden sm:inline">(No calls)</span>
-            )}
-          </div>
-        </div>
-        {/* Phase indicator with timer - right side */}
-        <div className="flex items-center gap-1 sm:gap-2">
-          <div className={`px-1.5 sm:px-3 py-0.5 sm:py-1 rounded-md text-xs sm:text-lg font-medium ${
-            isCallingPhase ? 'bg-orange-500/40 text-orange-200' :
-            isMyTurn ? 'bg-emerald-500/40 text-emerald-200' : 'bg-slate-600/60 text-slate-300'
-          }`}>
-            {isCallingPhase ? (chowSelectionMode ? 'Select Chi' : 'Calling...') :
-             isMyTurn ? (shouldDraw ? '▶ Draw' : '▶ Discard') :
-             `${getPlayerName(room, gameState.currentPlayerSeat)}'s turn`}
-          </div>
-          {/* Timer countdown (only during calling phase with timer enabled) */}
-          {isCallingPhase && timerRemainingSeconds !== null && (
-            <div className={`px-2 py-0.5 sm:py-1 rounded-md text-xs sm:text-lg font-mono font-bold ${
-              timerIsWarning
-                ? 'bg-red-500/60 text-red-100 animate-pulse'
-                : 'bg-slate-600/60 text-slate-200'
-            }`}>
-              {Math.ceil(timerRemainingSeconds)}s
-            </div>
-          )}
-          {/* Turn timer countdown (only during playing phase when it's my turn with timer enabled) */}
-          {isMyTurn && turnTimerRemainingSeconds !== null && (
-            <div className={`px-2 py-0.5 sm:py-1 rounded-md text-xs sm:text-lg font-mono font-bold ${
-              turnTimerIsWarning
-                ? 'bg-red-500/60 text-red-100 animate-pulse'
-                : 'bg-emerald-500/40 text-emerald-200'
-            }`}>
-              {Math.ceil(turnTimerRemainingSeconds)}s
-            </div>
-          )}
-        </div>
-      </div>
+      <GameHeader
+        roomCode={roomCode}
+        goldTileType={gameState.goldTileType}
+        exposedGold={gameState.exposedGold}
+        wallCount={gameState.wall?.length ?? 0}
+        currentPlayerSeat={gameState.currentPlayerSeat}
+        isCallingPhase={isCallingPhase}
+        isMyTurn={isMyTurn}
+        shouldDraw={shouldDraw}
+        chowSelectionMode={chowSelectionMode}
+        room={room}
+        timerRemainingSeconds={timerRemainingSeconds}
+        timerIsWarning={timerIsWarning}
+        turnTimerRemainingSeconds={turnTimerRemainingSeconds}
+        turnTimerIsWarning={turnTimerIsWarning}
+        onSettingsClick={() => setShowSettings(true)}
+        onRulesClick={() => setShowRules(true)}
+        getPlayerName={getPlayerName}
+      />
 
       {/* ========== YOUR HAND SECTION ========== */}
       <div className="bg-slate-700/60 rounded-xl p-2 sm:p-3 mb-2 sm:mb-3 border border-slate-600">
@@ -3310,35 +3124,11 @@ export default function GamePage() {
         </div>
       )}
 
-      {/* ========== GAME LOG ROW (Desktop only) ========== */}
-      <div className="hidden md:block bg-slate-800/50 rounded-xl p-2 sm:p-4 border border-slate-600 mt-2 sm:mt-3">
-        <div className="text-sm sm:text-lg text-slate-300 font-medium mb-2 sm:mb-3">Game Log</div>
-        <div ref={logRef} className="max-h-24 overflow-y-auto space-y-0.5 sm:space-y-1">
-          {(gameState.actionLog || []).map((entry, index, arr) => (
-            <div
-              key={index}
-              className={`text-xs sm:text-lg py-0.5 ${index === arr.length - 1 ? 'text-white font-medium' : 'text-slate-300'}`}
-            >
-              {transformLogEntry(entry, room, mySeat)}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Game Log - Mobile only (at bottom) */}
-      <div className="md:hidden bg-slate-800/50 rounded-xl p-2 border border-slate-600 mt-2 mb-20">
-        <div className="text-sm text-slate-300 font-medium mb-2">Game Log</div>
-        <div ref={mobileLogRef} className="max-h-24 overflow-y-auto space-y-0.5">
-          {(gameState.actionLog || []).map((entry, index, arr) => (
-            <div
-              key={index}
-              className={`text-xs py-0.5 ${index === arr.length - 1 ? 'text-white font-medium' : 'text-slate-300'}`}
-            >
-              {transformLogEntry(entry, room, mySeat)}
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* ========== GAME LOG ========== */}
+      <GameLog
+        entries={gameState.actionLog || []}
+        transformEntry={(entry) => transformLogEntry(entry, room, mySeat)}
+      />
 
       {/* Mobile Bottom Action Bar */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 border-t border-slate-700 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] z-40">
