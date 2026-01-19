@@ -270,6 +270,10 @@ export interface SessionScores {
     seat3: number;
   };
   dealerStreak: number; // Consecutive rounds kept by current dealer (0 = no streak)
+  /** Archived detailed game logs per completed round */
+  gameLogs?: {
+    [roundNumber: number]: string[];
+  };
 }
 
 /** Settlement transaction */

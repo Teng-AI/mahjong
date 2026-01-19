@@ -64,6 +64,19 @@ async function addToLog(roomCode: string, message: string): Promise<void> {
   await set(ref(db, `rooms/${roomCode}/game/actionLog`), newLog);
 }
 
+/**
+ * Archive the current game's action log to session storage
+ * Called when a round completes (win or draw)
+ */
+async function archiveGameLog(roomCode: string, roundNumber: number): Promise<void> {
+  const logSnapshot = await get(ref(db, `rooms/${roomCode}/game/actionLog`));
+  const actionLog: string[] = logSnapshot.exists() ? logSnapshot.val() : [];
+
+  if (actionLog.length > 0) {
+    await set(ref(db, `rooms/${roomCode}/session/gameLogs/${roundNumber}`), actionLog);
+  }
+}
+
 // ============================================
 // SESSION SCORING
 // ============================================
@@ -128,6 +141,9 @@ export async function recordRoundResult(
     cumulative: newCumulative,
     dealerStreak: newStreak,
   });
+
+  // Archive the game log for this round
+  await archiveGameLog(roomCode, roundNumber);
 }
 
 /**
@@ -159,6 +175,31 @@ export async function adjustCumulativeScores(
   await update(ref(db, `rooms/${roomCode}/session`), {
     adjustments: newAdjustments,
   });
+
+  // Log the adjustment with player names and amounts
+  const adjustmentParts: string[] = [];
+  for (const [seatStr, adjustment] of Object.entries(adjustments)) {
+    if (adjustment !== 0) {
+      const playerName = await getPlayerName(roomCode, parseInt(seatStr) as SeatIndex);
+      const sign = adjustment > 0 ? '+' : '';
+      adjustmentParts.push(`${playerName} ${sign}${adjustment}`);
+    }
+  }
+
+  if (adjustmentParts.length > 0) {
+    const logMessage = `Host adjusted: ${adjustmentParts.join(', ')}`;
+
+    // Append to the most recent archived round's log (adjustments happen after round ends)
+    const lastRoundNumber = session.rounds?.length || 0;
+    if (lastRoundNumber > 0 && session.gameLogs?.[lastRoundNumber]) {
+      // Append to the archived log for the last completed round
+      const archivedLog = session.gameLogs[lastRoundNumber];
+      await set(ref(db, `rooms/${roomCode}/session/gameLogs/${lastRoundNumber}`), [...archivedLog, logMessage]);
+    }
+
+    // Also add to current game log (in case we're mid-game or for immediate visibility)
+    await addToLog(roomCode, logMessage);
+  }
 }
 
 /**
