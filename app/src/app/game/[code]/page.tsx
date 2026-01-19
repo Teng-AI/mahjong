@@ -391,6 +391,10 @@ export default function GamePage() {
   // Settlement modal
   const [showSettleModal, setShowSettleModal] = useState(false);
 
+  // Game log tabs and pagination
+  const [logTab, setLogTab] = useState<'log' | 'summary'>('log');
+  const [viewingRound, setViewingRound] = useState<number | null>(null); // null = current game
+
   // Debug: looping sound state
   const [loopingSound, setLoopingSound] = useState<string | null>(null);
   const loopIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -571,6 +575,49 @@ export default function GamePage() {
       ).length
     : 0;
   const allReady = readyCount === totalPlayers && totalPlayers > 0;
+
+  // Game log pagination
+  const totalRounds = sessionScores?.rounds?.length || 0;
+  const currentRoundNumber = totalRounds + 1; // Current game is next round
+  const gameLogs = sessionScores?.gameLogs || {};
+
+  // Get log entries for the viewing round (or current game if null)
+  const getLogForRound = (roundNum: number | null): string[] => {
+    if (roundNum === null) {
+      // Current game - use live actionLog
+      return gameState?.actionLog || [];
+    }
+    // Archived game
+    return gameLogs[roundNum] || [];
+  };
+
+  const displayedLog = getLogForRound(viewingRound);
+  const displayedRoundNumber = viewingRound ?? currentRoundNumber;
+  const canGoPrev = displayedRoundNumber > 1;
+  const canGoNext = viewingRound !== null; // Can go next if viewing archived (to get back to current)
+
+  // Pagination handlers
+  const goToPrevRound = () => {
+    if (viewingRound === null) {
+      // Currently viewing current game, go to last archived
+      if (totalRounds > 0) {
+        setViewingRound(totalRounds);
+      }
+    } else if (viewingRound > 1) {
+      setViewingRound(viewingRound - 1);
+    }
+  };
+
+  const goToNextRound = () => {
+    if (viewingRound !== null) {
+      if (viewingRound < totalRounds) {
+        setViewingRound(viewingRound + 1);
+      } else {
+        // Go back to current game
+        setViewingRound(null);
+      }
+    }
+  };
 
   // Handle toggling ready state
   const handleToggleReady = async () => {
@@ -1337,16 +1384,122 @@ export default function GamePage() {
                 })() : <p className="text-slate-400">No session data</p>}
               </div>
 
-              {/* Game Log */}
+              {/* Game Log / Session Summary Tabs */}
               <div className="bg-slate-700/50 rounded-xl p-4 border border-slate-600">
-                <h3 className="text-lg font-semibold text-slate-300 mb-2">Game Log</h3>
-                <div className="max-h-40 overflow-y-auto space-y-0.5">
-                  {(gameState.actionLog || []).map((entry, index) => (
-                    <div key={index} className="text-xs py-0.5 text-slate-400">
-                      {transformLogEntry(entry, room, mySeat)}
-                    </div>
-                  ))}
+                {/* Tab buttons */}
+                <div className="flex gap-2 mb-3">
+                  <button
+                    onClick={() => setLogTab('log')}
+                    className={`px-3 py-1 text-sm rounded transition-colors ${
+                      logTab === 'log'
+                        ? 'bg-slate-600 text-white'
+                        : 'text-slate-400 hover:text-slate-300'
+                    }`}
+                  >
+                    Game Log
+                  </button>
+                  <button
+                    onClick={() => setLogTab('summary')}
+                    className={`px-3 py-1 text-sm rounded transition-colors ${
+                      logTab === 'summary'
+                        ? 'bg-slate-600 text-white'
+                        : 'text-slate-400 hover:text-slate-300'
+                    }`}
+                  >
+                    Session Summary
+                  </button>
                 </div>
+
+                {logTab === 'log' ? (
+                  <>
+                    {/* Pagination header */}
+                    <div className="flex items-center justify-between mb-2">
+                      <button
+                        onClick={goToPrevRound}
+                        disabled={!canGoPrev}
+                        className={`px-2 py-1 text-sm rounded ${
+                          canGoPrev
+                            ? 'text-slate-300 hover:bg-slate-600'
+                            : 'text-slate-600 cursor-not-allowed'
+                        }`}
+                      >
+                        ◀
+                      </button>
+                      <span className="text-sm text-slate-400">
+                        {viewingRound === null ? 'Current Game' : `Game ${viewingRound} of ${totalRounds}`}
+                      </span>
+                      <button
+                        onClick={goToNextRound}
+                        disabled={!canGoNext}
+                        className={`px-2 py-1 text-sm rounded ${
+                          canGoNext
+                            ? 'text-slate-300 hover:bg-slate-600'
+                            : 'text-slate-600 cursor-not-allowed'
+                        }`}
+                      >
+                        ▶
+                      </button>
+                    </div>
+                    {/* Log entries */}
+                    <div className="max-h-40 overflow-y-auto space-y-0.5">
+                      {displayedLog.length > 0 ? (
+                        displayedLog.map((entry, index) => (
+                          <div key={index} className="text-xs py-0.5 text-slate-400">
+                            {transformLogEntry(entry, room, mySeat)}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-xs text-slate-500 italic">No log entries</div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  /* Session Summary */
+                  <div className="max-h-40 overflow-y-auto space-y-1">
+                    {sessionScores?.rounds && sessionScores.rounds.length > 0 ? (
+                      sessionScores.rounds.map((round) => {
+                        const winnerPlayer = round.winnerSeat !== null
+                          ? room?.players?.[`seat${round.winnerSeat}` as keyof typeof room.players]
+                          : null;
+                        const winnerName = winnerPlayer?.name || round.winnerName;
+
+                        // Determine win type from archived log
+                        const roundLog = gameLogs[round.roundNumber] || [];
+                        const winEntry = roundLog.find(e => e.includes('wins'));
+                        let winType = '';
+                        if (round.winnerSeat === null) {
+                          winType = '';
+                        } else if (winEntry?.includes('Three Golds')) {
+                          winType = '(Three Golds!)';
+                        } else if (winEntry?.includes('Robbing')) {
+                          winType = '(Robbing Gold!)';
+                        } else if (winEntry?.includes('self-draw')) {
+                          winType = '(self-draw)';
+                        } else if (winEntry) {
+                          // Extract discarder name from "wins on X's discard"
+                          const match = winEntry.match(/on (\w+)'s discard/);
+                          winType = match ? `(on ${match[1]})` : '';
+                        }
+
+                        return (
+                          <div key={round.roundNumber} className="text-xs text-slate-400">
+                            {round.winnerSeat !== null ? (
+                              <span>
+                                {round.roundNumber}. {winnerName}{' '}
+                                <span className="text-emerald-400">+{round.score}</span>{' '}
+                                <span className="text-slate-500">{winType}</span>
+                              </span>
+                            ) : (
+                              <span>{round.roundNumber}. Draw</span>
+                            )}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-xs text-slate-500 italic">No completed rounds yet</div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -2219,16 +2372,122 @@ export default function GamePage() {
                 </div>
               )}
 
-              {/* Game Log */}
+              {/* Game Log / Session Summary Tabs */}
               <div className="bg-slate-700/50 rounded-lg p-3 lg:p-4 border border-slate-600">
-                <h3 className="text-base lg:text-lg font-semibold text-slate-300 mb-2">Game Log</h3>
-                <div className="max-h-16 lg:max-h-20 overflow-y-auto space-y-0.5 lg:space-y-1">
-                  {(gameState.actionLog || []).map((entry, index) => (
-                    <div key={index} className="text-xs lg:text-sm py-0.5 text-slate-300">
-                      {transformLogEntry(entry, room, mySeat)}
-                    </div>
-                  ))}
+                {/* Tab buttons */}
+                <div className="flex gap-2 mb-2 lg:mb-3">
+                  <button
+                    onClick={() => setLogTab('log')}
+                    className={`px-2 lg:px-3 py-1 text-xs lg:text-sm rounded transition-colors ${
+                      logTab === 'log'
+                        ? 'bg-slate-600 text-white'
+                        : 'text-slate-400 hover:text-slate-300'
+                    }`}
+                  >
+                    Game Log
+                  </button>
+                  <button
+                    onClick={() => setLogTab('summary')}
+                    className={`px-2 lg:px-3 py-1 text-xs lg:text-sm rounded transition-colors ${
+                      logTab === 'summary'
+                        ? 'bg-slate-600 text-white'
+                        : 'text-slate-400 hover:text-slate-300'
+                    }`}
+                  >
+                    Session Summary
+                  </button>
                 </div>
+
+                {logTab === 'log' ? (
+                  <>
+                    {/* Pagination header */}
+                    <div className="flex items-center justify-between mb-2">
+                      <button
+                        onClick={goToPrevRound}
+                        disabled={!canGoPrev}
+                        className={`px-2 py-1 text-xs lg:text-sm rounded ${
+                          canGoPrev
+                            ? 'text-slate-300 hover:bg-slate-600'
+                            : 'text-slate-600 cursor-not-allowed'
+                        }`}
+                      >
+                        ◀
+                      </button>
+                      <span className="text-xs lg:text-sm text-slate-400">
+                        {viewingRound === null ? 'Current Game' : `Game ${viewingRound} of ${totalRounds}`}
+                      </span>
+                      <button
+                        onClick={goToNextRound}
+                        disabled={!canGoNext}
+                        className={`px-2 py-1 text-xs lg:text-sm rounded ${
+                          canGoNext
+                            ? 'text-slate-300 hover:bg-slate-600'
+                            : 'text-slate-600 cursor-not-allowed'
+                        }`}
+                      >
+                        ▶
+                      </button>
+                    </div>
+                    {/* Log entries */}
+                    <div className="max-h-16 lg:max-h-24 overflow-y-auto space-y-0.5 lg:space-y-1">
+                      {displayedLog.length > 0 ? (
+                        displayedLog.map((entry, index) => (
+                          <div key={index} className="text-xs lg:text-sm py-0.5 text-slate-300">
+                            {transformLogEntry(entry, room, mySeat)}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-xs lg:text-sm text-slate-500 italic">No log entries</div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  /* Session Summary */
+                  <div className="max-h-16 lg:max-h-24 overflow-y-auto space-y-0.5 lg:space-y-1">
+                    {sessionScores?.rounds && sessionScores.rounds.length > 0 ? (
+                      sessionScores.rounds.map((round) => {
+                        const winnerPlayer = round.winnerSeat !== null
+                          ? room?.players?.[`seat${round.winnerSeat}` as keyof typeof room.players]
+                          : null;
+                        const winnerName = winnerPlayer?.name || round.winnerName;
+
+                        // Determine win type from archived log
+                        const roundLog = gameLogs[round.roundNumber] || [];
+                        const winEntry = roundLog.find(e => e.includes('wins'));
+                        let winType = '';
+                        if (round.winnerSeat === null) {
+                          winType = '';
+                        } else if (winEntry?.includes('Three Golds')) {
+                          winType = '(Three Golds!)';
+                        } else if (winEntry?.includes('Robbing')) {
+                          winType = '(Robbing Gold!)';
+                        } else if (winEntry?.includes('self-draw')) {
+                          winType = '(self-draw)';
+                        } else if (winEntry) {
+                          // Extract discarder name from "wins on X's discard"
+                          const match = winEntry.match(/on (\w+)'s discard/);
+                          winType = match ? `(on ${match[1]})` : '';
+                        }
+
+                        return (
+                          <div key={round.roundNumber} className="text-xs lg:text-sm text-slate-300">
+                            {round.winnerSeat !== null ? (
+                              <span>
+                                {round.roundNumber}. {winnerName}{' '}
+                                <span className="text-emerald-400">+{round.score}</span>{' '}
+                                <span className="text-slate-500">{winType}</span>
+                              </span>
+                            ) : (
+                              <span>{round.roundNumber}. Draw</span>
+                            )}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-xs lg:text-sm text-slate-500 italic">No completed rounds yet</div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>

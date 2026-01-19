@@ -70,6 +70,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Host's "Another Round" button disabled until all ready
   - Bots auto-ready after 1-2 second delay
   - Ready state persists through page refresh
+- **Game log history** - Browse detailed logs from past rounds on winner/draw screens
+  - Two-tab interface: "Game Log" (detailed) and "Session Summary" (compact)
+  - Paginate through archived game logs with ◀ ▶ buttons
+  - Logs archived when each round completes
+  - Session Summary shows one line per round (e.g., "1. Alice +42 (self-draw)")
+  - Host score adjustments now logged with player names and amounts
 
 ### Changed
 - **Last 4 tiles rule** - Calling disabled when wall has 4 or fewer tiles
