@@ -187,7 +187,18 @@ export async function adjustCumulativeScores(
   }
 
   if (adjustmentParts.length > 0) {
-    await addToLog(roomCode, `Host adjusted: ${adjustmentParts.join(', ')}`);
+    const logMessage = `Host adjusted: ${adjustmentParts.join(', ')}`;
+
+    // Append to the most recent archived round's log (adjustments happen after round ends)
+    const lastRoundNumber = session.rounds?.length || 0;
+    if (lastRoundNumber > 0 && session.gameLogs?.[lastRoundNumber]) {
+      // Append to the archived log for the last completed round
+      const archivedLog = session.gameLogs[lastRoundNumber];
+      await set(ref(db, `rooms/${roomCode}/session/gameLogs/${lastRoundNumber}`), [...archivedLog, logMessage]);
+    }
+
+    // Also add to current game log (in case we're mid-game or for immediate visibility)
+    await addToLog(roomCode, logMessage);
   }
 }
 

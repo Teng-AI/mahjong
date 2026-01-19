@@ -1457,44 +1457,60 @@ export default function GamePage() {
                   /* Session Summary */
                   <div className="max-h-40 overflow-y-auto space-y-1">
                     {sessionScores?.rounds && sessionScores.rounds.length > 0 ? (
-                      sessionScores.rounds.map((round) => {
-                        const winnerPlayer = round.winnerSeat !== null
-                          ? room?.players?.[`seat${round.winnerSeat}` as keyof typeof room.players]
-                          : null;
-                        const winnerName = winnerPlayer?.name || round.winnerName;
+                      <>
+                        {sessionScores.rounds.map((round) => {
+                          const winnerPlayer = round.winnerSeat !== null
+                            ? room?.players?.[`seat${round.winnerSeat}` as keyof typeof room.players]
+                            : null;
+                          const winnerName = winnerPlayer?.name || round.winnerName;
 
-                        // Determine win type from archived log
-                        const roundLog = gameLogs[round.roundNumber] || [];
-                        const winEntry = roundLog.find(e => e.includes('wins'));
-                        let winType = '';
-                        if (round.winnerSeat === null) {
-                          winType = '';
-                        } else if (winEntry?.includes('Three Golds')) {
-                          winType = '(Three Golds!)';
-                        } else if (winEntry?.includes('Robbing')) {
-                          winType = '(Robbing Gold!)';
-                        } else if (winEntry?.includes('self-draw')) {
-                          winType = '(self-draw)';
-                        } else if (winEntry) {
-                          // Extract discarder name from "wins on X's discard"
-                          const match = winEntry.match(/on (\w+)'s discard/);
-                          winType = match ? `(on ${match[1]})` : '';
-                        }
+                          // Determine win type from archived log
+                          const roundLog = gameLogs[round.roundNumber] || [];
+                          const winEntry = roundLog.find(e => e.includes('wins'));
+                          let winType = '';
+                          if (round.winnerSeat === null) {
+                            winType = '';
+                          } else if (winEntry?.includes('Three Golds')) {
+                            winType = '(Three Golds!)';
+                          } else if (winEntry?.includes('Robbing')) {
+                            winType = '(Robbing Gold!)';
+                          } else if (winEntry?.includes('self-draw')) {
+                            winType = '(self-draw)';
+                          } else if (winEntry) {
+                            // Extract discarder name from "wins on X's discard"
+                            const match = winEntry.match(/on (\w+)'s discard/);
+                            winType = match ? `(on ${match[1]})` : '';
+                          }
 
-                        return (
-                          <div key={round.roundNumber} className="text-xs text-slate-400">
-                            {round.winnerSeat !== null ? (
-                              <span>
-                                {round.roundNumber}. {winnerName}{' '}
-                                <span className="text-emerald-400">+{round.score}</span>{' '}
-                                <span className="text-slate-500">{winType}</span>
-                              </span>
-                            ) : (
-                              <span>{round.roundNumber}. Draw</span>
-                            )}
+                          return (
+                            <div key={round.roundNumber} className="text-xs text-slate-400">
+                              {round.winnerSeat !== null ? (
+                                <span>
+                                  {round.roundNumber}. {winnerName}{' '}
+                                  <span className="text-emerald-400">+{round.score}</span>{' '}
+                                  <span className="text-slate-500">{winType}</span>
+                                </span>
+                              ) : (
+                                <span>{round.roundNumber}. Draw</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {/* Show adjustments if any */}
+                        {sessionScores.adjustments && Object.values(sessionScores.adjustments).some(v => v !== 0) && (
+                          <div className="text-xs text-orange-400 pt-1 border-t border-slate-600 mt-1">
+                            Adj: {([0, 1, 2, 3] as SeatIndex[])
+                              .filter(seat => (sessionScores.adjustments?.[`seat${seat}` as keyof typeof sessionScores.adjustments] || 0) !== 0)
+                              .map(seat => {
+                                const player = room?.players?.[`seat${seat}` as keyof typeof room.players];
+                                const name = player?.name || `P${seat + 1}`;
+                                const adj = sessionScores.adjustments?.[`seat${seat}` as keyof typeof sessionScores.adjustments] || 0;
+                                return `${name} ${adj > 0 ? '+' : ''}${adj}`;
+                              })
+                              .join(', ')}
                           </div>
-                        );
-                      })
+                        )}
+                      </>
                     ) : (
                       <div className="text-xs text-slate-500 italic">No completed rounds yet</div>
                     )}
@@ -2445,44 +2461,60 @@ export default function GamePage() {
                   /* Session Summary */
                   <div className="max-h-16 lg:max-h-24 overflow-y-auto space-y-0.5 lg:space-y-1">
                     {sessionScores?.rounds && sessionScores.rounds.length > 0 ? (
-                      sessionScores.rounds.map((round) => {
-                        const winnerPlayer = round.winnerSeat !== null
-                          ? room?.players?.[`seat${round.winnerSeat}` as keyof typeof room.players]
-                          : null;
-                        const winnerName = winnerPlayer?.name || round.winnerName;
+                      <>
+                        {sessionScores.rounds.map((round) => {
+                          const winnerPlayer = round.winnerSeat !== null
+                            ? room?.players?.[`seat${round.winnerSeat}` as keyof typeof room.players]
+                            : null;
+                          const winnerName = winnerPlayer?.name || round.winnerName;
 
-                        // Determine win type from archived log
-                        const roundLog = gameLogs[round.roundNumber] || [];
-                        const winEntry = roundLog.find(e => e.includes('wins'));
-                        let winType = '';
-                        if (round.winnerSeat === null) {
-                          winType = '';
-                        } else if (winEntry?.includes('Three Golds')) {
-                          winType = '(Three Golds!)';
-                        } else if (winEntry?.includes('Robbing')) {
-                          winType = '(Robbing Gold!)';
-                        } else if (winEntry?.includes('self-draw')) {
-                          winType = '(self-draw)';
-                        } else if (winEntry) {
-                          // Extract discarder name from "wins on X's discard"
-                          const match = winEntry.match(/on (\w+)'s discard/);
-                          winType = match ? `(on ${match[1]})` : '';
-                        }
+                          // Determine win type from archived log
+                          const roundLog = gameLogs[round.roundNumber] || [];
+                          const winEntry = roundLog.find(e => e.includes('wins'));
+                          let winType = '';
+                          if (round.winnerSeat === null) {
+                            winType = '';
+                          } else if (winEntry?.includes('Three Golds')) {
+                            winType = '(Three Golds!)';
+                          } else if (winEntry?.includes('Robbing')) {
+                            winType = '(Robbing Gold!)';
+                          } else if (winEntry?.includes('self-draw')) {
+                            winType = '(self-draw)';
+                          } else if (winEntry) {
+                            // Extract discarder name from "wins on X's discard"
+                            const match = winEntry.match(/on (\w+)'s discard/);
+                            winType = match ? `(on ${match[1]})` : '';
+                          }
 
-                        return (
-                          <div key={round.roundNumber} className="text-xs lg:text-sm text-slate-300">
-                            {round.winnerSeat !== null ? (
-                              <span>
-                                {round.roundNumber}. {winnerName}{' '}
-                                <span className="text-emerald-400">+{round.score}</span>{' '}
-                                <span className="text-slate-500">{winType}</span>
-                              </span>
-                            ) : (
-                              <span>{round.roundNumber}. Draw</span>
-                            )}
+                          return (
+                            <div key={round.roundNumber} className="text-xs lg:text-sm text-slate-300">
+                              {round.winnerSeat !== null ? (
+                                <span>
+                                  {round.roundNumber}. {winnerName}{' '}
+                                  <span className="text-emerald-400">+{round.score}</span>{' '}
+                                  <span className="text-slate-500">{winType}</span>
+                                </span>
+                              ) : (
+                                <span>{round.roundNumber}. Draw</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {/* Show adjustments if any */}
+                        {sessionScores.adjustments && Object.values(sessionScores.adjustments).some(v => v !== 0) && (
+                          <div className="text-xs lg:text-sm text-orange-400 pt-1 border-t border-slate-600 mt-1">
+                            Adj: {([0, 1, 2, 3] as SeatIndex[])
+                              .filter(seat => (sessionScores.adjustments?.[`seat${seat}` as keyof typeof sessionScores.adjustments] || 0) !== 0)
+                              .map(seat => {
+                                const player = room?.players?.[`seat${seat}` as keyof typeof room.players];
+                                const name = player?.name || `P${seat + 1}`;
+                                const adj = sessionScores.adjustments?.[`seat${seat}` as keyof typeof sessionScores.adjustments] || 0;
+                                return `${name} ${adj > 0 ? '+' : ''}${adj}`;
+                              })
+                              .join(', ')}
                           </div>
-                        );
-                      })
+                        )}
+                      </>
                     ) : (
                       <div className="text-xs lg:text-sm text-slate-500 italic">No completed rounds yet</div>
                     )}
