@@ -1266,10 +1266,87 @@ function analyzeHand(
 // ============================================
 
 /**
+ * Count the maximum number of non-overlapping sets (triplets + sequences)
+ * that can be formed from the given tiles.
+ * Used to determine if discarding a tile would reduce set potential.
+ */
+function countMaxSets(tiles: TileId[], goldTileType: TileType): number {
+  // Separate Gold tiles from regular tiles
+  const regularTiles = tiles.filter(t => !isGoldTile(t, goldTileType));
+
+  // Count tiles by type
+  const tileCounts = new Map<TileType, number>();
+  for (const tile of regularTiles) {
+    const type = getTileType(tile);
+    tileCounts.set(type, (tileCounts.get(type) || 0) + 1);
+  }
+
+  return countMaxSetsRecursive(tileCounts);
+}
+
+/**
+ * Recursive helper to find maximum sets from tile counts.
+ * Tries both pung (triplet) and chow (sequence) options and returns the max.
+ */
+function countMaxSetsRecursive(tileCounts: Map<TileType, number>): number {
+  // Find first non-zero tile type (sorted for consistent chow detection)
+  const sortedTypes = Array.from(tileCounts.entries())
+    .filter(([, count]) => count > 0)
+    .sort((a, b) => a[0].localeCompare(b[0]));
+
+  if (sortedTypes.length === 0) {
+    return 0;
+  }
+
+  const [firstType, count] = sortedTypes[0];
+  let maxSets = 0;
+
+  // Option 1: Try forming a Pung (triplet)
+  if (count >= 3) {
+    const newCounts = new Map(tileCounts);
+    newCounts.set(firstType, count - 3);
+    maxSets = Math.max(maxSets, 1 + countMaxSetsRecursive(newCounts));
+  }
+
+  // Option 2: Try forming a Chow (sequence) - only for suit tiles
+  const parts = firstType.split('_');
+  if (parts.length === 2 && ['dots', 'bamboo', 'characters'].includes(parts[0])) {
+    const suit = parts[0];
+    const val = parseInt(parts[1]);
+
+    if (val <= 7) {
+      const type2 = `${suit}_${val + 1}`;
+      const type3 = `${suit}_${val + 2}`;
+      const count2 = tileCounts.get(type2) || 0;
+      const count3 = tileCounts.get(type3) || 0;
+
+      if (count >= 1 && count2 >= 1 && count3 >= 1) {
+        const newCounts = new Map(tileCounts);
+        newCounts.set(firstType, count - 1);
+        newCounts.set(type2, count2 - 1);
+        newCounts.set(type3, count3 - 1);
+        maxSets = Math.max(maxSets, 1 + countMaxSetsRecursive(newCounts));
+      }
+    }
+  }
+
+  // Option 3: Skip this tile (can't form a set with it)
+  // Only if we couldn't form any set, move on
+  if (maxSets === 0) {
+    const newCounts = new Map(tileCounts);
+    newCounts.set(firstType, count - 1);
+    maxSets = countMaxSetsRecursive(newCounts);
+  }
+
+  return maxSets;
+}
+
+/**
  * Select a strategic tile to discard when auto-playing
  * Used by turn timer when a player times out
  *
  * Scoring system (lower score = better to discard):
+ * - Essential for sets: +100 (removing would reduce max sets)
  * - Triplets: +100 (very protected)
  * - Pairs: +30-60 (protected, especially if only pair)
  * - Part of sequence partial: +40 (protected)
@@ -1302,12 +1379,22 @@ export function selectSafeDiscard(
     return hand[0];
   }
 
+  // Calculate max sets before any discard (for set preservation check)
+  const maxSetsBefore = countMaxSets(hand, goldTileType);
+
   // Score each tile (lower score = better to discard)
   const scores: { tile: TileId; type: TileType; score: number }[] = [];
 
   for (const tile of candidates) {
     const type = getTileType(tile);
     let score = 50; // base score
+
+    // SET PRESERVATION: Check if removing this tile would reduce max sets
+    const handWithoutTile = hand.filter(t => t !== tile);
+    const maxSetsAfter = countMaxSets(handWithoutTile, goldTileType);
+    if (maxSetsAfter < maxSetsBefore) {
+      score += 100; // Essential for maintaining sets - protect it
+    }
 
     // Part of triplet: very valuable
     if (analysis.triplets.includes(type)) {

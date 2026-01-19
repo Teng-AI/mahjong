@@ -16,6 +16,7 @@ import {
   canKong,
   canDeclareConcealedKong,
   canUpgradePungToKong,
+  selectSafeDiscard,
 } from '@/lib/tiles';
 import { TileId, TileType, Meld } from '@/types';
 
@@ -689,5 +690,63 @@ describe('canUpgradePungToKong', () => {
     expect(result.length).toBe(1);
     expect(result[0].meldIndex).toBe(1);
     expect(result[0].tileFromHand).toBe('dots_2_3');
+  });
+});
+
+// ============================================
+// SELECT SAFE DISCARD TESTS (Set Preservation)
+// ============================================
+
+describe('selectSafeDiscard', () => {
+  const goldType: TileType = 'bamboo_9'; // Gold tile that won't interfere with tests
+
+  it('should not break up a complete sequence (1-2-3)', () => {
+    // Hand: 1-2-3 sequence + isolated 9
+    const hand: TileId[] = ['dots_1_0', 'dots_2_0', 'dots_3_0', 'dots_9_0'];
+    const result = selectSafeDiscard(hand, goldType);
+    // Should discard the isolated 9, not any part of the sequence
+    expect(result).toBe('dots_9_0');
+  });
+
+  it('should allow discarding redundant tile in extended sequence (1-2-3-4)', () => {
+    // Hand: 1-2-3-4 (can form 1-2-3 OR 2-3-4, so 1 or 4 is redundant)
+    const hand: TileId[] = ['dots_1_0', 'dots_2_0', 'dots_3_0', 'dots_4_0'];
+    const result = selectSafeDiscard(hand, goldType);
+    // Should discard 1 or 4 (the edge tiles), not 2 or 3
+    expect(['dots_1_0', 'dots_4_0']).toContain(result);
+  });
+
+  it('should protect tiles essential to a triplet', () => {
+    // Hand: triplet 5-5-5 + isolated 9
+    const hand: TileId[] = ['dots_5_0', 'dots_5_1', 'dots_5_2', 'dots_9_0'];
+    const result = selectSafeDiscard(hand, goldType);
+    // Should discard the isolated 9
+    expect(result).toBe('dots_9_0');
+  });
+
+  it('should prefer isolated tiles over sequence tiles', () => {
+    // Hand: sequence 4-5-6 + isolated honor
+    const hand: TileId[] = ['bamboo_4_0', 'bamboo_5_0', 'bamboo_6_0', 'wind_east_0'];
+    const result = selectSafeDiscard(hand, goldType);
+    // Should discard the isolated wind
+    expect(result).toBe('wind_east_0');
+  });
+
+  it('should handle pair + sequence correctly (3-3-4-5)', () => {
+    // Hand: 3-3-4-5 - can form sequence 3-4-5, extra 3 is redundant
+    const hand: TileId[] = ['dots_3_0', 'dots_3_1', 'dots_4_0', 'dots_5_0'];
+    const result = selectSafeDiscard(hand, goldType);
+    // Removing a 3 still leaves sequence 3-4-5, so 3 is ok to discard
+    // But the pair bonus might protect it slightly - either 3 is acceptable
+    expect(['dots_3_0', 'dots_3_1']).toContain(result);
+  });
+
+  it('should never discard gold tiles', () => {
+    const goldTileType: TileType = 'dots_5';
+    // Hand includes gold tiles
+    const hand: TileId[] = ['dots_5_0', 'dots_5_1', 'dots_9_0'];
+    const result = selectSafeDiscard(hand, goldTileType);
+    // Should discard non-gold tile
+    expect(result).toBe('dots_9_0');
   });
 });
