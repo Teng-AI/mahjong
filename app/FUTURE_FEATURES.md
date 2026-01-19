@@ -4,188 +4,105 @@
 
 **Complexity**: 🟢 Easy (< 1 hour) | 🟡 Medium (1-4 hours) | 🔴 Hard (4+ hours)
 
----
-
-## In Progress
-<!-- Currently being worked on -->
+**Last reviewed:** 2026-01-19 (comprehensive project review)
 
 ---
 
-## High Priority (Bugs)
+## Critical (Tech Debt)
 
-- [x] **Concealed Kong leaks tile info** 🟢 ✅
-  - ~~Game log shows which tile was konged~~ Fixed: shows "declared a concealed Kong"
-  - ~~Last Action box also reveals the tile~~ Fixed: shows face-down tiles
-  - Added `isConcealed` flag to LastAction type
+> ⚠️ Address these BEFORE adding new features
 
-- [x] **Mobile tile UX broken** 🟡 ✅
-  - ~~Tiles overflow or don't fit on small screens~~ Fixed tile text overflow
-  - ~~Hand becomes unplayable on narrow devices~~ Responsive sizing improved
-  - ~~Fix: Responsive tile sizing, horizontal scroll, or tile stacking~~ Melds now wrap
+- [ ] **Refactor game page** 🔴
+  - Current `page.tsx` is 3,665 lines — unmaintainable
+  - Extract into separate components: GameBoard, PlayerCards, CallingUI, TimerUI, Modals
+  - Unblocks all future feature development
+  - **Do this first or complexity will kill productivity**
 
----
-
-## High Priority (Features)
-
-- [x] **Mobile layout rework** 🔴 ✅
-  - Reorganize game UI for portrait mobile screens
-  - ~~Reorder middle row: Last Discard → Discard Pile → Game Log~~ ✅ Done
-  - ~~Move calling status to bottom~~ ✅ Done
-  - ~~Hide sound controls inside Settings modal~~ ✅ Done
-  - ~~Move Game Log to bottom on mobile~~ ✅ Done
-  - ~~Smaller header on mobile~~ ✅ Done
-  - ~~Auto-scroll game log to recent actions~~ ✅ Done
-  - ~~PASS button more prominent (emerald green)~~ ✅ Done
-  - ~~Fixed bottom action bar for mobile~~ ✅ Done
-  - ~~WIN button larger and more prominent~~ ✅ Done
-  - ~~Calling status in bottom bar (flips with action buttons)~~ ✅ Done
-  - ~~Collapse other players into compact view~~ (Decided not to implement)
-
-- [x] **Calling phase timer** 🔴 ✅
-  - ~~Configurable timer: 10s, 30s, 60s, 120s, or no limit~~ 10-120s configurable
-  - ~~Auto-pass when timer expires~~ ✅ Done
-  - ~~Visual countdown indicator~~ ✅ Done
-  - ~~Room setting configured by host~~ ✅ Done
-
-- [x] **Turn timer** 🔴 ✅
-  - Configurable timer: 10-120 seconds or no limit
-  - Auto-draw and auto-discard when timer expires
-  - Auto-win detection if player has winning hand after draw
-  - Visual countdown indicator with warning state
-  - Room setting configured by host (side-by-side with calling timer)
-
-- [x] **Dead wall implementation** 🟡 ✅
-  - ~~Reserve 0-16 tiles as dead wall (unplayable)~~ 16 tiles removed at game start
-  - ~~Game ends when live wall exhausted (not total wall)~~ ✅ Done
-  - ~~Configurable in room settings~~ (Not needed - hardcoded to 16)
-  - ~~Display dead wall count in UI~~ Wall count shows drawable tiles only
+- [ ] **Add hook test coverage** 🟡
+  - `useGame.ts` and `useBotRunner.ts` are complex and untested
+  - Core gameplay logic needs test coverage
+  - Reduces bugs in multiplayer sync
 
 ---
 
-## Medium Priority
+## High Priority (Retention & Growth Blockers)
 
-- [x] **Wall count warning colors** 🟢 ✅
-  - ~~Yellow highlight when < 10 tiles left~~ Yellow text + background
-  - ~~Red highlight when < 5 tiles left~~ Red text + pulsing background
-  - Helps players anticipate draw game
-
-- [x] **Dramatic win announcement** 🟡 ✅
-  - ~~Add delay before revealing winner (build suspense)~~ Face-down tiles with "The winner is..."
-  - ~~Special sound effect / fanfare leading up to win~~ Drumroll during suspense
-  - ~~Visual effect (screen flash, zoom, etc.)~~ Tile flip reveal + fly-in animation
-  - ~~Makes winning moments more exciting~~ ✅ Done
-
-- [x] **Rename calling actions** 🟢 ✅
-  - ~~Make button labels more intuitive for new players~~ Used authentic Mahjong terms
-  - Chow → Chi (吃), Pung → Peng (碰), Kong → Gang (杠), Win → Hu (胡)
-  - Chinese characters shown in rules modal for education
-
-- [x] **Show last action in discard box** 🟢 ✅
-  - ~~Display what action just happened (e.g., "Player drew", "Player called Pung")~~ Added "Previous Action" box
-  - ~~Integrate with existing Last Discard section~~ Side-by-side layout
-  - ~~Use lastAction from gameState~~ Uses previousAction field
-
-- [ ] **Golden Dragon special bonus** 🟡
-  - See detailed spec below
-
-### Golden Dragon (金龙) Specification
-
-**New Bonus: Golden Dragon +100**
-- Player has all 3 Gold tiles and uses them as a normal Peng set (triplet)
-- Rest of hand must win WITHOUT using any Gold as wildcard
-- Can be won from self-draw OR call (discard)
-- Triggers ×2 multiplier like other special bonuses
-
-**Changes to Three Golds (三金) +30**
-- No longer auto-wins — player sees HU button and decides
-- Can declare anytime during own turn when holding 3 Golds
-- Works as instant win (no complete hand needed)
-- Only available on own turn (not from calls)
-
-**Changes to Golden Pair (金对) +50**
-- Only available when player has exactly 2 Gold tiles
-- Having 3 Golds disqualifies Golden Pair
-
-**Win Scenarios with 3 Golds**
-
-| Scenario | Bonus |
-|----------|-------|
-| 3 Golds as Peng, complete hand (self-draw or call) | Golden Dragon +100 |
-| 3 Golds as wildcards, win on own turn | Three Golds +30 |
-| 3 Golds, no complete hand, declare on own turn | Three Golds +30 |
-| 3 Golds as wildcards, win from call | No special Gold bonus |
-| Robbing Gold results in 3 Golds | +30 only |
-
-**Bonus Hierarchy (highest only, no stacking)**
-1. All One Suit (+100) / Golden Dragon (+100) — if tied, +100 once
-2. Golden Pair (+50) — only with exactly 2 Golds
-3. Three Golds (+30) / Robbing Gold (+30)
-4. No Bonus/Gang (+15)
-
-**Scoring Formula (unchanged structure)**
-```
-Non-special = base + bonus tiles + golds (count) + gangs + dealer streak
-If self-draw OR any special bonus: ×2
-Total = non-special + highest special bonus
-```
-
-**Implementation Changes Required**
-1. Remove Three Golds auto-win trigger
-2. Add Golden Dragon detection (3 Golds as Peng, no wildcards in rest of hand)
-3. Update Golden Pair to require exactly 2 Golds
-4. Update scoring to pick highest special bonus only (no stacking)
-5. Update rules modal and documentation
-
-- [ ] **Bonus phase animation delays** 🟡
-  - Add visual delays between: expose → replace → gold flip → auto-win check
-  - Currently happens too fast to follow
-  - Use setTimeout or animation callbacks
-  - Show each step clearly before proceeding
-
-- [x] **Error boundaries** 🟡 ✅
-  - ~~Wrap components in React error boundaries~~ Next.js error.tsx convention
-  - ~~Show friendly error UI instead of white screen~~ Done
-  - ~~Log errors for debugging~~ console.error in dev
-  - ~~"Something went wrong" + retry button~~ Try Again + Return Home
-
-- [ ] **Loading skeletons** 🟡
-  - Replace "Loading..." text with skeleton placeholders
-  - Skeleton for: game board, player info, tile hand
-  - Better perceived performance
+> These directly impact whether users stay or leave
 
 - [ ] **Reconnection handling** 🔴
   - Detect when Firebase connection drops
   - Show "Reconnecting..." indicator
   - Auto-rejoin room/game on reconnect
   - Handle stale state after reconnect
+  - **Impact:** Reduces mobile churn from ~30% to ~10%
 
-- [x] **Preview image for sharing (og:image)** 🟡 ✅
-  - ~~Create social preview image for link sharing~~ ✅ Done
-  - ~~Shows game branding when shared on social media~~ ✅ "MAHJONG VIBES" + "Play with Friends"
-  - ~~Update meta tags in layout.tsx~~ ✅ Title, description, og:image
-  - ~~Design 1200x630 image~~ ✅ Optimized to 111KB
+- [ ] **PWA support** 🟡
+  - Add manifest.json for "Add to Home Screen"
+  - Service worker for offline capability
+  - App icon and splash screen
+  - Push notifications ("Your game is ready!")
+  - Use `next-pwa` package
+  - **Impact:** +30-50% daily active users from mobile
+
+- [ ] **Player profiles + persistent identity** 🟡
+  - Replace anonymous auth with guest ID (localStorage) or optional email
+  - Track personal stats: games played, win rate, favorite opponents
+  - Show stats on game end: "You've won 12 of 34 games (35%)"
+  - **Impact:** Creates habit loop — players return to improve stats
+
+- [ ] **Tutorial / onboarding** 🔴
+  - Interactive 5-minute first-game tutorial with bot teacher
+  - Step-by-step: "This is a Peng. You need 3 matching tiles."
+  - Show winning hand examples
+  - **Impact:** Converts 40% more first-time players
+
+- [ ] **Public rooms / matchmaking** 🔴
+  - Browse list of open rooms (with filters)
+  - "Quick Join" to auto-match with strangers
+  - Simple win-rate leaderboard (top 100)
+  - **Impact:** Solves "no one to play with" — unlocks network effects
 
 ---
 
-## Low Priority
+## Medium Priority (UX Polish & Engagement)
 
-- [ ] **Manual hand sorting** 🟡
-  - Drag-and-drop to reorder tiles in hand
-  - Persist order during game
-  - Use react-dnd or similar library
-  - Touch-friendly for mobile
+> Improves experience for existing users
 
-- [ ] **Tile images instead of text** 🔴
-  - Replace emoji/text tiles with actual mahjong tile images
-  - Need: 34 unique tile designs × multiple states (normal, gold, selected)
-  - SVG or PNG sprite sheet
-  - Significant visual overhaul
+- [ ] **Mobile Kong/Chow selection modal** 🟢
+  - Replace inline tile highlighting with bottom sheet modal
+  - Clearer selection UI on small screens
+  - **Impact:** Better UX for 50% of users
 
-- [ ] **Server-side tile drawing** 🔴
-  - Move tile draw logic from client to Firebase Cloud Functions
-  - Prevents client-side cheating/manipulation
-  - Requires Firebase Functions setup
-  - More complex state management
+- [ ] **Opponent discard history** 🟢
+  - Show what each opponent has discarded (compact view)
+  - Helps intermediate players with strategy
+  - Currently only visible in game log
+
+- [ ] **Spectator mode** 🟡
+  - Invite friends to watch your game
+  - Read-only view of all hands + play log
+  - **Impact:** Drives viral/social sharing
+
+- [ ] **Social sharing of wins** 🟡
+  - Share winning hand to social media
+  - Generate image of final hand + score
+  - Copy-paste or direct share
+
+- [ ] **In-game chat** 🟡
+  - Emoji reactions only (avoid toxicity/moderation)
+  - "Good game" / "Nice!" quick reactions
+  - Chat bubbles during game
+
+- [ ] **Analytics** 🟡
+  - Track games played, win rates, session length
+  - Privacy-respecting (no PII)
+  - Vercel Analytics or custom solution
+
+---
+
+## Low Priority (Nice to Have)
+
+> Good ideas, but not growth-driving
 
 - [ ] **Accessibility (a11y)** 🟡
   - Add ARIA labels to interactive elements
@@ -193,137 +110,100 @@ Total = non-special + highest special bonus
   - Keyboard navigation (beyond shortcuts)
   - Color contrast compliance
 
-- [ ] **Individual sound toggles** 🟢
-  - Per-sound enable/disable in settings
-  - e.g., disable "your turn" but keep "win" sound
-  - Checkbox list in Settings modal
-
-- [ ] **Game history/replay** 🔴
-  - Record all game actions
-  - Playback completed games turn-by-turn
-  - Store in Firebase or export as JSON
-  - Complex UI for replay controls
-
-- [ ] **Tutorial/onboarding** 🔴
-  - Interactive tutorial for new players
-  - Step-by-step guided first game
-  - Highlight UI elements, explain rules
-  - Significant content creation
-
-- [ ] **PWA support** 🟡
-  - Add manifest.json for "Add to Home Screen"
-  - Service worker for offline capability
-  - App icon and splash screen
-  - next-pwa package
-
-- [ ] **Analytics** 🟡
-  - Track user behavior (games played, win rates, etc.)
-  - Privacy-respecting (no PII)
-  - Vercel Analytics or custom solution
+- [ ] **Error boundary testing** 🟢
+  - Test error pages against actual Firebase failures
+  - Verify recovery flows work
 
 ---
 
-## Backlog
-<!-- Ideas for the distant future -->
+## Deprioritized
 
-- [ ] **Spectator mode** 🔴
-  - Watch ongoing games without playing
-  - Read-only view of game state
-  - Join mid-game as observer
+> Documented for future reference, but not recommended to build now
 
-- [ ] **In-game chat** 🟡
-  - Text chat between players during game
-  - Chat bubbles or side panel
-  - Emoji reactions
+- [ ] **Golden Dragon special bonus** 🟡
+  - Complex rule variant (+100 for 3 Golds as Peng set)
+  - Only matters to hardcore players
+  - Overcomplicates rules for new players
+  - *Reason: Doesn't drive growth, adds complexity*
 
-- [ ] **Custom room settings** 🔴
-  - Time limits per turn
-  - House rules (no chow, etc.)
-  - Starting points
-  - Number of rounds
+- [ ] **Bonus phase animation delays** 🟡
+  - Slow down expose → replace → gold flip sequence
+  - *Reason: Polish item, no user complaints*
 
-- [ ] **Leaderboards / player stats** 🔴
-  - Persistent player accounts (not anonymous)
-  - Track wins, scores, streaks
-  - Global leaderboard
-  - Requires auth overhaul
+- [ ] **Loading skeletons** 🟡
+  - Replace "Loading..." with skeleton placeholders
+  - *Reason: Game loads fast enough, perceived perf not an issue*
 
-- [ ] **Social sharing of wins** 🟡
-  - Share winning hand to social media
-  - Generate image of final hand + score
-  - Copy-paste or direct share
+- [ ] **Manual hand sorting** 🟡
+  - Drag-and-drop to reorder tiles
+  - *Reason: Complex to build, most players don't care*
+
+- [ ] **Tile images instead of text** 🔴
+  - Replace emoji with actual mahjong tile graphics
+  - *Reason: Huge effort, current tiles work fine*
+
+- [ ] **Server-side tile drawing** 🔴
+  - Move logic to Firebase Cloud Functions (anti-cheat)
+  - *Reason: Overkill for casual friends game*
+
+- [ ] **Game history/replay** 🔴
+  - Record and playback completed games
+  - *Reason: Complex, low demand — who rewatches mahjong?*
 
 - [ ] **Multiple game variants** 🔴
-  - Support other Mahjong rules (Hong Kong, Japanese, etc.)
-  - Major refactor of game logic
-  - Different tile sets, scoring, win conditions
+  - Support Hong Kong, Japanese, etc. rules
+  - *Reason: Scope creep — stay focused on Fuzhou*
+
+- [ ] **Custom room settings (house rules)** 🟡
+  - No chow, different scoring, etc.
+  - *Reason: Fragments player base, timers already configurable*
+
+- [ ] **Leaderboards / global rankings** 🔴
+  - Requires persistent accounts
+  - *Reason: Build player profiles first*
 
 ---
 
 ## Completed
 
-- [x] **Dead wall** - 16 tiles reserved at game start (per Fujian Mahjong rules)
-- [x] **UI cleanup** - removed seat labels (East/South/West/North), compact Kong display (×4 badge)
-- [x] **Mobile layout rework complete** - fixed bottom action bar, calling status integration
-- [x] Fixed bottom action bar for mobile (Draw/Discard/calling buttons)
-- [x] WIN button larger and more prominent on mobile
-- [x] Calling status shows in bottom bar (flips between buttons and status)
-- [x] Bot delay waits for human response before starting
-- [x] Previous Action box showing draw/call before discard
-- [x] Mobile game log auto-scrolls to recent actions
-- [x] Page scrolls to top when starting new round
-- [x] Mobile tile text overflow fix (character tiles)
-- [x] Melds wrap to next line when overflowing
-- [x] PASS button changed to emerald green for prominence
-- [x] Mobile header made smaller (reduced padding, text sizes)
-- [x] Mobile game log moved to bottom
-- [x] Game layout reorganization (calling status to bottom, middle row reordered)
-- [x] **Bug fix**: Win sound loop now respects sound enabled setting
-- [x] Renamed "UPGRADE" button to "KONG" for pung upgrades
-- [x] Bot names now include number (Bot-E1, Bot-M2, Bot-H3)
-- [x] Sound controls moved to Settings modal (cleaner header)
-- [x] **Bug fix**: Concealed Kong now shows face-down tiles to other players
-- [x] **Bug fix**: Keyboard shortcuts hidden on mobile/touch devices
-- [x] All One Suit bonus scoring (+60 points)
-- [x] Winner celebration effects (fireworks, fanfare, sparkles)
-- [x] Player turn order UI (all 4 players shown, green highlight)
-- [x] Clickable rules modal
-- [x] Keyboard shortcuts (customizable)
-- [x] Sound volume control
-- [x] Kong implementation (concealed, exposed, upgrade)
-- [x] Winner screen redesign
-- [x] Sound effects
-- [x] Bot difficulty (easy/medium/hard)
-- [x] Dealer streak tracking
-- [x] Vercel deployment
-- [x] Firebase security rules
-- [x] SEO metadata and Open Graph tags
-- [x] Branding (Mahjong Vibes)
-- [x] Debug logging (dev-only)
-- [x] Auth state feedback
-- [x] Copy room code button
-- [x] Test coverage (123 tests)
-- [x] CHANGELOG.md
-- [x] Pre-commit hooks
-- [x] `/docs-sync` and `/session-wrap` skills
-- [x] Lint cleanup
-- [x] Turn Indicator (N/E/S/W round table view showing current/previous actor)
-- [x] Full keyboard controls (customizable shortcuts for Draw, Win, Kong, Pung, Chow, Pass)
-- [x] Kong keyboard selection with unified button and arrow key navigation
-- [x] Chow keyboard selection (arrow keys, Space to select, Enter to confirm)
-- [x] Comprehensive rules modal rewrite with all game nuances
-- [x] Scoring fix: special bonuses trigger ×2 multiplier on discard wins
-- [x] Rules documentation sync (`mahjong-fujian-rules.md`)
-- [x] Calling phase timer (10-120s configurable, auto-pass on expire)
-- [x] Turn timer with auto-draw/discard and auto-win detection on expire
-- [x] Quick Play button on home page (one-click game vs 3 bots with difficulty selection)
-- [x] Kong replacement tile now auto-selected for discard (bug fix)
-- [x] Winner reveal suspense animation (face-down tiles → flip reveal → fly-in → fade)
-- [x] Drumroll sound during winner suspense
-- [x] Sound rebalancing with modern design hierarchy (ambient/feedback/event/alert/climax tiers)
-- [x] Private draw info in game log (only you see what you drew)
-- [x] Bug fix: Turn timer no longer auto-draws on dealer's first turn
-- [x] Bug fix: Other players' tile count correctly accounts for Kong replacement draws
-- [x] Bug fix: Selected tile clears when turn passes
-- [x] Bug fix: Dealer streak now counts draw games (UI shows "N-round streak")
-- [x] Renamed calling actions to authentic Mahjong terms (Chi, Peng, Gang, Hu)
+- [x] **Preview image for sharing** - OG image with headline + CTA (111KB)
+- [x] **Fuzhou Mahjong rebrand** - Consistent 福州麻将 naming throughout
+- [x] **Dead wall** - 16 tiles reserved at game start
+- [x] **Mobile layout rework** - Fixed bottom action bar, calling status integration
+- [x] **Calling phase timer** - 10-120s configurable, auto-pass on expire
+- [x] **Turn timer** - Auto-draw/discard, auto-win detection
+- [x] **Error boundaries** - Friendly error UI with recovery options
+- [x] **Winner reveal animation** - Suspense → flip reveal → fly-in
+- [x] **Renamed calling actions** - Chi, Peng, Gang, Hu with Chinese characters
+- [x] **Quick Play** - One-click game vs 3 bots
+- [x] **Kong implementation** - Concealed, exposed, upgrade
+- [x] **Keyboard shortcuts** - Fully customizable
+- [x] **Sound system** - 9+ effects with volume control
+- [x] **Turn indicator** - N/E/S/W round table view
+- [x] **Comprehensive rules modal** - All game nuances documented
+- [x] **Bot AI** - 3 difficulty levels
+- [x] **Dealer streak tracking** - Counts wins and draws
+- [x] **All One Suit bonus** - +100 points
+- [x] **Golden Pair bonus** - +50 points
+- [x] **Test coverage** - 131 tests (tiles, settle, game)
+- [x] **CI/CD** - GitHub Actions, pre-commit hooks
+- [x] **SEO** - Meta tags, Open Graph, favicon
+
+---
+
+## Notes
+
+### Target Audience
+- **Primary:** Fuzhounese diaspora who want to play online with friends/family
+- **Secondary:** Mahjong enthusiasts curious about regional variants
+
+### Growth Strategy
+1. **Retention first:** Fix reconnection, add PWA
+2. **Identity:** Player profiles create habit loop
+3. **Acquisition:** Tutorial lowers barrier, matchmaking solves discovery
+4. **Viral:** Spectator mode + social sharing
+
+### Technical Priorities
+1. Refactor game page (unblocks everything)
+2. Add hook tests (reduces bugs)
+3. Then build growth features
