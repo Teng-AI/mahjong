@@ -1,6 +1,6 @@
-# Mahjong Vibes - Multiplayer Fujian Mahjong
+# Mahjong Vibes - Multiplayer Fuzhou Mahjong (福州麻将)
 
-A real-time multiplayer Fujian Mahjong game built with Next.js and Firebase.
+A real-time multiplayer Fuzhou Mahjong game built with Next.js and Firebase.
 
 ## Features
 
@@ -19,7 +19,7 @@ A real-time multiplayer Fujian Mahjong game built with Next.js and Firebase.
 - **Three Golds Win**: Instant win when drawing 3 Gold tiles
 - **Modern UI**: Suit-colored tiles (Dots=red, Bamboo=blue, Characters=green), responsive layout
 
-### Fujian Mahjong Rules
+### Fuzhou Mahjong Rules (福州麻将)
 - **128 tiles**: 108 suited (dots, bamboo, characters) + 16 winds + 4 red dragons
 - **No flowers/seasons**: Unlike other variants
 - **Gold tile**: One random suit tile type becomes wildcard each game

@@ -13,32 +13,32 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Mahjong Vibes",
-  description: "Multiplayer Fujian Mahjong (Gold Rush Mahjong) game. Play with friends online!",
-  keywords: ["mahjong", "fujian mahjong", "gold rush mahjong", "multiplayer", "card game", "tile game"],
+  title: "Mahjong Vibes — Play Fuzhou Mahjong Online with Friends",
+  description: "福州麻将 — Play Fuzhou Mahjong online for free. Gold tile wildcards make every game exciting. Real-time multiplayer with friends — no download required.",
+  keywords: ["mahjong", "fuzhou mahjong", "福州麻将", "fujian mahjong", "multiplayer", "tile game"],
   authors: [{ name: "Teng Zheng" }],
   creator: "Teng Zheng",
   metadataBase: new URL("https://mahjong-vibes.vercel.app"),
   openGraph: {
-    title: "Mahjong Vibes",
-    description: "Multiplayer Fujian Mahjong (Gold Rush Mahjong) game. Play with friends online!",
+    title: "Mahjong Vibes — Play Fuzhou Mahjong Online with Friends",
+    description: "福州麻将 — Play Fuzhou Mahjong online for free. Gold tile wildcards make every game exciting. Real-time multiplayer with friends — no download required.",
     siteName: "Mahjong Vibes",
     type: "website",
     locale: "en_US",
     images: [
       {
-        url: "/og-image.png",
+        url: "/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "Mahjong Vibes - Fujian Mahjong",
+        alt: "Mahjong Vibes - 福州麻将 Fuzhou Mahjong",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Mahjong Vibes",
-    description: "Multiplayer Fujian Mahjong (Gold Rush Mahjong) game. Play with friends online!",
-    images: ["/og-image.png"],
+    title: "Mahjong Vibes — Play Fuzhou Mahjong Online with Friends",
+    description: "福州麻将 — Play Fuzhou Mahjong online for free. Gold tile wildcards make every game exciting. Real-time multiplayer with friends — no download required.",
+    images: ["/og-image.jpg"],
   },
   appleWebApp: {
     capable: true,

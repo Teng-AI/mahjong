@@ -23,7 +23,7 @@ export function RulesModal({ isOpen, onClose }: RulesModalProps) {
             &times;
           </button>
         </div>
-        <p className="text-xs text-emerald-400/80 mb-4">Fujianese Style Mahjong (金麻将)</p>
+        <p className="text-xs text-emerald-400/80 mb-4">福州麻将 (Fuzhou Mahjong)</p>
 
         {/* Quick Start */}
         <div className="text-sm text-slate-300 space-y-1.5 mb-4">

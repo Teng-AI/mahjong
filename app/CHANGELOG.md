@@ -53,7 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Rules modal in room lobby** - View full rules before starting game
   - "View Full Rules" button in instructions section
   - Reusable RulesModal component extracted from game page
-  - "Fujianese Style Mahjong (金麻将)" subtitle added to rules
+  - "福州麻将 (Fuzhou Mahjong)" subtitle added to rules
 - **Host score adjustment** - Host can manually adjust player net scores
   - "Edit" button visible to host in Session Scores section
   - Enter +/- adjustments for each player
@@ -88,7 +88,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Each player gets one final draw attempt
   - Only self-draw wins allowed in final rounds
   - Prevents frozen game state edge cases
-- **Fujianese Style branding** - Added "Fujianese Style" subtitle on home page
+- **福州麻将 branding** - Added "福州麻将" subtitle on home page
 - **Renamed calling actions to authentic Mahjong terms**
   - Chow → Chi (吃), Pung → Peng (碰), Kong → Gang (杠), Win → Hu (胡)
   - Chinese characters shown in rules modal and settings modal
@@ -139,7 +139,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Green box highlights current actor (whose turn it is)
   - Grey box shows previous discarder (who acted before)
   - Updates correctly during both playing and calling phases
-- **Dead wall** - 16 tiles reserved at game start per Fujian Mahjong rules (wall count shows drawable tiles only)
+- **Dead wall** - 16 tiles reserved at game start per Fuzhou Mahjong rules (wall count shows drawable tiles only)
 - **Bonus tile count** - shows +X badge next to your bonus tiles
 - **Fixed bottom action bar for mobile** - thumb-friendly actions at screen bottom
   - Context-aware: shows Draw/Discard during play, calling buttons during calling phase
@@ -197,7 +197,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2026-01-09
 
 ### Added
-- Multiplayer Fujian Mahjong (Gold Rush Mahjong) gameplay
+- Multiplayer Fuzhou Mahjong (福州麻将) gameplay
 - Real-time game state sync with Firebase
 - Bot AI with 3 difficulty levels (easy, medium, hard)
 - Room creation and joining with 6-character codes

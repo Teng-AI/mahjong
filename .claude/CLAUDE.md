@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**Mahjong Vibes** is a real-time multiplayer Fujian (Fuzhou) Mahjong game, also known as "Gold Rush Mahjong" (金麻将).
+**Mahjong Vibes** is a real-time multiplayer Fuzhou Mahjong (福州麻将) game.
 
 - **Status**: MVP Complete + Post-MVP Features
 - **Stack**: Next.js 16, React 19, TypeScript, Tailwind CSS 4, Firebase Realtime Database
@@ -43,7 +43,7 @@ See `app/FUTURE_FEATURES.md` for full roadmap. Key items:
 | `app/src/lib/settle.ts` | Score settlement calculator |
 | `app/src/hooks/useGame.ts` | Game state management and Firebase sync |
 | `app/src/types/index.ts` | All TypeScript type definitions |
-| `mahjong-fujian-rules.md` | Complete game rules reference |
+| `mahjong-rules.md` | Complete game rules reference |
 
 ## Testing
 

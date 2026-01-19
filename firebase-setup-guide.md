@@ -1,6 +1,6 @@
 # Firebase Setup Guide
 
-Step-by-step guide to set up Firebase for Fujian Mahjong.
+Step-by-step guide to set up Firebase for Fuzhou Mahjong (福州麻将).
 
 ---
 
