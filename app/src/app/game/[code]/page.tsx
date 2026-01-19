@@ -1538,7 +1538,7 @@ export default function GamePage() {
                 {/* Ready toggle button */}
                 <button
                   onClick={handleToggleReady}
-                  className={`px-8 py-3 font-semibold rounded-lg text-lg transition-colors ${
+                  className={`px-8 py-3 font-semibold rounded-lg text-lg ${
                     myReadyState
                       ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
                       : 'bg-amber-500 hover:bg-amber-400 text-black animate-pulse shadow-lg shadow-amber-500/50'
@@ -2540,7 +2540,7 @@ export default function GamePage() {
               {/* Ready toggle button */}
               <button
                 onClick={handleToggleReady}
-                className={`px-6 py-2 lg:px-8 lg:py-2.5 font-semibold rounded-lg lg:text-lg transition-colors ${
+                className={`px-6 py-2 lg:px-8 lg:py-2.5 font-semibold rounded-lg lg:text-lg ${
                   myReadyState
                     ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
                     : 'bg-amber-500 hover:bg-amber-400 text-black animate-pulse shadow-lg shadow-amber-500/50'
