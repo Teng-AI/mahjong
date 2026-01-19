@@ -50,8 +50,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Page-level error catching (game, room, generic)
   - "Try Again" and "Return Home" recovery options
   - Error details shown in development mode only
+- **Rules modal in room lobby** - View full rules before starting game
+  - "View Full Rules" button in instructions section
+  - Reusable RulesModal component extracted from game page
+  - "Fujianese Style Mahjong (金麻将)" subtitle added to rules
+- **Host score adjustment** - Host can manually adjust player net scores
+  - "Edit" button visible to host in Session Scores section
+  - Enter +/- adjustments for each player
+  - Adjustments stored separately and added to computed values
+  - Available during draw games and after wins
 
 ### Changed
+- **Fujianese Style branding** - Added "Fujianese Style" subtitle on home page
 - **Renamed calling actions to authentic Mahjong terms**
   - Chow → Chi (吃), Pung → Peng (碰), Kong → Gang (杠), Win → Hu (胡)
   - Chinese characters shown in rules modal and settings modal
@@ -73,6 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Special bonus scoring rebalanced**: Three Golds +30, Robbing Gold +30, Golden Pair +50, All One Suit +100, No Bonus/Gang +15
 
 ### Fixed
+- **Golden Pair detection** - Fixed bug where hands with high-value chows (7-8-9) would incorrectly fail Golden Pair detection due to Map insertion order
 - **Auto-discard now protects sets and pairs** - timer expiry discard logic ported from bot AI, no longer breaks up sequences (e.g., 1-2-3) or discards valuable tiles
 - **Turn timer auto-draw on dealer's first turn** - dealer no longer auto-draws when they should only discard
 - **Other players' tile count display** - now correctly accounts for Kong replacement draws

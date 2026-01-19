@@ -290,6 +290,40 @@ describe('hasGoldenPair', () => {
     ];
     expect(hasGoldenPair(hand, goldType)).toBe(false);
   });
+
+  it('should detect golden pair with high-value chows (7-8-9)', () => {
+    // This tests a bug where tiles with value 8 or 9 could cause false negatives
+    // if they happened to be first in the Map (due to insertion order)
+    const goldType7: TileType = 'characters_7';
+    const hand: TileId[] = [
+      // Chow 7-8-9 in dots (put 9 first to test the bug)
+      'dots_9_0', 'dots_8_0', 'dots_7_0',
+      // Chow 7-8-9 in bamboo
+      'bamboo_9_0', 'bamboo_8_0', 'bamboo_7_0',
+      // Chow 1-2-3 in dots
+      'dots_1_0', 'dots_2_0', 'dots_3_0',
+      // Chow 4-5-6 in dots
+      'dots_4_0', 'dots_5_0', 'dots_6_0',
+      // Pung of characters_1
+      'characters_1_0', 'characters_1_1', 'characters_1_2',
+      // Golden pair (2 gold tiles - characters_7)
+      'characters_7_0', 'characters_7_1',
+    ];
+    expect(hasGoldenPair(hand, goldType7)).toBe(true);
+  });
+
+  it('should detect golden pair with exposed melds', () => {
+    // With 2 exposed melds, only need 3 sets from concealed hand
+    const hand: TileId[] = [
+      // 3 sets (9 tiles)
+      'dots_1_0', 'dots_1_1', 'dots_1_2',
+      'dots_2_0', 'dots_2_1', 'dots_2_2',
+      'dots_3_0', 'dots_3_1', 'dots_3_2',
+      // Golden pair
+      'dots_5_0', 'dots_5_1',
+    ];
+    expect(hasGoldenPair(hand, goldType, 2)).toBe(true);
+  });
 });
 
 // ============================================

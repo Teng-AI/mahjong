@@ -28,6 +28,17 @@ Sessions are organized by year-month, with individual session files named by dat
 
 ### 2026-01-16
 
+- **[Session 02](2026-01/2026-01-16_session-02.md)** - Dramatic Win Experience & Sound Design Overhaul
+  - Added suspenseful winner reveal animation with face-down tiles, staggered flip reveal
+  - Comprehensive sound design rebalancing with 5-tier hierarchy (Ambient/Feedback/Event/Alert/Climax)
+  - Global volume baseline reduced to 10%, drumroll boosted to 0.80 for impact
+  - Fixed auto-draw bug on dealer's first turn using needsToDraw() helper
+  - Fixed tile count display for other players (accounts for Kong replacement draws)
+  - Fixed selected tile clearing on turn change
+  - Fixed dealer streak to increment on draw games (now shows "N-round streak")
+  - Private draw logs (only drawing player sees tile details)
+  - Git workflow practice: feature branch, PR #4, merge, cleanup
+
 - **[Session 01](2026-01/2026-01-16_session-01.md)** - Turn Timer Implementation & Scoring Rebalance
   - Added turn timer to room lobby (side-by-side with calling timer)
   - Auto-play on timer expiration (auto-draw, auto-discard, auto-win detection)
