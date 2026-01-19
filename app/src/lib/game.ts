@@ -197,6 +197,9 @@ export async function getDealerStreak(roomCode: string): Promise<number> {
  * - Stores private hands separately
  */
 export async function initializeGame(roomCode: string, dealerSeat: SeatIndex): Promise<void> {
+  // Clear ready state from previous round
+  await clearReadyState(roomCode);
+
   // Generate and shuffle tiles
   const allTiles = generateAllTiles();
   let shuffledTiles = shuffle(allTiles);
@@ -1272,9 +1275,51 @@ export async function discardTile(
   // Add to discard pile
   const discardPile = [...(gameState.discardPile || []), tileId];
 
-  // Get room settings to copy timer value to this calling phase
+  // Get room settings
   const settingsSnapshot = await get(ref(db, `rooms/${roomCode}/settings`));
   const settings = settingsSnapshot.val() as RoomSettings | null;
+
+  // FUJIAN MAHJONG RULE: When wall has 4 or fewer tiles, skip calling phase
+  // Each player gets one final draw attempt, only self-draw wins allowed
+  const wallLength = gameState.wall?.length || 0;
+  if (wallLength <= 4) {
+    const nextSeat = getNextSeat(seat);
+    const turnTimerSeconds = settings?.turnTimerSeconds ?? null;
+
+    // Skip calling phase - directly advance to next player
+    const updateData: Record<string, unknown> = {
+      discardPile,
+      phase: 'playing',
+      currentPlayerSeat: nextSeat,
+      pendingCalls: null,
+      pendingChowOption: null,
+      turnStartTime: serverTimestamp(),
+      turnTimerSeconds,
+      lastAction: {
+        type: 'discard',
+        playerSeat: seat,
+        tile: tileId,
+        timestamp: Date.now(),
+      },
+    };
+    if (gameState.lastAction) {
+      updateData.previousAction = gameState.lastAction;
+    }
+    await update(ref(db, `rooms/${roomCode}/game`), updateData);
+
+    // Update private hand
+    await set(ref(db, `rooms/${roomCode}/privateHands/seat${seat}`), {
+      concealedTiles: currentHand,
+    });
+
+    // Log the discard
+    const tileName = getTileDisplayText(getTileType(tileId));
+    await addToLog(roomCode, `${SEAT_NAMES[seat]} discarded ${tileName}`);
+
+    return { success: true };
+  }
+
+  // Normal flow: enter calling phase
   const callingTimerSeconds = settings?.callingTimerSeconds ?? null;
 
   // Initialize pending calls - discarder is marked, others are 'waiting'
@@ -1345,8 +1390,48 @@ export async function handleDrawGame(roomCode: string): Promise<void> {
     status: 'ended',
   });
 
-  // Record draw result (0 score, no winner) - resets dealer streak
+  // Record draw result (0 score, no winner) - increments dealer streak
   await recordRoundResult(roomCode, null, 'Draw', 0, dealerSeat);
+}
+
+/**
+ * Force-abort the current game (host only)
+ * - Ends the game without recording a round result
+ * - Session scores remain unchanged (pretend this game didn't happen)
+ * - Dealer and dealer streak stay the same
+ */
+export async function abortGame(roomCode: string): Promise<{ success: boolean; error?: string }> {
+  const gameSnapshot = await get(ref(db, `rooms/${roomCode}/game`));
+  if (!gameSnapshot.exists()) {
+    return { success: false, error: 'Game not found' };
+  }
+
+  const gameState = gameSnapshot.val() as GameState;
+
+  // Only allow aborting active games
+  if (gameState.phase === 'ended' || gameState.phase === 'waiting') {
+    return { success: false, error: 'Game is not active' };
+  }
+
+  // End the game without recording a round
+  await update(ref(db, `rooms/${roomCode}/game`), {
+    phase: 'ended',
+    winner: null,
+    pendingCalls: null,
+    pendingChowOption: null,
+  });
+
+  await update(ref(db, `rooms/${roomCode}`), {
+    status: 'ended',
+  });
+
+  // Log the abort
+  await addToLog(roomCode, 'Game aborted by host');
+
+  // NOTE: We deliberately do NOT call recordRoundResult here
+  // This keeps session scores unchanged (as if this game never happened)
+
+  return { success: true };
 }
 
 // ============================================
@@ -2698,4 +2783,46 @@ export async function autoPassExpiredTimer(
 
   // Submit pass for this player
   return submitCallResponse(roomCode, seat, 'pass');
+}
+
+// ============================================
+// READY FOR NEXT ROUND SYSTEM
+// ============================================
+
+/**
+ * Set a player's ready state for the next round
+ */
+export async function setReadyForNextRound(
+  roomCode: string,
+  seat: SeatIndex,
+  ready: boolean
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await update(ref(db, `rooms/${roomCode}/readyForNextRound`), {
+      [`seat${seat}`]: ready,
+    });
+    return { success: true };
+  } catch (err) {
+    console.error('Failed to set ready state:', err);
+    return { success: false, error: 'Failed to update ready state' };
+  }
+}
+
+/**
+ * Initialize ready states when game ends (all players not ready)
+ */
+export async function initializeReadyState(roomCode: string): Promise<void> {
+  await set(ref(db, `rooms/${roomCode}/readyForNextRound`), {
+    seat0: false,
+    seat1: false,
+    seat2: false,
+    seat3: false,
+  });
+}
+
+/**
+ * Clear ready states when starting a new round
+ */
+export async function clearReadyState(roomCode: string): Promise<void> {
+  await set(ref(db, `rooms/${roomCode}/readyForNextRound`), null);
 }

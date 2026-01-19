@@ -20,6 +20,9 @@ interface SettingsModalProps {
   setCallingTimerSeconds?: (seconds: number | null) => Promise<void>;
   turnTimerSeconds?: number | null;
   setTurnTimerSeconds?: (seconds: number | null) => Promise<void>;
+  // Abort game (host only, during active game)
+  isGameActive?: boolean;
+  onAbort?: () => Promise<void>;
 }
 
 // Check if device has touch capabilities (likely mobile)
@@ -56,10 +59,28 @@ export function SettingsModal({
   setCallingTimerSeconds,
   turnTimerSeconds,
   setTurnTimerSeconds,
+  isGameActive,
+  onAbort,
 }: SettingsModalProps) {
   const [recordingFor, setRecordingFor] = useState<keyof KeyboardShortcuts | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [aborting, setAborting] = useState(false);
   const isTouchDevice = useIsTouchDevice();
+
+  // Handle abort game
+  const handleAbort = async () => {
+    if (!onAbort || aborting) return;
+    if (!window.confirm('Are you sure you want to abort this game? The round will not be recorded.')) {
+      return;
+    }
+    setAborting(true);
+    try {
+      await onAbort();
+      onClose();
+    } finally {
+      setAborting(false);
+    }
+  };
 
   // Calling timer input state (local until blur)
   const [timerInputValue, setTimerInputValue] = useState<string>(
@@ -552,6 +573,25 @@ export function SettingsModal({
           <div className="text-center text-slate-400 py-4">
             <p className="text-sm">Keyboard shortcuts are not available on touch devices.</p>
             <p className="text-xs mt-2 text-slate-500">Use the on-screen buttons to play.</p>
+          </div>
+        )}
+
+        {/* Abort Game Section - Host only, during active game */}
+        {isHost && isGameActive && onAbort && (
+          <div className="mt-6 pt-6 border-t border-slate-600">
+            <h3 className="text-sm font-medium text-red-400 uppercase tracking-wide mb-3">
+              Danger Zone
+            </h3>
+            <button
+              onClick={handleAbort}
+              disabled={aborting}
+              className="w-full py-2 px-4 bg-red-600 hover:bg-red-500 disabled:bg-red-800 disabled:cursor-not-allowed text-white font-semibold rounded transition-colors"
+            >
+              {aborting ? 'Aborting...' : 'Abort Game'}
+            </button>
+            <p className="text-xs text-slate-500 mt-2">
+              End this game without recording the round. Session scores remain unchanged.
+            </p>
           </div>
         )}
       </div>

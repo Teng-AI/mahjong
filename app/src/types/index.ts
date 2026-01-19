@@ -230,6 +230,13 @@ export interface Room {
   settings: RoomSettings;
   game?: GameState;
   session?: SessionScores;
+  /** Ready state for next round (set when game ends, cleared when new round starts) */
+  readyForNextRound?: {
+    seat0: boolean;
+    seat1: boolean;
+    seat2: boolean;
+    seat3: boolean;
+  };
 }
 
 // ============================================
