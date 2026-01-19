@@ -255,6 +255,13 @@ export interface SessionScores {
     seat2: number;
     seat3: number;
   };
+  /** Manual score adjustments by host (added to computed values) */
+  adjustments?: {
+    seat0: number;
+    seat1: number;
+    seat2: number;
+    seat3: number;
+  };
   dealerStreak: number; // Consecutive rounds kept by current dealer (0 = no streak)
 }
 

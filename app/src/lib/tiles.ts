@@ -590,9 +590,20 @@ export function hasGoldenPair(
   const regularTiles = tiles.filter(t => !isGoldTile(t, goldTileType));
   const setsNeeded = 5 - exposedMeldCount;
 
-  // Count tiles by type
+  // Sort tiles by type to ensure consistent processing order
+  // This is critical for the tryFormSetsOnly algorithm which only tries
+  // forward chows (val, val+1, val+2). Without sorting, a tile with value 8 or 9
+  // might be first in the Map and fail to form a chow even though it could be
+  // part of a 7-8-9 sequence when processed after the 7.
+  const sortedRegularTiles = [...regularTiles].sort((a, b) => {
+    const typeA = getTileType(a);
+    const typeB = getTileType(b);
+    return typeA.localeCompare(typeB);
+  });
+
+  // Count tiles by type (now in sorted order)
   const tileCounts = new Map<TileType, number>();
-  for (const tile of regularTiles) {
+  for (const tile of sortedRegularTiles) {
     const type = getTileType(tile);
     tileCounts.set(type, (tileCounts.get(type) || 0) + 1);
   }

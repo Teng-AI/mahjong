@@ -48,7 +48,8 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-b from-green-900 to-green-950 text-white">
       <div className="container mx-auto px-4 py-16">
         <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold mb-4">🀄 Mahjong Vibes</h1>
+          <h1 className="text-5xl font-bold mb-2">🀄 Mahjong Vibes</h1>
+          <p className="text-sm text-emerald-400/80">Fujianese Style</p>
         </div>
 
         <div className="max-w-md mx-auto space-y-4">

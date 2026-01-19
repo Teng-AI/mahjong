@@ -131,6 +131,37 @@ export async function recordRoundResult(
 }
 
 /**
+ * Adjust session scores (host only)
+ * Stores adjustments separately so they're additive to computed values
+ */
+export async function adjustCumulativeScores(
+  roomCode: string,
+  adjustments: Record<number, number>
+): Promise<void> {
+  // Get current session
+  const sessionSnapshot = await get(ref(db, `rooms/${roomCode}/session`));
+
+  if (!sessionSnapshot.exists()) {
+    throw new Error('No session data to adjust');
+  }
+
+  const session = sessionSnapshot.val() as SessionScores;
+  const currentAdjustments = session.adjustments || { seat0: 0, seat1: 0, seat2: 0, seat3: 0 };
+  const newAdjustments = { ...currentAdjustments };
+
+  // Apply new adjustments on top of existing
+  for (const [seatStr, adjustment] of Object.entries(adjustments)) {
+    const seatKey = `seat${seatStr}` as keyof typeof newAdjustments;
+    newAdjustments[seatKey] = (newAdjustments[seatKey] || 0) + adjustment;
+  }
+
+  // Save updated adjustments
+  await update(ref(db, `rooms/${roomCode}/session`), {
+    adjustments: newAdjustments,
+  });
+}
+
+/**
  * Get player name for a seat
  */
 async function getPlayerName(roomCode: string, seat: SeatIndex): Promise<string> {

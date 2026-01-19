@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRoom } from '@/hooks/useRoom';
 import { joinRoom, findUserSeat, fillWithBots, addBotPlayer, removePlayer } from '@/lib/rooms';
 import { initializeGame } from '@/lib/game';
+import { RulesModal } from '@/components/RulesModal';
 import { SeatIndex, RoomPlayer, BotDifficulty } from '@/types';
 
 // ============================================
@@ -289,6 +290,7 @@ export default function RoomPage() {
   const [addingBot, setAddingBot] = useState(false);
   const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>('medium');
   const [copied, setCopied] = useState(false);
+  const [showRules, setShowRules] = useState(false);
 
   const copyRoomLink = useCallback(async () => {
     const roomUrl = window.location.href;
@@ -642,7 +644,15 @@ export default function RoomPage() {
 
         {/* Instructions */}
         <div className="max-w-2xl mx-auto mb-8 bg-green-800/30 rounded-lg p-4">
-          <h3 className="font-semibold mb-2">How to Play</h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold">Quick Start</h3>
+            <button
+              onClick={() => setShowRules(true)}
+              className="px-3 py-1 text-sm bg-amber-600/80 hover:bg-amber-500 text-white rounded transition-colors"
+            >
+              View Full Rules
+            </button>
+          </div>
           <ul className="text-sm text-green-300 space-y-1">
             <li>• Share the room link with friends to invite them</li>
             <li>• The host can select which player will be the dealer</li>
@@ -741,6 +751,9 @@ export default function RoomPage() {
           </div>
         )}
       </div>
+
+      {/* Rules Modal */}
+      <RulesModal isOpen={showRules} onClose={() => setShowRules(false)} />
     </div>
   );
 }
