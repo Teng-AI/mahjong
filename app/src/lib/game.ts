@@ -1422,6 +1422,9 @@ export async function handleDrawGame(roomCode: string): Promise<void> {
   const gameState = gameSnapshot.val() as GameState;
   const dealerSeat = gameState.dealerSeat;
 
+  // Log the draw
+  await addToLog(roomCode, 'Game ended in a draw - wall exhausted');
+
   await update(ref(db, `rooms/${roomCode}/game`), {
     phase: 'ended',
     winner: null, // null winner indicates draw
