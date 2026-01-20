@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { KeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { useIsTouchDevice } from '../hooks/useIsTouchDevice';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -23,16 +24,6 @@ interface SettingsModalProps {
   // Abort game (host only, during active game)
   isGameActive?: boolean;
   onAbort?: () => Promise<void>;
-}
-
-// Check if device has touch capabilities (likely mobile)
-function useIsTouchDevice() {
-  const [isTouch] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  });
-
-  return isTouch;
 }
 
 const ACTION_LABELS: Record<keyof KeyboardShortcuts, string> = {
