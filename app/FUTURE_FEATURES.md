@@ -12,16 +12,10 @@
 
 > ⚠️ Address these BEFORE adding new features
 
-- [ ] **Refactor game page** 🔴
-  - Current `page.tsx` is 3,665 lines — unmaintainable
-  - Extract into separate components: GameBoard, PlayerCards, CallingUI, TimerUI, Modals
-  - Unblocks all future feature development
-  - **Do this first or complexity will kill productivity**
-
-- [ ] **Add hook test coverage** 🟡
-  - `useGame.ts` and `useBotRunner.ts` are complex and untested
-  - Core gameplay logic needs test coverage
-  - Reduces bugs in multiplayer sync
+- [x] **Refactor game page** 🔴 ✅ Partial
+  - Reduced from 3,665 → 3,272 lines
+  - Extracted: GameHeader, GameLog, MobileActionBar, DiscardPile, Tile, Hand
+  - PlayersGrid/CallingStatusBar kept inline (extraction caused bugs)
 
 ---
 
@@ -119,6 +113,10 @@
 ## Deprioritized
 
 > Documented for future reference, but not recommended to build now
+
+- [ ] **Hook test coverage** 🟡
+  - `useGame.ts` and `useBotRunner.ts` are untested
+  - *Reason: Core logic already tested in lib/game.ts, hook testing is tedious/low ROI*
 
 - [ ] **Golden Dragon special bonus** 🟡
   - Complex rule variant (+100 for 3 Golds as Peng set)
