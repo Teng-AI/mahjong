@@ -19,7 +19,7 @@ import { SettingsModal } from '@/components/SettingsModal';
 import { TurnIndicator } from '@/components/TurnIndicator';
 import { RulesModal } from '@/components/RulesModal';
 import { Tile, Hand } from '@/components/tiles';
-import { GameHeader, GameLog, MobileActionBar, CallingStatusBar, PlayersGrid, DiscardPile } from '@/components/game';
+import { GameHeader, GameLog, MobileActionBar, DiscardPile } from '@/components/game';
 import { SeatIndex, TileId, TileType, CallAction, Room, WinnerInfo, ScoreBreakdown, CALL_DISPLAY_NAMES } from '@/types';
 import { ref, update } from 'firebase/database';
 import { db } from '@/firebase/config';
@@ -1156,8 +1156,8 @@ export default function GamePage() {
     );
   }
 
-  // No game state
-  if (!room || !gameState || mySeat === null) {
+  // No game state or room not fully loaded
+  if (!room || !room.players || !gameState || mySeat === null) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-white flex items-center justify-center">
         <div className="text-center">
@@ -2957,23 +2957,142 @@ export default function GamePage() {
       </div>
 
       {/* ========== ALL PLAYERS - TURN ORDER ========== */}
-      <PlayersGrid
-        mySeat={mySeat}
-        room={room}
-        dealerSeat={gameState.dealerSeat}
-        currentPlayerSeat={gameState.currentPlayerSeat}
-        exposedMelds={gameState.exposedMelds as Record<string, import('@/types').Meld[]>}
-        bonusTiles={gameState.bonusTiles as Record<string, string[]>}
-        goldTileType={gameState.goldTileType}
-        needsDiscard={(seat) => gameState.currentPlayerSeat === seat && !needsToDraw(gameState)}
-      />
+      <div className="bg-slate-800/50 rounded-xl p-2 sm:p-4 border border-slate-600">
+        <div className="grid grid-cols-[0.33fr_1fr_1fr_1fr] gap-1 sm:gap-2">
+          {/* Order: current player first, then next 3 in turn order */}
+          {[0, 1, 2, 3].map((offset) => {
+            const seat = ((mySeat + offset) % 4) as SeatIndex;
+            const player = room.players[`seat${seat}` as keyof typeof room.players];
+            if (!player) return null;
+
+            const isMe = seat === mySeat;
+            const isDealer = gameState.dealerSeat === seat;
+            const exposedMelds = gameState.exposedMelds?.[`seat${seat}` as keyof typeof gameState.exposedMelds] || [];
+            const bonusTiles = gameState.bonusTiles?.[`seat${seat}` as keyof typeof gameState.bonusTiles] || [];
+            const isCurrentTurn = gameState.currentPlayerSeat === seat;
+            // Total tiles = 16 base + 1 per kong (replacement draw) + 1 if needs to discard
+            const kongCount = exposedMelds.filter(m => m.type === 'kong').length;
+            const needsDiscard = isCurrentTurn && !needsToDraw(gameState);
+            const totalTiles = 16 + kongCount + (needsDiscard ? 1 : 0);
+            const tilesInMelds = exposedMelds.reduce((sum, meld) => sum + meld.tiles.length, 0);
+            const tileCount = totalTiles - tilesInMelds;
+
+            // Narrow cell for current player (first column)
+            if (isMe) {
+              return (
+                <div
+                  key={seat}
+                  className={`p-1.5 sm:p-2 rounded-lg text-center ${
+                    isCurrentTurn
+                      ? 'bg-emerald-500/25 border-2 border-emerald-500/50'
+                      : 'bg-blue-500/15 border border-blue-500/30'
+                  }`}
+                >
+                  <div className={`font-semibold text-xs sm:text-sm ${isCurrentTurn ? 'text-emerald-200' : 'text-blue-200'}`}>
+                    You
+                  </div>
+                  {isDealer && <span className="bg-amber-500 text-black text-[10px] sm:text-xs px-1 py-0.5 rounded font-bold">D</span>}
+                </div>
+              );
+            }
+
+            return (
+              <div
+                key={seat}
+                className={`p-1.5 sm:p-2 rounded-lg ${
+                  isCurrentTurn
+                    ? 'bg-emerald-500/25 border-2 border-emerald-500/50'
+                    : 'bg-slate-700/40 border border-slate-600'
+                }`}
+              >
+                {/* Player info */}
+                <div className="flex flex-col mb-1">
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {player.isBot && <span className="text-cyan-400 text-xs sm:text-sm">🤖</span>}
+                    <span className={`font-semibold text-xs sm:text-sm truncate ${isCurrentTurn ? 'text-emerald-200' : 'text-white'}`}>
+                      {player.name}
+                    </span>
+                    {isDealer && <span className="bg-amber-500 text-black text-[10px] sm:text-xs px-1 py-0.5 rounded font-bold">D</span>}
+                  </div>
+                  <div className="flex items-center gap-1 text-slate-400 text-[10px] sm:text-xs">
+                    <span>{tileCount}</span>
+                    {player.isBot && player.botDifficulty && (
+                      <>
+                        <span>·</span>
+                        <span className={
+                          player.botDifficulty === 'easy' ? 'text-green-400' :
+                          player.botDifficulty === 'hard' ? 'text-red-400' :
+                          'text-yellow-400'
+                        }>
+                          {player.botDifficulty.charAt(0).toUpperCase()}
+                        </span>
+                      </>
+                    )}
+                    {bonusTiles.length > 0 && (
+                      <>
+                        <span>·</span>
+                        <span className="text-amber-400 font-bold">+{bonusTiles.length}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                {/* Melds */}
+                {exposedMelds.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-0.5 sm:gap-1 mt-1">
+                    {exposedMelds.map((meld, meldIdx) => (
+                      <div key={meldIdx} className={`flex items-center gap-0.5 rounded p-0.5 ${meld.isConcealed ? 'bg-blue-900/50' : 'bg-slate-800/70'}`}>
+                        {meld.tiles.length === 4 ? (
+                          <>
+                            <Tile tileId={meld.tiles[0]} goldTileType={gameState.goldTileType} size="sm" faceDown={meld.isConcealed} />
+                            <span className="bg-amber-500 text-black text-[10px] px-1 py-0.5 rounded font-bold">×4</span>
+                          </>
+                        ) : (
+                          meld.tiles.map((tile, i) => (
+                            <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="sm" faceDown={meld.isConcealed} />
+                          ))
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Calling phase: show who's left to respond (desktop only - mobile shows in bottom bar) */}
       {isCallingPhase && gameState.pendingCalls && (
-        <CallingStatusBar
-          pendingCalls={gameState.pendingCalls as unknown as Record<string, string>}
-          room={room}
-        />
+        <div className="hidden md:flex bg-slate-700/40 rounded-lg px-3 py-2 mt-2 items-center justify-center gap-2 sm:gap-3 text-sm flex-wrap">
+          {([0, 1, 2, 3] as SeatIndex[]).map((seat) => {
+            const call = gameState.pendingCalls?.[`seat${seat}` as keyof typeof gameState.pendingCalls];
+            const playerName = room.players[`seat${seat}` as keyof typeof room.players]?.name || SEAT_LABELS[seat];
+            const isDiscarder = call === 'discarder';
+            // Firebase doesn't store null, so undefined means waiting
+            const isWaiting = !call;
+            const hasResponded = !!call && call !== 'discarder';
+
+            return (
+              <div
+                key={seat}
+                className={`px-2 py-1 rounded ${
+                  isDiscarder
+                    ? 'bg-slate-600/50 text-slate-400'
+                    : hasResponded
+                    ? 'bg-emerald-500/30 text-emerald-300'
+                    : isWaiting
+                    ? 'bg-orange-500/30 text-orange-300 animate-pulse'
+                    : 'bg-slate-600/50 text-slate-400'
+                }`}
+              >
+                {playerName}
+                {isDiscarder && <span className="ml-1 text-xs opacity-60">—</span>}
+                {hasResponded && <span className="ml-1">✓</span>}
+                {isWaiting && <span className="ml-1">...</span>}
+              </div>
+            );
+          })}
+        </div>
       )}
 
       {/* ========== GAME LOG ========== */}
