@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Draw game log entry** - Game log now records "Game ended in a draw - wall exhausted" when the wall runs out
 - **Winner reveal suspense animation** - Dramatic reveal when someone wins
   - Face-down green tiles displayed first with "The winner is..." text
   - Tiles flip to reveal hand with staggered cascade animation
@@ -84,6 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Ready button color bleeding on mobile** - Removed transition causing amber/green colors to blend
 
 ### Changed
+- **Refactored game page** - Extracted reusable components (GameHeader, GameLog, MobileActionBar, DiscardPile, Tile, Hand) reducing page.tsx from 3,665 to 3,272 lines
 - **Rebranded to Fuzhou Mahjong (福州麻将)** - Consistent naming throughout
   - Replaced "Fujian Mahjong" with "Fuzhou Mahjong (福州麻将)"
   - Removed "Gold Rush Mahjong" (not a recognized search term)
