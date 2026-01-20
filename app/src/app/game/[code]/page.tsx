@@ -19,7 +19,7 @@ import { SettingsModal } from '@/components/SettingsModal';
 import { TurnIndicator } from '@/components/TurnIndicator';
 import { RulesModal } from '@/components/RulesModal';
 import { Tile, Hand } from '@/components/tiles';
-import { GameHeader, GameLog } from '@/components/game';
+import { GameHeader, GameLog, MobileActionBar, CallingStatusBar, PlayersGrid, DiscardPile } from '@/components/game';
 import { SeatIndex, TileId, TileType, CallAction, Room, WinnerInfo, ScoreBreakdown, CALL_DISPLAY_NAMES } from '@/types';
 import { ref, update } from 'firebase/database';
 import { db } from '@/firebase/config';
@@ -2949,179 +2949,31 @@ export default function GamePage() {
         </div>
 
         {/* Discard Pile - Middle column */}
-        <div className="bg-slate-800/50 rounded-xl p-2 sm:p-4 border border-slate-600">
-          <div className="text-sm sm:text-lg text-slate-300 font-medium mb-2 sm:mb-3 flex items-center justify-between">
-            <span>Discard Pile</span>
-            <span className="text-slate-400 text-xs sm:text-base">{gameState.discardPile?.length || 0} tiles</span>
-          </div>
-          {gameState.discardPile?.length > 0 ? (
-            <div className="flex gap-1 sm:gap-1.5 flex-wrap">
-              {(() => {
-                const tileCounts = new Map<string, { tileId: TileId; count: number }>();
-                gameState.discardPile.forEach((tile) => {
-                  const tileType = getTileType(tile);
-                  const existing = tileCounts.get(tileType);
-                  if (existing) existing.count++;
-                  else tileCounts.set(tileType, { tileId: tile, count: 1 });
-                });
-                return Array.from(tileCounts.entries())
-                  .sort((a, b) => a[0].localeCompare(b[0]))
-                  .map(([tileType, { tileId, count }]) => (
-                    <div key={tileType} className="relative">
-                      <Tile tileId={tileId} goldTileType={gameState.goldTileType || ''} size="sm" />
-                      {count > 1 && (
-                        <span className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 bg-red-500 text-white text-[10px] sm:text-xs rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center font-bold">
-                          {count}
-                        </span>
-                      )}
-                    </div>
-                  ));
-              })()}
-            </div>
-          ) : (
-            <div className="text-slate-400 text-sm sm:text-lg">No discards yet</div>
-          )}
-        </div>
+        <DiscardPile
+          discardPile={gameState.discardPile || []}
+          goldTileType={gameState.goldTileType}
+        />
 
       </div>
 
       {/* ========== ALL PLAYERS - TURN ORDER ========== */}
-      <div className="bg-slate-800/50 rounded-xl p-2 sm:p-4 border border-slate-600">
-        <div className="grid grid-cols-[0.33fr_1fr_1fr_1fr] gap-1 sm:gap-2">
-          {/* Order: current player first, then next 3 in turn order */}
-          {[0, 1, 2, 3].map((offset) => {
-            const seat = ((mySeat + offset) % 4) as SeatIndex;
-            const player = room.players[`seat${seat}` as keyof typeof room.players];
-            if (!player) return null;
-
-            const isMe = seat === mySeat;
-            const isDealer = gameState.dealerSeat === seat;
-            const exposedMelds = gameState.exposedMelds?.[`seat${seat}` as keyof typeof gameState.exposedMelds] || [];
-            const bonusTiles = gameState.bonusTiles?.[`seat${seat}` as keyof typeof gameState.bonusTiles] || [];
-            const isCurrentTurn = gameState.currentPlayerSeat === seat;
-            // Total tiles = 16 base + 1 per kong (replacement draw) + 1 if needs to discard
-            const kongCount = exposedMelds.filter(m => m.type === 'kong').length;
-            const needsDiscard = isCurrentTurn && !needsToDraw(gameState);
-            const totalTiles = 16 + kongCount + (needsDiscard ? 1 : 0);
-            const tilesInMelds = exposedMelds.reduce((sum, meld) => sum + meld.tiles.length, 0);
-            const tileCount = totalTiles - tilesInMelds;
-
-            // Narrow cell for current player (first column)
-            if (isMe) {
-              return (
-                <div
-                  key={seat}
-                  className={`p-1.5 sm:p-2 rounded-lg text-center ${
-                    isCurrentTurn
-                      ? 'bg-emerald-500/25 border-2 border-emerald-500/50'
-                      : 'bg-blue-500/15 border border-blue-500/30'
-                  }`}
-                >
-                  <div className={`font-semibold text-xs sm:text-sm ${isCurrentTurn ? 'text-emerald-200' : 'text-blue-200'}`}>
-                    You
-                  </div>
-                  {isDealer && <span className="bg-amber-500 text-black text-[10px] sm:text-xs px-1 py-0.5 rounded font-bold">D</span>}
-                </div>
-              );
-            }
-
-            return (
-              <div
-                key={seat}
-                className={`p-1.5 sm:p-2 rounded-lg ${
-                  isCurrentTurn
-                    ? 'bg-emerald-500/25 border-2 border-emerald-500/50'
-                    : 'bg-slate-700/40 border border-slate-600'
-                }`}
-              >
-                {/* Player info */}
-                <div className="flex flex-col mb-1">
-                  <div className="flex items-center gap-1 flex-wrap">
-                    {player.isBot && <span className="text-cyan-400 text-xs sm:text-sm">🤖</span>}
-                    <span className={`font-semibold text-xs sm:text-sm truncate ${isCurrentTurn ? 'text-emerald-200' : 'text-white'}`}>
-                      {player.name}
-                    </span>
-                    {isDealer && <span className="bg-amber-500 text-black text-[10px] sm:text-xs px-1 py-0.5 rounded font-bold">D</span>}
-                  </div>
-                  <div className="flex items-center gap-1 text-slate-400 text-[10px] sm:text-xs">
-                    <span>{tileCount}</span>
-                    {player.isBot && player.botDifficulty && (
-                      <>
-                        <span>·</span>
-                        <span className={
-                          player.botDifficulty === 'easy' ? 'text-green-400' :
-                          player.botDifficulty === 'hard' ? 'text-red-400' :
-                          'text-yellow-400'
-                        }>
-                          {player.botDifficulty.charAt(0).toUpperCase()}
-                        </span>
-                      </>
-                    )}
-                    {bonusTiles.length > 0 && (
-                      <>
-                        <span>·</span>
-                        <span className="text-amber-400 font-bold">+{bonusTiles.length}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-                {/* Melds */}
-                {exposedMelds.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-0.5 sm:gap-1 mt-1">
-                    {exposedMelds.map((meld, meldIdx) => (
-                      <div key={meldIdx} className={`flex items-center gap-0.5 rounded p-0.5 ${meld.isConcealed ? 'bg-blue-900/50' : 'bg-slate-800/70'}`}>
-                        {meld.tiles.length === 4 ? (
-                          <>
-                            <Tile tileId={meld.tiles[0]} goldTileType={gameState.goldTileType} size="sm" faceDown={meld.isConcealed} />
-                            <span className="bg-amber-500 text-black text-[10px] px-1 py-0.5 rounded font-bold">×4</span>
-                          </>
-                        ) : (
-                          meld.tiles.map((tile, i) => (
-                            <Tile key={i} tileId={tile} goldTileType={gameState.goldTileType} size="sm" faceDown={meld.isConcealed} />
-                          ))
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <PlayersGrid
+        mySeat={mySeat}
+        room={room}
+        dealerSeat={gameState.dealerSeat}
+        currentPlayerSeat={gameState.currentPlayerSeat}
+        exposedMelds={gameState.exposedMelds as Record<string, import('@/types').Meld[]>}
+        bonusTiles={gameState.bonusTiles as Record<string, string[]>}
+        goldTileType={gameState.goldTileType}
+        needsDiscard={(seat) => gameState.currentPlayerSeat === seat && !needsToDraw(gameState)}
+      />
 
       {/* Calling phase: show who's left to respond (desktop only - mobile shows in bottom bar) */}
       {isCallingPhase && gameState.pendingCalls && (
-        <div className="hidden md:flex bg-slate-700/40 rounded-lg px-3 py-2 mt-2 items-center justify-center gap-2 sm:gap-3 text-sm flex-wrap">
-          {([0, 1, 2, 3] as SeatIndex[]).map((seat) => {
-            const call = gameState.pendingCalls?.[`seat${seat}` as keyof typeof gameState.pendingCalls];
-            const playerName = room.players[`seat${seat}` as keyof typeof room.players]?.name || SEAT_LABELS[seat];
-            const isDiscarder = call === 'discarder';
-            // Firebase doesn't store null, so undefined means waiting
-            const isWaiting = !call;
-            const hasResponded = !!call && call !== 'discarder';
-
-            return (
-              <div
-                key={seat}
-                className={`px-2 py-1 rounded ${
-                  isDiscarder
-                    ? 'bg-slate-600/50 text-slate-400'
-                    : hasResponded
-                    ? 'bg-emerald-500/30 text-emerald-300'
-                    : isWaiting
-                    ? 'bg-orange-500/30 text-orange-300 animate-pulse'
-                    : 'bg-slate-600/50 text-slate-400'
-                }`}
-              >
-                {playerName}
-                {isDiscarder && <span className="ml-1 text-xs opacity-60">—</span>}
-                {hasResponded && <span className="ml-1">✓</span>}
-                {isWaiting && <span className="ml-1">...</span>}
-              </div>
-            );
-          })}
-        </div>
+        <CallingStatusBar
+          pendingCalls={gameState.pendingCalls as unknown as Record<string, string>}
+          room={room}
+        />
       )}
 
       {/* ========== GAME LOG ========== */}
@@ -3131,192 +2983,38 @@ export default function GamePage() {
       />
 
       {/* Mobile Bottom Action Bar */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 border-t border-slate-700 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] z-40">
-        <div className="flex gap-2">
-          {/* Calling phase buttons - ordered left-to-right: PASS (lowest) to HU (highest priority) */}
-          {isCallingPhase && myPendingCall === 'waiting' && !chowSelectionMode && (
-            <>
-              <button
-                onClick={() => onCallResponse('pass')}
-                disabled={processingAction}
-                className="flex-1 py-3 bg-white hover:bg-gray-100 disabled:bg-gray-500 text-slate-800 disabled:text-white font-bold rounded-lg text-sm"
-              >
-                PASS
-              </button>
-              {myValidCalls?.canChow && (
-                <button
-                  onClick={onChowClick}
-                  disabled={processingAction}
-                  className="flex-1 py-3 bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
-                >
-                  CHI
-                </button>
-              )}
-              {myValidCalls?.canPung && (
-                <button
-                  onClick={() => onCallResponse('pung')}
-                  disabled={processingAction}
-                  className="flex-1 py-3 bg-purple-500 hover:bg-purple-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
-                >
-                  PENG
-                </button>
-              )}
-              {myValidCalls?.canKong && (
-                <button
-                  onClick={() => onCallResponse('kong')}
-                  disabled={processingAction}
-                  className="flex-1 py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
-                >
-                  GANG
-                </button>
-              )}
-              {myValidCalls?.canWin && (
-                <button
-                  onClick={() => onCallResponse('win')}
-                  disabled={processingAction}
-                  className="flex-1 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-sm"
-                >
-                  HU!
-                </button>
-              )}
-            </>
-          )}
-
-          {/* Chow selection mode - Cancel (left) to Confirm (right) */}
-          {isCallingPhase && chowSelectionMode && (
-            <>
-              <button
-                onClick={onCancelChow}
-                disabled={processingAction}
-                className="flex-1 py-3 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-lg text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={onConfirmChow}
-                disabled={selectedChowTiles.length !== 2 || processingAction}
-                className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
-              >
-                Confirm ({selectedChowTiles.length}/2)
-              </button>
-            </>
-          )}
-
-          {/* Waiting for call result - show all players' status (only after making choice) */}
-          {isCallingPhase && hasRespondedToCalling && !chowSelectionMode && gameState.pendingCalls && (
-            <div className="flex items-center justify-center gap-1.5 flex-wrap w-full">
-              {([0, 1, 2, 3] as SeatIndex[]).map((seat) => {
-                const call = gameState.pendingCalls?.[`seat${seat}` as keyof typeof gameState.pendingCalls];
-                const playerName = room?.players[`seat${seat}` as keyof typeof room.players]?.name || SEAT_LABELS[seat];
-                const isMe = seat === mySeat;
-                const isDiscarder = call === 'discarder';
-                const isWaiting = !call;
-                const hasResponded = !!call && call !== 'discarder';
-
-                // Truncate name for mobile
-                const displayName = playerName.length > 6 ? playerName.slice(0, 5) + '…' : playerName;
-
-                return (
-                  <div
-                    key={seat}
-                    className={`px-2 py-1.5 rounded text-xs font-medium ${
-                      isMe
-                        ? 'bg-blue-500/40 text-blue-200 ring-1 ring-blue-400/50'
-                        : isDiscarder
-                        ? 'bg-slate-600/50 text-slate-400'
-                        : hasResponded
-                        ? 'bg-emerald-500/30 text-emerald-300'
-                        : isWaiting
-                        ? 'bg-orange-500/30 text-orange-300 animate-pulse'
-                        : 'bg-slate-600/50 text-slate-400'
-                    }`}
-                  >
-                    {displayName}
-                    {isDiscarder && <span className="ml-0.5 opacity-60">—</span>}
-                    {hasResponded && <span className="ml-0.5">✓</span>}
-                    {isWaiting && <span className="ml-0.5">…</span>}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Playing phase - my turn */}
-          {gameState.phase === 'playing' && isMyTurn && (
-            <>
-              {/* Self-draw hu button */}
-              {!shouldDraw && canWinNow && (
-                <button
-                  onClick={onDeclareWin}
-                  disabled={processingAction}
-                  className="flex-1 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:bg-gray-500 text-black font-bold rounded-lg animate-pulse shadow-lg text-sm"
-                >
-                  HU!
-                </button>
-              )}
-
-              {/* Gang button - unified */}
-              {!shouldDraw && !kongSelectionMode && combinedKongOptions.length > 0 && (
-                <button
-                  onClick={onKongKeyPress}
-                  disabled={processingAction}
-                  className="flex-1 py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
-                >
-                  GANG
-                </button>
-              )}
-              {/* Gang selection mode */}
-              {!shouldDraw && kongSelectionMode && (
-                <>
-                  <button
-                    onClick={onCancelKongSelection}
-                    disabled={processingAction}
-                    className="py-3 px-4 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-lg text-sm"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => executeKongOption(combinedKongOptions[focusedKongIndex])}
-                    disabled={processingAction}
-                    className="flex-1 py-3 bg-pink-500 hover:bg-pink-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
-                  >
-                    Confirm Gang ({focusedKongIndex + 1}/{combinedKongOptions.length})
-                  </button>
-                </>
-              )}
-
-              {/* Draw button */}
-              {shouldDraw && (
-                <button
-                  onClick={onDraw}
-                  disabled={processingAction}
-                  className="flex-1 py-3 bg-blue-500 hover:bg-blue-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
-                >
-                  {processingAction ? 'Drawing...' : 'Draw'}
-                </button>
-              )}
-
-              {/* Discard button */}
-              {!shouldDraw && !kongSelectionMode && (
-                <button
-                  onClick={onDiscard}
-                  disabled={processingAction || !selectedTile}
-                  className="flex-1 py-3 bg-red-500 hover:bg-red-400 disabled:bg-gray-500 text-white font-bold rounded-lg text-sm"
-                >
-                  {selectedTile ? 'Discard' : 'Select tile'}
-                </button>
-              )}
-            </>
-          )}
-
-          {/* Not my turn - waiting */}
-          {gameState.phase === 'playing' && !isMyTurn && !isCallingPhase && (
-            <div className="px-4 py-2.5 text-slate-400 text-sm">
-              {getPlayerName(room, gameState.currentPlayerSeat)}&apos;s turn...
-            </div>
-          )}
-        </div>
-      </div>
+      <MobileActionBar
+        gamePhase={gameState.phase}
+        isCallingPhase={isCallingPhase}
+        isMyTurn={isMyTurn}
+        shouldDraw={shouldDraw}
+        myPendingCall={myPendingCall}
+        hasRespondedToCalling={hasRespondedToCalling}
+        myValidCalls={myValidCalls}
+        pendingCalls={gameState.pendingCalls as Record<string, string> | null}
+        chowSelectionMode={chowSelectionMode}
+        selectedChowTiles={selectedChowTiles}
+        kongSelectionMode={kongSelectionMode}
+        combinedKongOptions={combinedKongOptions}
+        focusedKongIndex={focusedKongIndex}
+        canWinNow={canWinNow}
+        selectedTile={selectedTile}
+        processingAction={processingAction}
+        currentPlayerSeat={gameState.currentPlayerSeat}
+        mySeat={mySeat!}
+        room={room}
+        onCallResponse={onCallResponse}
+        onChowClick={onChowClick}
+        onCancelChow={onCancelChow}
+        onConfirmChow={onConfirmChow}
+        onDeclareWin={onDeclareWin}
+        onKongKeyPress={onKongKeyPress}
+        onCancelKongSelection={onCancelKongSelection}
+        executeKongOption={executeKongOption}
+        onDraw={onDraw}
+        onDiscard={onDiscard}
+        getPlayerName={getPlayerName}
+      />
 
       {/* Rules Modal */}
       <RulesModal isOpen={showRules} onClose={() => setShowRules(false)} />
