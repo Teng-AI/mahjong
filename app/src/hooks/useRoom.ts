@@ -1,4 +1,6 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { ref, onDisconnect, set } from 'firebase/database';
+import { db } from '@/firebase/config';
 import { Room, SeatIndex } from '@/types';
 import {
   subscribeToRoom,
@@ -103,27 +105,94 @@ export function useRoom({
     }
   }, [autoJoin, room, userId, userName, hasJoined, mySeat, roomCode]);
 
-  // Update connection status on mount/unmount
+  // Track if onDisconnect has been set up
+  const onDisconnectSetupRef = useRef(false);
+  // Track pending disconnect timeout for visibility-based disconnection
+  const visibilityDisconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Ref to always have current mySeat value (avoids stale closure in event handlers)
+  const mySeatRef = useRef<SeatIndex | null>(mySeat);
+
+  // Keep mySeatRef in sync with mySeat (must be in effect, not during render)
   useEffect(() => {
-    if (mySeat !== null && roomCode) {
-      updatePlayerConnection(roomCode, mySeat, true);
+    mySeatRef.current = mySeat;
+  }, [mySeat]);
 
-      // Update connection on visibility change
-      const handleVisibilityChange = () => {
-        if (mySeat !== null) {
-          updatePlayerConnection(roomCode, mySeat, !document.hidden);
-        }
-      };
+  // Delay before marking disconnected on visibility hidden (allows for brief app switches)
+  const VISIBILITY_DISCONNECT_DELAY_MS = 5000;
 
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-
-      // Cleanup: mark as disconnected when leaving
-      return () => {
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-        // Note: We don't mark as disconnected here because
-        // the user might just be navigating within the app
-      };
+  // Set up Firebase presence with onDisconnect for server-side disconnect detection
+  useEffect(() => {
+    if (mySeat === null || !roomCode) {
+      return;
     }
+
+    const connectedRef = ref(db, `rooms/${roomCode}/players/seat${mySeat}/connected`);
+    const lastSeenRef = ref(db, `rooms/${roomCode}/players/seat${mySeat}/lastSeen`);
+
+    // Set up onDisconnect handlers (server-side)
+    // These will automatically mark player as disconnected if connection drops
+    const setupPresence = async () => {
+      try {
+        // Register what happens when we disconnect
+        await onDisconnect(connectedRef).set(false);
+        await onDisconnect(lastSeenRef).set(Date.now());
+
+        // Then mark ourselves as connected
+        await set(connectedRef, true);
+        await set(lastSeenRef, Date.now());
+
+        onDisconnectSetupRef.current = true;
+      } catch (err) {
+        console.error('Failed to set up presence:', err);
+      }
+    };
+
+    setupPresence();
+
+    // Visibility change handler with delayed disconnect
+    // - On hidden: wait 5s before marking disconnected (handles brief app switches)
+    // - On visible: immediately mark connected and clear any pending disconnect
+    // Uses mySeatRef to avoid stale closure issues
+    const handleVisibilityChange = () => {
+      const currentSeat = mySeatRef.current;
+      if (currentSeat === null) return;
+
+      if (document.visibilityState === 'visible') {
+        // Cancel any pending disconnect
+        if (visibilityDisconnectTimeoutRef.current) {
+          clearTimeout(visibilityDisconnectTimeoutRef.current);
+          visibilityDisconnectTimeoutRef.current = null;
+        }
+        // Mark connected immediately
+        updatePlayerConnection(roomCode, currentSeat, true);
+      } else {
+        // Start delayed disconnect - only mark disconnected after 5s
+        // This prevents false disconnects from brief interruptions
+        visibilityDisconnectTimeoutRef.current = setTimeout(() => {
+          const seatAtTimeout = mySeatRef.current;
+          if (seatAtTimeout === null) return;
+          updatePlayerConnection(roomCode, seatAtTimeout, false);
+          visibilityDisconnectTimeoutRef.current = null;
+        }, VISIBILITY_DISCONNECT_DELAY_MS);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      // Clear any pending disconnect timeout
+      if (visibilityDisconnectTimeoutRef.current) {
+        clearTimeout(visibilityDisconnectTimeoutRef.current);
+        visibilityDisconnectTimeoutRef.current = null;
+      }
+      onDisconnectSetupRef.current = false;
+      // Cancel onDisconnect handlers when component unmounts normally
+      // (we only want them to fire on unexpected disconnects)
+      onDisconnect(connectedRef).cancel().catch(() => {});
+      onDisconnect(lastSeenRef).cancel().catch(() => {});
+    };
   }, [mySeat, roomCode]);
 
   const join = useCallback(
