@@ -284,6 +284,13 @@ export interface Settlement {
 }
 
 // ============================================
+// CONNECTION TYPES
+// ============================================
+
+/** Firebase connection status */
+export type ConnectionStatus = 'connected' | 'reconnecting' | 'failed';
+
+// ============================================
 // UTILITY TYPES
 // ============================================
 
