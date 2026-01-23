@@ -11,6 +11,7 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useCallingTimer } from '@/hooks/useCallingTimer';
 import { useTurnTimer } from '@/hooks/useTurnTimer';
 import { useIsTouchDevice } from '@/hooks/useIsTouchDevice';
+import { useFirebaseConnection } from '@/hooks/useFirebaseConnection';
 import { getTileType, getTileDisplayText, isGoldTile, sortTilesForDisplay } from '@/lib/tiles';
 import { needsToDraw, adjustCumulativeScores, abortGame, setReadyForNextRound, initializeReadyState } from '@/lib/game';
 import { calculateSettlement, calculateNetPositions } from '@/lib/settle';
@@ -20,6 +21,8 @@ import { TurnIndicator } from '@/components/TurnIndicator';
 import { RulesModal } from '@/components/RulesModal';
 import { Tile, Hand } from '@/components/tiles';
 import { GameHeader, GameLog, MobileActionBar, DiscardPile } from '@/components/game';
+import { SpectatorView } from '@/components/SpectatorView';
+import { ConnectionBanner } from '@/components/ConnectionBanner';
 import { SeatIndex, TileId, TileType, CallAction, Room, WinnerInfo, ScoreBreakdown, CALL_DISPLAY_NAMES } from '@/types';
 import { ref, update } from 'firebase/database';
 import { db } from '@/firebase/config';
@@ -146,6 +149,13 @@ export default function GamePage() {
 
   // Sound effects
   const { playSound, soundEnabled, toggleSound, volume, setVolume } = useSounds();
+
+  // Firebase connection status (for connection banner)
+  const {
+    connectionStatus,
+    disconnectedAt,
+    forceReconnect,
+  } = useFirebaseConnection();
 
   // Determine if player has already responded during calling phase
   const hasRespondedToCalling = myPendingCall !== null && myPendingCall !== 'waiting';
@@ -1157,7 +1167,7 @@ export default function GamePage() {
   }
 
   // No game state or room not fully loaded
-  if (!room || !room.players || !gameState || mySeat === null) {
+  if (!room || !room.players || !gameState) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-white flex items-center justify-center">
         <div className="text-center">
@@ -1170,6 +1180,21 @@ export default function GamePage() {
           </button>
         </div>
       </div>
+    );
+  }
+
+  // Spectator mode - user is not in the room but game exists
+  if (mySeat === null) {
+    return (
+      <SpectatorView
+        roomCode={roomCode}
+        room={room}
+        gameState={gameState}
+        sessionScores={sessionScores}
+        connectionStatus={connectionStatus}
+        disconnectedAt={disconnectedAt}
+        onRetry={forceReconnect}
+      />
     );
   }
 
@@ -2555,6 +2580,13 @@ export default function GamePage() {
           {toastMessage}
         </div>
       )}
+
+      {/* Connection status banner */}
+      <ConnectionBanner
+        status={connectionStatus}
+        disconnectedAt={disconnectedAt}
+        onRetry={forceReconnect}
+      />
 
       {/* ========== COMBINED HEADER + PHASE BAR ========== */}
       <GameHeader
