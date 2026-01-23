@@ -4,7 +4,7 @@
 
 **Complexity**: 🟢 Easy (< 1 hour) | 🟡 Medium (1-4 hours) | 🔴 Hard (4+ hours)
 
-**Last reviewed:** 2026-01-19 (comprehensive project review)
+**Last reviewed:** 2026-01-23
 
 ---
 
@@ -38,23 +38,22 @@
   - Use `next-pwa` package
   - **Impact:** +30-50% daily active users from mobile
 
-- [ ] **Player profiles + persistent identity** 🟡
-  - Replace anonymous auth with guest ID (localStorage) or optional email
-  - Track personal stats: games played, win rate, favorite opponents
-  - Show stats on game end: "You've won 12 of 34 games (35%)"
-  - **Impact:** Creates habit loop — players return to improve stats
+- [ ] **Auto-pilot (AFK mode)** 🟡
+  - Player can toggle auto-play while away
+  - Bot AI takes over their seat temporarily
+  - Visual indicator showing player is on auto-pilot
+  - **Impact:** Games don't stall when someone steps away
 
-- [ ] **Tutorial / onboarding** 🔴
-  - Interactive 5-minute first-game tutorial with bot teacher
-  - Step-by-step: "This is a Peng. You need 3 matching tiles."
-  - Show winning hand examples
-  - **Impact:** Converts 40% more first-time players
+- [ ] **Refactor game page (continued)** 🟡
+  - Currently 3,272 lines - target <2,000
+  - Extract: PlayersGrid, CallingStatusBar, game end screens
+  - Improve maintainability for future features
 
-- [ ] **Public rooms / matchmaking** 🔴
-  - Browse list of open rooms (with filters)
-  - "Quick Join" to auto-match with strangers
-  - Simple win-rate leaderboard (top 100)
-  - **Impact:** Solves "no one to play with" — unlocks network effects
+- [ ] **Architecture review** 🟢
+  - Review project structure and dependencies
+  - Identify tech debt and code smells
+  - Document architectural decisions
+  - Check for missing CI/branch protections
 
 ---
 
@@ -67,15 +66,9 @@
   - Clearer selection UI on small screens
   - **Impact:** Better UX for 50% of users
 
-- [ ] **Opponent discard history** 🟢
-  - Show what each opponent has discarded (compact view)
-  - Helps intermediate players with strategy
-  - Currently only visible in game log
-
-- [ ] **Spectator mode** 🟡
-  - Invite friends to watch your game
-  - Read-only view of all hands + play log
-  - **Impact:** Drives viral/social sharing
+- [x] **Spectator mode** 🟡 ✅
+  - Read-only view for non-players joining a game room
+  - Shows all exposed tiles, timers, and game log
 
 - [ ] **Social sharing of wins** 🟡
   - Share winning hand to social media
@@ -86,11 +79,6 @@
   - Emoji reactions only (avoid toxicity/moderation)
   - "Good game" / "Nice!" quick reactions
   - Chat bubbles during game
-
-- [ ] **Analytics** 🟡
-  - Track games played, win rates, session length
-  - Privacy-respecting (no PII)
-  - Vercel Analytics or custom solution
 
 ---
 
@@ -113,6 +101,27 @@
 ## Deprioritized
 
 > Documented for future reference, but not recommended to build now
+
+- [ ] **Player profiles + persistent identity** 🟡
+  - Replace anonymous auth with guest ID (localStorage) or optional email
+  - Track personal stats: games played, win rate, favorite opponents
+  - *Reason: Nice-to-have, not critical for core gameplay*
+
+- [ ] **Tutorial / onboarding** 🔴
+  - Interactive 5-minute first-game tutorial with bot teacher
+  - *Reason: High effort, Quick Play + Rules modal covers most needs*
+
+- [ ] **Public rooms / matchmaking** 🔴
+  - Browse list of open rooms, "Quick Join" to auto-match
+  - *Reason: Requires player profiles first, complex infrastructure*
+
+- [ ] **Analytics** 🟡
+  - Track games played, win rates, session length
+  - *Reason: Not needed until user base grows*
+
+- [ ] **Opponent discard history** 🟢
+  - Show what each opponent has discarded (compact view)
+  - *Reason: Already visible in game log, low demand*
 
 - [ ] **Hook test coverage** 🟡
   - `useGame.ts` and `useBotRunner.ts` are untested
