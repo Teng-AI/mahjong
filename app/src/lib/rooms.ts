@@ -291,7 +291,7 @@ export async function setDealer(
 
 /**
  * Set calling phase timer (host only)
- * @param seconds - Timer in seconds (10-120), or null for no timer
+ * @param seconds - Timer in seconds (5-120), or null for no timer
  */
 export async function setCallingTimer(
   roomCode: string,
@@ -300,7 +300,7 @@ export async function setCallingTimer(
   // Validate range if not null
   let validatedSeconds = seconds;
   if (seconds !== null) {
-    if (seconds < 10) validatedSeconds = 10;
+    if (seconds < 5) validatedSeconds = 5;
     else if (seconds > 120) validatedSeconds = 120;
   }
 
@@ -311,7 +311,7 @@ export async function setCallingTimer(
 
 /**
  * Set turn timer (host only)
- * @param seconds - Timer in seconds (10-300), or null for no timer
+ * @param seconds - Timer in seconds (5-300), or null for no timer
  */
 export async function setTurnTimer(
   roomCode: string,
@@ -320,7 +320,7 @@ export async function setTurnTimer(
   // Validate range if not null
   let validatedSeconds = seconds;
   if (seconds !== null) {
-    if (seconds < 10) validatedSeconds = 10;
+    if (seconds < 5) validatedSeconds = 5;
     else if (seconds > 300) validatedSeconds = 300;
   }
 
