@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Spectator mode** - Non-players can watch games in progress
+  - Read-only view showing all exposed tiles, timers, and game log
+  - "Spectating" banner clearly indicates observer status
+  - Supports viewing game end screens with scores
+- **Connection status banner** - Shows Firebase connection state
+  - "Reconnecting..." indicator when connection drops
+  - Duration counter showing how long disconnected
+  - Manual retry button for forcing reconnection
+- **Player presence tracking** - Real-time online/offline status
+  - Firebase onDisconnect handlers update player status
+  - "Offline" badge shown on disconnected players
+  - Presence state synced across all clients
+- **Offline player watchdog** - Games continue when players disconnect
+  - Connected clients detect offline player's expired timers
+  - Auto-pass/auto-discard triggered with 2-second grace period
+  - Prevents games from freezing when someone closes browser
+- **Turn timer visible to all players** - Timer shows during any player's turn
+  - Green background when it's your turn
+  - Gray background when watching others
+  - Previously only visible to active player
 - **Draw game log entry** - Game log now records "Game ended in a draw - wall exhausted" when the wall runs out
 - **Winner reveal suspense animation** - Dramatic reveal when someone wins
   - Face-down green tiles displayed first with "The winner is..." text
@@ -85,7 +105,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Ready button color bleeding on mobile** - Removed transition causing amber/green colors to blend
 
 ### Changed
+- **Minimum timer lowered to 5 seconds** - Both calling and turn timers can now be set as low as 5s (was 10s)
 - **Refactored game page** - Extracted reusable components (GameHeader, GameLog, MobileActionBar, DiscardPile, Tile, Hand) reducing page.tsx from 3,665 to 3,272 lines
+- **Extracted winner/draw screen components** - SessionScoresTable, ScoreBreakdown, WinningHand, GameLogTabs, RoundEndActions now reusable
 - **Rebranded to Fuzhou Mahjong (福州麻将)** - Consistent naming throughout
   - Replaced "Fujian Mahjong" with "Fuzhou Mahjong (福州麻将)"
   - Removed "Gold Rush Mahjong" (not a recognized search term)
