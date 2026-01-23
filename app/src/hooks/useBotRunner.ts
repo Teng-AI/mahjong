@@ -12,6 +12,7 @@ import {
   declareConcealedKong,
   upgradePungToKong,
   setReadyForNextRound,
+  handleDrawGame,
 } from '@/lib/game';
 import {
   getTileType,
@@ -670,10 +671,24 @@ export function useBotRunner({
     const calledBySelf = justCalled && lastAction?.playerSeat === seat;
 
     if (needsDraw && !calledBySelf) {
+      // Safety check: if wall is empty, end game as draw
+      if (wallRemaining === 0) {
+        if (DEBUG_BOT) console.log(`[Bot ${seat}] Wall empty, triggering draw game`);
+        await handleDrawGame(roomCode);
+        return;
+      }
+
       if (DEBUG_BOT) console.log(`[Bot ${seat}] Drawing tile`);
       const drawResult = await drawTile(roomCode, seat);
 
+      // Check if draw failed (validation error, stale state, etc.)
+      if (!drawResult.success) {
+        if (DEBUG_BOT) console.log(`[Bot ${seat}] Draw failed, will retry on next state change`);
+        return;
+      }
+
       if (drawResult.wallEmpty || drawResult.threeGoldsWin) {
+        if (DEBUG_BOT) console.log(`[Bot ${seat}] Game ended (wallEmpty=${drawResult.wallEmpty}, threeGolds=${drawResult.threeGoldsWin})`);
         return; // Game ended
       }
 
