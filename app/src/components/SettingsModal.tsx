@@ -132,9 +132,9 @@ export function SettingsModal({
   const handleTimerInputBlur = async () => {
     if (!setCallingTimerSeconds) return;
     const parsed = parseInt(timerInputValue, 10);
-    if (isNaN(parsed) || parsed < 10) {
-      setTimerInputValue('10');
-      await setCallingTimerSeconds(10);
+    if (isNaN(parsed) || parsed < 5) {
+      setTimerInputValue('5');
+      await setCallingTimerSeconds(5);
     } else if (parsed > 120) {
       setTimerInputValue('120');
       await setCallingTimerSeconds(120);
@@ -169,9 +169,9 @@ export function SettingsModal({
   const handleTurnTimerInputBlur = async () => {
     if (!setTurnTimerSeconds) return;
     const parsed = parseInt(turnTimerInputValue, 10);
-    if (isNaN(parsed) || parsed < 10) {
-      setTurnTimerInputValue('10');
-      await setTurnTimerSeconds(10);
+    if (isNaN(parsed) || parsed < 5) {
+      setTurnTimerInputValue('5');
+      await setTurnTimerSeconds(5);
     } else if (parsed > 300) {
       setTurnTimerInputValue('300');
       await setTurnTimerSeconds(300);
@@ -333,7 +333,7 @@ export function SettingsModal({
                     <div className="flex items-center gap-2">
                       <input
                         type="range"
-                        min="10"
+                        min="5"
                         max="120"
                         step="5"
                         value={parseInt(timerInputValue) || 30}
@@ -342,7 +342,7 @@ export function SettingsModal({
                       />
                       <input
                         type="number"
-                        min="10"
+                        min="5"
                         max="120"
                         value={timerInputValue}
                         onChange={(e) => setTimerInputValue(e.target.value)}
@@ -390,16 +390,16 @@ export function SettingsModal({
                     <div className="flex items-center gap-2">
                       <input
                         type="range"
-                        min="10"
+                        min="5"
                         max="300"
-                        step="10"
+                        step="5"
                         value={parseInt(turnTimerInputValue) || 30}
                         onChange={(e) => handleTurnTimerSliderChange(parseInt(e.target.value))}
                         className="w-24 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-emerald-500"
                       />
                       <input
                         type="number"
-                        min="10"
+                        min="5"
                         max="300"
                         value={turnTimerInputValue}
                         onChange={(e) => setTurnTimerInputValue(e.target.value)}

@@ -30,7 +30,7 @@ function TimerSettings({
   title,
   description,
   disabledText,
-  minValue = 10,
+  minValue = 5,
   maxValue = 120,
   defaultValue = 30,
 }: TimerSettingsProps) {

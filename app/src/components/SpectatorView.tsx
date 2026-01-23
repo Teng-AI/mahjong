@@ -75,13 +75,6 @@ export function SpectatorView({
     const turnTimerSeconds = gameState.turnTimerSeconds;
     const turnStartTime = gameState.turnStartTime;
 
-    // No timers configured
-    if (!callingTimerSeconds && !turnTimerSeconds) {
-      setCallingTimerRemaining(null);
-      setTurnTimerRemaining(null);
-      return;
-    }
-
     const updateTimers = () => {
       const currentTime = Date.now();
 
@@ -103,6 +96,13 @@ export function SpectatorView({
         setTurnTimerRemaining(null);
       }
     };
+
+    // No timers configured - clear state and skip interval
+    if (!callingTimerSeconds && !turnTimerSeconds) {
+      // Use timeout to avoid sync setState in effect body
+      const timeoutId = setTimeout(updateTimers, 0);
+      return () => clearTimeout(timeoutId);
+    }
 
     // Initial calculation
     updateTimers();

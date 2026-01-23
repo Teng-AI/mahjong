@@ -13,7 +13,7 @@ import { useTurnTimer } from '@/hooks/useTurnTimer';
 import { useIsTouchDevice } from '@/hooks/useIsTouchDevice';
 import { useFirebaseConnection } from '@/hooks/useFirebaseConnection';
 import { getTileType, getTileDisplayText, isGoldTile, sortTilesForDisplay } from '@/lib/tiles';
-import { needsToDraw, adjustCumulativeScores, abortGame, setReadyForNextRound, initializeReadyState } from '@/lib/game';
+import { needsToDraw, adjustCumulativeScores, abortGame, setReadyForNextRound, initializeReadyState, autoPlayExpiredTurn, autoPassExpiredTimer } from '@/lib/game';
 import { calculateSettlement, calculateNetPositions } from '@/lib/settle';
 import { ScoreEditModal } from '@/components/ScoreEditModal';
 import { SettingsModal } from '@/components/SettingsModal';
@@ -211,9 +211,10 @@ export default function GamePage() {
     await handleAutoPlayTurn(turnStart);
   }, [mySeat, handleAutoPlayTurn]);
 
+  // Turn timer for MY turn (handles auto-play on expiration)
   const {
-    remainingSeconds: turnTimerRemainingSeconds,
-    isWarning: turnTimerIsWarning,
+    remainingSeconds: myTurnTimerRemainingSeconds,
+    isWarning: myTurnTimerIsWarning,
   } = useTurnTimer({
     startTime: turnStartTime,
     totalSeconds: turnTimerSeconds,
@@ -221,6 +222,34 @@ export default function GamePage() {
     isPlayingPhase: !!isPlayingPhase,
     onExpire: onTurnTimerExpire,
   });
+
+  // Display-only turn timer (shows for ALL players during playing phase)
+  const [displayTurnTimerRemaining, setDisplayTurnTimerRemaining] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Only calculate display timer when in playing phase with timer enabled
+    if (!isPlayingPhase || !turnTimerSeconds || !turnStartTime) {
+      setDisplayTurnTimerRemaining(null);
+      return;
+    }
+
+    const updateDisplayTimer = () => {
+      const now = Date.now();
+      const elapsed = (now - turnStartTime) / 1000;
+      const remaining = Math.max(0, turnTimerSeconds - elapsed);
+      setDisplayTurnTimerRemaining(remaining);
+    };
+
+    updateDisplayTimer();
+    const intervalId = setInterval(updateDisplayTimer, 100);
+    return () => clearInterval(intervalId);
+  }, [isPlayingPhase, turnTimerSeconds, turnStartTime]);
+
+  // Use my timer values when it's my turn (for warning sound), display timer otherwise
+  const turnTimerRemainingSeconds = isMyTurn ? myTurnTimerRemainingSeconds : displayTurnTimerRemaining;
+  const turnTimerIsWarning = isMyTurn
+    ? myTurnTimerIsWarning
+    : (displayTurnTimerRemaining !== null && displayTurnTimerRemaining <= 10 && displayTurnTimerRemaining > 0);
 
   // Track if turn warning sound has been played for current turn
   const turnWarningSoundPlayedRef = useRef<number | null>(null);
@@ -244,6 +273,97 @@ export default function GamePage() {
       turnWarningSoundPlayedRef.current = null;
     }
   }, [isMyTurn]);
+
+  // ============================================
+  // OFFLINE PLAYER WATCHDOG
+  // ============================================
+  // Monitor offline players and trigger auto-play when their timers expire
+  // This allows the game to continue even when a player disconnects
+
+  const offlineAutoPlayTriggeredRef = useRef<{
+    turnStartTime: number | null;
+    callingPhaseId: number | null;
+  }>({ turnStartTime: null, callingPhaseId: null });
+
+  useEffect(() => {
+    if (!gameState || !room) return;
+
+    // Check every 500ms for offline player timer expiration
+    const checkInterval = setInterval(() => {
+      const now = Date.now();
+
+      // === TURN TIMER: Check if current player is offline and timer expired ===
+      if (
+        gameState.phase === 'playing' &&
+        gameState.currentPlayerSeat !== undefined &&
+        turnTimerSeconds &&
+        turnStartTime
+      ) {
+        const currentPlayer = room.players[`seat${gameState.currentPlayerSeat}` as keyof typeof room.players];
+        const isCurrentPlayerOffline = currentPlayer && !currentPlayer.isBot && currentPlayer.connected === false;
+
+        if (isCurrentPlayerOffline) {
+          const elapsed = (now - turnStartTime) / 1000;
+          // Add 2 second grace period to give player time to reconnect
+          const gracePeriod = 2;
+          const timerExpired = elapsed >= turnTimerSeconds + gracePeriod;
+
+          if (
+            timerExpired &&
+            offlineAutoPlayTriggeredRef.current.turnStartTime !== turnStartTime
+          ) {
+            offlineAutoPlayTriggeredRef.current.turnStartTime = turnStartTime;
+            console.log(`[Watchdog] Offline player ${gameState.currentPlayerSeat} turn timer expired, triggering auto-play`);
+            autoPlayExpiredTurn(roomCode, gameState.currentPlayerSeat, turnStartTime);
+          }
+        }
+      }
+
+      // === CALLING TIMER: Check if any offline player hasn't responded and timer expired ===
+      if (
+        gameState.phase === 'calling' &&
+        callingTimerSeconds &&
+        callingPhaseStartTime &&
+        callingPhaseId !== undefined
+      ) {
+        const elapsed = (now - callingPhaseStartTime) / 1000;
+        // Add 2 second grace period
+        const gracePeriod = 2;
+        const timerExpired = elapsed >= callingTimerSeconds + gracePeriod;
+
+        if (
+          timerExpired &&
+          offlineAutoPlayTriggeredRef.current.callingPhaseId !== callingPhaseId
+        ) {
+          // Check each player for offline + waiting status
+          ([0, 1, 2, 3] as SeatIndex[]).forEach((seat) => {
+            const player = room.players[`seat${seat}` as keyof typeof room.players];
+            const pendingCall = gameState.pendingCalls?.[`seat${seat}` as keyof typeof gameState.pendingCalls];
+            const isOffline = player && !player.isBot && player.connected === false;
+            const isWaiting = pendingCall === 'waiting';
+
+            if (isOffline && isWaiting) {
+              console.log(`[Watchdog] Offline player ${seat} calling timer expired, triggering auto-pass`);
+              autoPassExpiredTimer(roomCode, seat, callingPhaseId);
+            }
+          });
+          // Mark this phase as handled (even if no offline players, to avoid repeated checks)
+          offlineAutoPlayTriggeredRef.current.callingPhaseId = callingPhaseId;
+        }
+      }
+    }, 500);
+
+    return () => clearInterval(checkInterval);
+  }, [
+    gameState,
+    room,
+    roomCode,
+    turnTimerSeconds,
+    turnStartTime,
+    callingTimerSeconds,
+    callingPhaseStartTime,
+    callingPhaseId,
+  ]);
 
   // Keyboard shortcuts
   const { shortcuts, setShortcut, resetToDefaults } = useKeyboardShortcuts();

@@ -110,12 +110,14 @@ export function GameHeader({
             {Math.ceil(timerRemainingSeconds)}s
           </div>
         )}
-        {/* Turn timer countdown (only during playing phase when it's my turn with timer enabled) */}
-        {isMyTurn && turnTimerRemainingSeconds !== null && (
+        {/* Turn timer countdown (during playing phase with timer enabled) */}
+        {!isCallingPhase && turnTimerRemainingSeconds !== null && (
           <div className={`px-2 py-0.5 sm:py-1 rounded-md text-xs sm:text-lg font-mono font-bold ${
             turnTimerIsWarning
               ? 'bg-red-500/60 text-red-100 animate-pulse'
-              : 'bg-emerald-500/40 text-emerald-200'
+              : isMyTurn
+                ? 'bg-emerald-500/40 text-emerald-200'
+                : 'bg-slate-600/60 text-slate-200'
           }`}>
             {Math.ceil(turnTimerRemainingSeconds)}s
           </div>
