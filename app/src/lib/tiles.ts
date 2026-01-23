@@ -222,13 +222,13 @@ export function removeTilesByType(tiles: TileId[], types: TileType[]): TileId[] 
 /**
  * Sort tiles for display (Golds first, then by suit, then by number)
  */
-export function sortTilesForDisplay(tiles: TileId[], goldTileType: TileType): TileId[] {
+export function sortTilesForDisplay(tiles: TileId[], goldTileType: TileType | null): TileId[] {
   const suitOrder: Record<string, number> = { dots: 0, bamboo: 1, characters: 2 };
   const windOrder: Record<WindDirection, number> = { east: 0, south: 1, west: 2, north: 3 };
 
   return [...tiles].sort((a, b) => {
-    const aIsGold = isGoldTile(a, goldTileType);
-    const bIsGold = isGoldTile(b, goldTileType);
+    const aIsGold = goldTileType ? isGoldTile(a, goldTileType) : false;
+    const bIsGold = goldTileType ? isGoldTile(b, goldTileType) : false;
 
     // Golds first
     if (aIsGold && !bIsGold) return -1;
