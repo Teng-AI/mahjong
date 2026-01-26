@@ -26,6 +26,18 @@ Sessions are organized by year-month, with individual session files named by dat
 
 ## Recent Sessions
 
+### 2026-01-23
+
+- **[Session 01](2026-01/2026-01-23_session-01.md)** - Reconnection v2 Complete & Merge to Main
+  - Fixed SpectatorView lint error with setTimeout workaround
+  - Implemented offline player watchdog with 2-second grace period
+  - Added turn timer display for all players (green = your turn, gray = others)
+  - Lowered minimum timer from 10s to 5s for faster gameplay
+  - Updated roadmap priorities: Auto-pilot, refactor game page, architecture review
+  - Updated CHANGELOG with all reconnection/spectator features
+  - Merged feature/reconnection-v2 to main (8 commits)
+  - Reconnection handling feature complete
+
 ### 2026-01-16
 
 - **[Session 02](2026-01/2026-01-16_session-02.md)** - Dramatic Win Experience & Sound Design Overhaul
@@ -148,6 +160,7 @@ The Fujian Mahjong project follows this development roadmap:
 - ✅ **Polish & Deployment** (animations, sounds, mobile optimization) - Complete
 - ✅ **Test Coverage** - 123 tests across core game logic
 - ✅ **CI/CD Pipeline** - GitHub Actions workflow
+- ✅ **Reconnection Handling** - Firebase presence, spectator mode, offline watchdog - Complete
 
 ## Finding Information
 
@@ -173,6 +186,6 @@ When documenting a new session:
 
 ---
 
-**Last updated**: 2026-01-16
+**Last updated**: 2026-01-23
 **MVP Status**: ✅ Complete - Fully playable game with all core features
-**Current Focus**: Timer features complete, scoring balanced, ready for production deployment
+**Current Focus**: Reconnection handling complete, ready for Auto-pilot (AFK mode) next
