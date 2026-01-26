@@ -129,7 +129,6 @@ export function ScoreEditModal({ isOpen, onClose, players, onSave }: ScoreEditMo
             const adjustment = adjustments[player.seatIndex] || '';
             const adjustmentNum = parseInt(adjustment, 10) || 0;
             const newWon = player.currentWon + adjustmentNum;
-            const netChange = newNet[player.seatIndex] - currentNet[player.seatIndex];
 
             return (
               <div key={player.seatIndex} className="flex items-center gap-2">
