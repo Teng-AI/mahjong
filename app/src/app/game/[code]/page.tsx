@@ -204,9 +204,20 @@ export default function GamePage() {
   const isMyTurn = gameState?.phase === 'playing' && gameState?.currentPlayerSeat === mySeat;
   const isPlayingPhase = gameState?.phase === 'playing';
 
+  // Shared ref to prevent both turn timer and watchdog from triggering auto-play for the same turn
+  // This prevents a race condition where both could fire if the user is briefly marked as offline
+  const autoPlayTriggeredForTurnRef = useRef<number | null>(null);
+
   // Turn timer callback
   const onTurnTimerExpire = useCallback(async (turnStart: number) => {
     if (mySeat === null) return;
+    // Check if auto-play was already triggered for this turn (by watchdog or previous call)
+    if (autoPlayTriggeredForTurnRef.current === turnStart) {
+      console.log(`[TurnTimer] Auto-play already triggered for turn ${turnStart}, skipping`);
+      return;
+    }
+    autoPlayTriggeredForTurnRef.current = turnStart;
+    console.log(`[TurnTimer] Turn timer expired for seat ${mySeat}, triggering auto-play`);
     await handleAutoPlayTurn(turnStart);
   }, [mySeat, handleAutoPlayTurn]);
 
@@ -309,9 +320,15 @@ export default function GamePage() {
 
           if (
             timerExpired &&
-            offlineAutoPlayTriggeredRef.current.turnStartTime !== turnStartTime
+            offlineAutoPlayTriggeredRef.current.turnStartTime !== turnStartTime &&
+            // Also check the shared ref to prevent race with turn timer (if this is my seat)
+            autoPlayTriggeredForTurnRef.current !== turnStartTime
           ) {
             offlineAutoPlayTriggeredRef.current.turnStartTime = turnStartTime;
+            // Also update the shared ref to prevent turn timer from double-triggering
+            if (gameState.currentPlayerSeat === mySeat) {
+              autoPlayTriggeredForTurnRef.current = turnStartTime;
+            }
             console.log(`[Watchdog] Offline player ${gameState.currentPlayerSeat} turn timer expired, triggering auto-play`);
             autoPlayExpiredTurn(roomCode, gameState.currentPlayerSeat, turnStartTime);
           }
@@ -357,6 +374,7 @@ export default function GamePage() {
     gameState,
     room,
     roomCode,
+    mySeat,
     turnTimerSeconds,
     turnStartTime,
     callingTimerSeconds,
