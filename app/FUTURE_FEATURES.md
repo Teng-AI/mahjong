@@ -4,7 +4,7 @@
 
 **Complexity**: 🟢 Easy (< 1 hour) | 🟡 Medium (1-4 hours) | 🔴 Hard (4+ hours)
 
-**Last reviewed:** 2026-01-23
+**Last reviewed:** 2026-01-26
 
 ---
 
@@ -12,9 +12,10 @@
 
 > ⚠️ Address these BEFORE adding new features
 
-- [x] **Refactor game page** 🔴 ✅ Partial
-  - Reduced from 3,665 → 3,272 lines
+- [x] **Refactor game page** 🔴 ✅ Major progress
+  - Reduced from 3,665 → 2,078 lines (43% reduction)
   - Extracted: GameHeader, GameLog, MobileActionBar, DiscardPile, Tile, Hand
+  - Extracted: DrawGameScreen, WinnerSuspenseScreen, WinnerResultsScreen
   - PlayersGrid/CallingStatusBar kept inline (extraction caused bugs)
 
 ---
@@ -44,10 +45,10 @@
   - Visual indicator showing player is on auto-pilot
   - **Impact:** Games don't stall when someone steps away
 
-- [ ] **Refactor game page (continued)** 🟡
-  - Currently 3,272 lines - target <2,000
-  - Extract: PlayersGrid, CallingStatusBar, game end screens
-  - Improve maintainability for future features
+- [ ] **Refactor game page (continued)** 🟢
+  - Currently 2,078 lines - close to target (<2,000)
+  - Remaining: PlayersGrid, CallingStatusBar could be extracted
+  - Game end screens now extracted
 
 - [ ] **Architecture review** 🟢
   - Review project structure and dependencies

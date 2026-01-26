@@ -108,6 +108,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Minimum timer lowered to 5 seconds** - Both calling and turn timers can now be set as low as 5s (was 10s)
 - **Refactored game page** - Extracted reusable components (GameHeader, GameLog, MobileActionBar, DiscardPile, Tile, Hand) reducing page.tsx from 3,665 to 3,272 lines
 - **Extracted winner/draw screen components** - SessionScoresTable, ScoreBreakdown, WinningHand, GameLogTabs, RoundEndActions now reusable
+- **Extracted end-of-game screens** - DrawGameScreen, WinnerSuspenseScreen, WinnerResultsScreen extracted as standalone components, reducing page.tsx from 3,424 to 2,078 lines
 - **Rebranded to Fuzhou Mahjong (福州麻将)** - Consistent naming throughout
   - Replaced "Fujian Mahjong" with "Fuzhou Mahjong (福州麻将)"
   - Removed "Gold Rush Mahjong" (not a recognized search term)
