@@ -16,5 +16,11 @@ export { GameLogTabs } from './GameLogTabs';
 export type { GameLogTabsProps } from './GameLogTabs';
 export { RoundEndActions } from './RoundEndActions';
 export type { RoundEndActionsProps } from './RoundEndActions';
+export { DrawGameScreen } from './DrawGameScreen';
+export type { DrawGameScreenProps } from './DrawGameScreen';
+export { WinnerSuspenseScreen } from './WinnerSuspenseScreen';
+export type { WinnerSuspenseScreenProps } from './WinnerSuspenseScreen';
+export { WinnerResultsScreen } from './WinnerResultsScreen';
+export type { WinnerResultsScreenProps } from './WinnerResultsScreen';
 // Note: PlayersGrid and CallingStatusBar were extracted but reverted to inline code
 // due to a mysterious rendering issue. See work log for details.
