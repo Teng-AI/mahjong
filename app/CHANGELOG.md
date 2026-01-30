@@ -101,8 +101,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Makes it obvious when players need to click "Ready Up!"
 
 ### Fixed
+- **Race condition in auto-play** - Fixed bug where both turn timer and offline player watchdog could trigger auto-play for the same turn, causing tiles to be lost. Added shared ref to coordinate between the two triggers.
 - **Auto-discard set preservation** - Timer expiry now calculates max possible sets and won't discard tiles that would reduce set count (e.g., won't break 1-2-3 sequence when isolated tiles available)
 - **Ready button color bleeding on mobile** - Removed transition causing amber/green colors to blend
+- **Unused variable warning** - Removed unused `netChange` variable in ScoreEditModal
 
 ### Changed
 - **Minimum timer lowered to 5 seconds** - Both calling and turn timers can now be set as low as 5s (was 10s)

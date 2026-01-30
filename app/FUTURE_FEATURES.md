@@ -46,9 +46,16 @@
   - **Impact:** Games don't stall when someone steps away
 
 - [ ] **Refactor game page (continued)** 🟢
-  - Currently 2,078 lines - close to target (<2,000)
-  - Remaining: PlayersGrid, CallingStatusBar could be extracted
-  - Game end screens now extracted
+  - Currently ~2,096 lines - close to target (<2,000)
+  - **Easy extractions:**
+    - CallingStatusBar (~32 lines) - who's responded during calling
+    - Toast/Notifications (~12 lines) - turn flash + error banners
+  - **Medium extractions:**
+    - useOfflineWatchdog hook (~96 lines) - clean boundary
+    - PlayersGrid (~100 lines) - ⚠️ tried before, caused bugs
+  - **Harder extractions:**
+    - MyHandSection (~290 lines) - hand + melds + selection modes
+    - useGameKeyboardShortcuts (~230 lines) - many dependencies
 
 - [ ] **Architecture review** 🟢
   - Review project structure and dependencies
