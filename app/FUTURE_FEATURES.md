@@ -4,7 +4,7 @@
 
 **Complexity**: 🟢 Easy (< 1 hour) | 🟡 Medium (1-4 hours) | 🔴 Hard (4+ hours)
 
-**Last reviewed:** 2026-01-26
+**Last reviewed:** 2026-01-30
 
 ---
 
@@ -18,6 +18,16 @@
   - Extracted: DrawGameScreen, WinnerSuspenseScreen, WinnerResultsScreen
   - PlayersGrid/CallingStatusBar kept inline (extraction caused bugs)
 
+- [ ] **Timer visibility bug (mobile freeze)** 🟡 ⚠️ HIGH PRIORITY
+  - **Bug:** Game freezes on mobile after screen lock during calling phase
+  - **Root cause:** Timer hooks (`useCallingTimer`, `useTurnTimer`) don't handle page visibility changes
+  - When screen locks, `setInterval` pauses; on unlock, auto-pass fires once but doesn't retry if Firebase write fails
+  - **Fix needed:**
+    - Add `visibilitychange` listener to timer hooks
+    - On page visible: recalculate timer, retry `onExpire` if expired
+    - Consider checking Firebase connection status before auto-pass attempts
+  - **Related to:** Reconnection handling (below)
+
 ---
 
 ## High Priority (Retention & Growth Blockers)
@@ -29,6 +39,7 @@
   - Show "Reconnecting..." indicator
   - Auto-rejoin room/game on reconnect
   - Handle stale state after reconnect
+  - Use `reconnectCount` from `useFirebaseConnection` to trigger re-syncs
   - **Impact:** Reduces mobile churn from ~30% to ~10%
 
 - [ ] **PWA support** 🟡
